@@ -1,0 +1,25 @@
+{
+  "description": "Claude Code configuration for simple-project-tool",
+  "env": {},
+  "hooks": {},
+  "permissions": {
+    "defaultMode": "plan"
+  },
+  "agents": {
+    "security-auditor": {
+      "description": "Security auditor that reviews code for vulnerabilities. Run manually with: claude --agent security-auditor"
+    },
+    "documentation-keeper": {
+      "description": "Documentation keeper that maintains docs/ files. Runs automatically after commits via .git/hooks/post-commit"
+    }
+  },
+  "notes": {
+    "agents": [
+      "Security Auditor: Manually invoked security review agent. See .claude/agents/security-auditor.md",
+      "Documentation Keeper: Automatically runs after commits to update docs/readme.md, docs/readme_cli.md, docs/changelog.md. See .claude/agents/documentation-keeper.md"
+    ],
+    "git-hooks": [
+      "post-commit: Automatically triggers documentation-keeper agent. Defined in .git/hooks/post-commit"
+    ]
+  }
+}
