@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Key features**:
 - Three-level hierarchy: Projects → Stories → Tasks
-- Two user roles: Manager/Contributor and Contributor with different permissions
+- Two user roles: Manager and Contributor with different permissions (global + per-project override)
 - Status tracking (to_do, in_progress, in_review, in_testing, done) and priority levels (low, medium, high)
 - Comments on any item
 - Project member management with invitations
@@ -25,9 +25,9 @@ See `requirements.md` for complete specification including data model, API route
 **Backend**: Python + FastAPI, SQLAlchemy ORM, PostgreSQL, Alembic migrations
 **Frontend**: React + TypeScript + Vite, Tailwind CSS
 **CLI**: Typer (built on Click)
-**Auth**: python-jose (JWT) + bcrypt
+**Auth**: PyJWT + bcrypt
 **Testing**: pytest + pytest-asyncio
-**Linting/Formatting**: ruff + black
+**Linting/Formatting**: ruff (check + format)
 **Package Manager**: uv
 
 ## Development Setup
@@ -69,7 +69,7 @@ uv run pytest                    # Run all tests
 uv run pytest tests/test_auth.py -v  # Run single test file
 uv run pytest -k "test_login"    # Run tests matching pattern
 uv run ruff check .              # Lint code
-uv run black .                   # Format code
+uv run ruff format .             # Format code
 uv run alembic revision --autogenerate -m "message"  # Create migration
 uv run alembic upgrade head      # Apply migrations
 ```
@@ -94,15 +94,15 @@ The project is **organized into four clearly separated layers**, each with disti
 
 ### 1. Database Layer (`backend/app/db/`)
 Models, migrations, schema, and data access. No business logic.
-- `models/`: SQLAlchemy ORM definitions (`user.py`, `project.py`, `task.py`, `status_history.py`, etc.)
+- `models/`: SQLAlchemy ORM definitions (`user.py`, `project.py`, `task.py`, `status_history.py`, `invitation.py`, `user_config.py`, etc.)
 - `migrations/`: Alembic version control (one per schema change, reversible)
 - `database.py`: Connection pooling, session management
 
 ### 2. Authentication Layer (`backend/app/auth/`)
 User auth, permissions, credential management. Not tied to any specific API.
-- `security.py`: JWT generation/validation, password hashing (bcrypt)
-- `permissions.py`: RBAC logic, permission checking
-- `dependencies.py`: FastAPI Depends() for token extraction and validation
+- `security.py`: JWT generation/validation (PyJWT), password hashing (bcrypt)
+- `permissions.py`: RBAC logic, permission checking, role precedence (global vs per-project)
+- `dependencies.py`: FastAPI Depends() for token extraction, validation, and API key auth
 
 ### 3. API Layer (`backend/app/api/`)
 HTTP request/response handling, orchestration, business logic.
@@ -110,7 +110,7 @@ HTTP request/response handling, orchestration, business logic.
 - `services/`: Business logic (create, update, delete); calls DB and auth
 - `routes/`: FastAPI endpoints; calls services
 
-**Key principle**: Services are business-logic agnostic; they enforce permissions via the auth layer and return data to routes. Routes only handle HTTP.
+**Key principle**: Routes only handle HTTP. Services enforce permissions via the auth layer and contain business logic. No route should query the DB directly.
 
 ### 4. UI Layer (`frontend/`)
 React frontend, separate deployment. Communicates only via REST API.
@@ -171,13 +171,14 @@ frontend/
 
 - **JWT Authentication**: Stateless, token-based. Tokens expire; refresh endpoint provided.
 - **Role-Based Access Control (RBAC)**: Enforced at service layer; FastAPI dependencies check permissions.
-- **Status History Tracking**: Every status change is recorded in `StatusHistory` table (immutable append-only)
-  - Enables time-in-status calculations: `SELECT changed_at FROM status_history WHERE item_id=X ORDER BY changed_at`
-  - No manual time entry; automatic from status transitions
-  - Support time metrics API: `GET /items/{type}/{id}/time-metrics` returns elapsed time per status
-- **Soft Deletes (Optional)**: Consider soft deletes for audit trails; hard deletion for compliance.
-- **Pagination**: List endpoints support limit/offset for performance.
-- **Error Responses**: Standard JSON format with status codes (400, 401, 403, 404, 500).
+- **Role Precedence**: Per-project role overrides global role. Project owner always has Manager access.
+- **Status History Tracking**: Every status change is recorded in `StatusHistory` (immutable append-only). Uses separate nullable FKs with CHECK constraint for referential integrity.
+- **Comment/StatusHistory FK Pattern**: Both use `(project_id, story_id, task_id)` with `CHECK (num_nonnulls(...) = 1)` instead of polymorphic `item_type + item_id`. Allows DB-level foreign key enforcement.
+- **API Versioning**: All routes prefixed with `/api/v1/`.
+- **PATCH for partial updates**: Use PATCH (not PUT) when updating individual fields.
+- **Cursor-based Pagination**: List endpoints use `?cursor=<id>&limit=25` (max 100).
+- **Error Responses**: Standard JSON format: `{"error": {"code": "...", "message": "...", "details": [...]}}`.
+- **API Key Scopes**: `read:projects`, `write:projects`, `read:stories`, `write:stories`, `read:tasks`, `write:tasks`, `read:comments`, `write:comments`, `admin`.
 
 ## Testing Strategy
 
