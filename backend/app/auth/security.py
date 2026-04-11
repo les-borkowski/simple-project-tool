@@ -100,6 +100,7 @@ SCOPE_HIERARCHY: dict[str, set[str]] = {
     "write:tasks": {"read:tasks"},
     "write:comments": {"read:comments"},
     "admin": {
+        "admin",  # admin implies itself
         "read:projects",
         "write:projects",
         "read:stories",

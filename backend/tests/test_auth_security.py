@@ -198,6 +198,13 @@ def test_scope_hierarchy_write_comments_grants_read():
     assert check_scope(api_key, "read:comments") is True
 
 
+def test_check_scope_admin_grants_admin_itself():
+    api_key = MagicMock(spec=APIKey)
+    api_key.revoked_at = None
+    api_key.scopes = ["admin"]
+    assert check_scope(api_key, "admin") is True
+
+
 # --- Password reset tokens ---
 
 

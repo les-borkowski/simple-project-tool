@@ -53,6 +53,9 @@ async def get_current_user_or_api_key(
         from app.db.models.api_key import APIKey
         from app.db.models.user import User
 
+        # TODO(v2): This scans all non-revoked keys and bcrypt-checks each one — O(n) and slow.
+        # Fix: add a plaintext `key_prefix` column (first 8 chars of raw key) to APIKey
+        # and filter by prefix before doing the bcrypt comparison, reducing to O(1) lookups.
         stmt = select(APIKey).where(APIKey.revoked_at.is_(None))
         keys = (await db.scalars(stmt)).all()
         for key_record in keys:

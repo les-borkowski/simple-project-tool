@@ -150,3 +150,18 @@ async def test_require_project_access_owner_returns_manager():
     role = await require_project_access(user, project.id, db)
 
     assert role == RoleEnum.manager
+
+
+@pytest.mark.asyncio
+async def test_require_project_access_global_manager_non_member_succeeds():
+    """A global manager who is not a project member or owner still gets access."""
+    user = make_user(role=RoleEnum.manager)
+    project = make_project(owner_id=uuid.uuid4())  # different owner
+
+    db = AsyncMock()
+    db.get.return_value = project
+    db.scalar.side_effect = [None]  # no member record
+
+    role = await require_project_access(user, project.id, db)
+    assert role == RoleEnum.manager
+    db.scalar.assert_called_once()
