@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -12,7 +12,7 @@ class Base(DeclarativeBase):
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class TimestampMixin:
@@ -20,12 +20,10 @@ class TimestampMixin:
 
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     # onupdate uses a Python callable so it fires on ORM-level updates (not just Core UPDATE)
-    updated_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(), onupdate=_utcnow
-    )
+    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=_utcnow)
 
 
-class StatusEnum(str, enum.Enum):
+class StatusEnum(enum.StrEnum):
     """Work item status values."""
 
     to_do = "to_do"
@@ -35,7 +33,7 @@ class StatusEnum(str, enum.Enum):
     done = "done"
 
 
-class PriorityEnum(str, enum.Enum):
+class PriorityEnum(enum.StrEnum):
     """Work item priority levels."""
 
     low = "low"
@@ -43,14 +41,14 @@ class PriorityEnum(str, enum.Enum):
     high = "high"
 
 
-class RoleEnum(str, enum.Enum):
+class RoleEnum(enum.StrEnum):
     """User role types."""
 
     manager = "manager"
     contributor = "contributor"
 
 
-class ThemeEnum(str, enum.Enum):
+class ThemeEnum(enum.StrEnum):
     """UI theme preferences."""
 
     light = "light"
@@ -58,14 +56,14 @@ class ThemeEnum(str, enum.Enum):
     system = "system"
 
 
-class LocaleEnum(str, enum.Enum):
+class LocaleEnum(enum.StrEnum):
     """Supported locales."""
 
     en_gb = "en-GB"
     pl = "pl"
 
 
-class InvitationStatusEnum(str, enum.Enum):
+class InvitationStatusEnum(enum.StrEnum):
     """Project invitation status values."""
 
     pending = "pending"
