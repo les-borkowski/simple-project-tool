@@ -365,7 +365,8 @@ Beyond primary keys and foreign keys (which are indexed by default), these index
 |--------------------|-----------------------------|----------------------------------------------------------|
 | Backend API        | Python + FastAPI            | Modern, fast, automatic OpenAPI docs, async support     |
 | ORM & Migrations   | SQLAlchemy + Alembic        | Pythonic ORM, robust migrations, wide DB support        |
-| Database           | PostgreSQL                  | Relational structure fits the hierarchy perfectly       |
+| Database           | PostgreSQL via Neon          | Relational structure fits the hierarchy; Neon provides serverless branching, autoscaling, and a generous free tier |
+| Testing DB         | Local PostgreSQL             | Full-fidelity local instance for test runs; matches Neon's PostgreSQL version |
 | Authentication     | PyJWT + bcrypt              | Actively maintained JWT library, secure password hashing|
 | Frontend           | React + TypeScript + Vite   | Modern, lightweight, fast dev experience                |
 | Styling            | Tailwind CSS                | Utility-first, quick to build minimalist designs        |

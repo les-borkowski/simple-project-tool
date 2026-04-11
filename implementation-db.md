@@ -58,14 +58,17 @@ select = ["E", "F", "I", "UP"]
 
 ### 1.2 Environment config (`backend/app/core/config.py`)
 ```
-DATABASE_URL      — postgresql+asyncpg://user:pass@host/db
-SYNC_DATABASE_URL — postgresql+psycopg2://user:pass@host/db  (Alembic only)
+DATABASE_URL      — postgresql+asyncpg://user:pass@ep-xxx.region.aws.neon.tech/dbname?sslmode=require
+SYNC_DATABASE_URL — postgresql+psycopg2://user:pass@ep-xxx.region.aws.neon.tech/dbname?sslmode=require  (Alembic only)
+TEST_DATABASE_URL — postgresql+asyncpg://user:pass@localhost:5432/spt_test  (local PostgreSQL, no SSL)
 SECRET_KEY        — random 32-byte hex string
 ACCESS_TOKEN_EXPIRE_MINUTES  — 15
 REFRESH_TOKEN_EXPIRE_DAYS    — 7
 CORS_ORIGINS      — comma-separated list of allowed origins
 ```
 Use `pydantic-settings` `BaseSettings` to load from `.env`.
+
+**Neon SSL note**: Neon requires `sslmode=require` on all connections. Both `asyncpg` and `psycopg2` accept it as a query-string parameter in the URL — no extra `connect_args` needed in most cases. `TEST_DATABASE_URL` points to a local PostgreSQL instance and omits `sslmode`.
 
 ### 1.3 Directory structure to create
 ```
@@ -116,6 +119,8 @@ Key choices:
 - Use `create_async_engine` with `pool_size=10`, `max_overflow=20`
 - `AsyncSession` with `autoflush=False` — explicit control
 - `get_db()` uses `async with` to ensure session always closes
+- `sslmode=require` in the Neon URL is handled automatically by `asyncpg`; no additional `connect_args` required
+- `check_db_connection()` startup helper verifies the Neon connection is reachable on app boot
 
 ---
 
@@ -277,8 +282,13 @@ Index("ix_api_key_user_revoked", "user_id", "revoked_at"),
 
 ### `.env.example`
 ```
-DATABASE_URL=postgresql+asyncpg://spt:password@localhost:5432/spt_dev
-SYNC_DATABASE_URL=postgresql+psycopg2://spt:password@localhost:5432/spt_dev
+# Development / production — Neon hosted PostgreSQL (SSL required)
+DATABASE_URL=postgresql+asyncpg://user:pass@ep-xxx.region.aws.neon.tech/spt_dev?sslmode=require
+SYNC_DATABASE_URL=postgresql+psycopg2://user:pass@ep-xxx.region.aws.neon.tech/spt_dev?sslmode=require
+
+# Testing — local PostgreSQL (no SSL required)
+TEST_DATABASE_URL=postgresql+asyncpg://spt:password@localhost:5432/spt_test
+
 SECRET_KEY=replace-with-32-random-bytes-hex
 ACCESS_TOKEN_EXPIRE_MINUTES=15
 REFRESH_TOKEN_EXPIRE_DAYS=7
@@ -291,7 +301,7 @@ CORS_ORIGINS=http://localhost:5173
 
 ```python
 # Shared pytest fixtures:
-# - test_engine: create_async_engine pointing to a test database
+# - test_engine: create_async_engine pointing to settings.TEST_DATABASE_URL (local PostgreSQL)
 # - db_session: AsyncSession with transaction that rolls back after each test
 # - test_user_manager: User with role=manager
 # - test_user_contributor: User with role=contributor
@@ -299,6 +309,14 @@ CORS_ORIGINS=http://localhost:5173
 ```
 
 Use `pytest-asyncio` with `asyncio_mode = "auto"` in `pyproject.toml`.
+
+**Local test DB setup** (one-time):
+```bash
+createdb spt_test
+TEST_DATABASE_URL=postgresql+asyncpg://spt:password@localhost:5432/spt_test \
+  uv run alembic upgrade head
+```
+Tests must never connect to Neon — `TEST_DATABASE_URL` always points to the local instance.
 
 ---
 
@@ -315,3 +333,5 @@ Use `pytest-asyncio` with `asyncio_mode = "auto"` in `pyproject.toml`.
 - [ ] `get_db()` yields a session and closes it after use (no connection leak)
 - [ ] `TimestampMixin.updated_at` updates automatically on row change
 - [ ] `StatusHistory` has no `updated_at` column
+- [ ] Neon connection succeeds with `sslmode=require` in `DATABASE_URL` (verified via `check_db_connection()` at startup)
+- [ ] Tests run against local PostgreSQL via `TEST_DATABASE_URL`, not against Neon
