@@ -80,6 +80,20 @@ async def test_resolve_role_falls_back_to_global_role():
     assert role == RoleEnum.contributor
 
 
+@pytest.mark.asyncio
+async def test_resolve_role_when_project_not_found_returns_global_role():
+    """resolve_role → user.role when project does not exist."""
+    user = make_user(role=RoleEnum.manager)
+    project_id = uuid.uuid4()
+
+    db = AsyncMock()
+    db.get.return_value = None  # project not found
+    db.scalar.return_value = None  # no member record either
+
+    role = await resolve_role(user, project_id, db)
+    assert role == RoleEnum.manager  # falls back to global role
+
+
 # --- require_manager ---
 
 
@@ -114,12 +128,16 @@ async def test_require_project_access_raises_404_when_project_not_found():
 async def test_require_project_access_raises_403_for_non_member_contributor():
     """require_project_access → raises 403 for non-member contributor."""
     user = make_user(role=RoleEnum.contributor)
-    project = make_project()  # user is NOT the owner
-    db = make_db(project=project, member=None)
+    project = make_project(owner_id=uuid.uuid4())  # different owner
+
+    db = AsyncMock()
+    db.get.return_value = project  # db.get(Project, ...) → project
+    db.scalar.side_effect = [None]  # exactly ONE scalar call expected → no member record
 
     with pytest.raises(HTTPException) as exc_info:
         await require_project_access(user, project.id, db)
     assert exc_info.value.status_code == 403
+    db.scalar.assert_called_once()  # enforce: only one membership query
 
 
 @pytest.mark.asyncio
