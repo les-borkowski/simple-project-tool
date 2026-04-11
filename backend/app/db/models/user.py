@@ -22,5 +22,5 @@ class User(TimestampMixin, Base):
 
     # Relationships
     config: Mapped["UserConfig"] = relationship(
-        "UserConfig", back_populates="user", uselist=False
+        "UserConfig", back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
