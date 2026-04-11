@@ -115,3 +115,5 @@ htmlcov/
 
 # pyenv
 # .python-version
+### Worktrees
+.worktrees/
