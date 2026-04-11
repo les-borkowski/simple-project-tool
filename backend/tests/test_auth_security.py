@@ -22,6 +22,7 @@ from app.auth.security import (
 )
 from app.core.config import settings
 from app.db.base import RoleEnum
+from app.db.models.api_key import APIKey
 
 # --- Password hashing ---
 
@@ -80,8 +81,8 @@ def test_expired_token_raises_401():
     assert "expired" in exc_info.value.detail.lower()
 
 
-def test_refresh_token_used_where_access_expected_raises_401():
-    """Using a refresh token where an access token is expected should fail (wrong type)."""
+def test_token_with_wrong_secret_raises_401():
+    """Token signed with wrong secret raises HTTPException with 401 status."""
     user_id = uuid.uuid4()
     # Encode a token with a completely invalid signature to ensure 401
     invalid_token = jwt.encode(
@@ -173,6 +174,14 @@ def test_admin_grants_all_scopes():
 def test_revoked_api_key_check_scope_returns_false():
     """Revoked API key always returns False for check_scope, regardless of scopes."""
     api_key = _make_api_key(["admin"], revoked=True)
+    assert check_scope(api_key, "read:projects") is False
+
+
+def test_check_scope_empty_scopes_returns_false():
+    """API key with no scopes returns False for any required scope."""
+    api_key = MagicMock(spec=APIKey)
+    api_key.revoked_at = None
+    api_key.scopes = []
     assert check_scope(api_key, "read:projects") is False
 
 

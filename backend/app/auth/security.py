@@ -76,7 +76,10 @@ def verify_password_reset_token(token: str) -> uuid.UUID:
     payload = decode_token(token)
     if payload.get("type") != "password_reset":
         raise HTTPException(status_code=400, detail="Invalid token type")
-    return uuid.UUID(payload["sub"])
+    try:
+        return uuid.UUID(payload["sub"])
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid token payload") from exc
 
 
 # --- API key generation ---
@@ -85,7 +88,7 @@ def verify_password_reset_token(token: str) -> uuid.UUID:
 def generate_api_key() -> tuple[str, str]:
     """Generate a new API key. Returns (raw_key, key_hash)."""
     raw_key = secrets.token_urlsafe(32)
-    key_hash = bcrypt.hashpw(raw_key.encode(), bcrypt.gensalt()).decode()
+    key_hash = bcrypt.hashpw(raw_key.encode(), bcrypt.gensalt(rounds=12)).decode()
     return raw_key, key_hash
 
 
