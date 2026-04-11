@@ -24,3 +24,4 @@ class User(TimestampMixin, Base):
     config: Mapped["UserConfig"] = relationship(
         "UserConfig", back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
+    api_keys: Mapped[list["APIKey"]] = relationship("APIKey", back_populates="user", cascade="all, delete-orphan")
