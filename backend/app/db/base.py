@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -11,14 +11,17 @@ class Base(DeclarativeBase):
     pass
 
 
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
 class TimestampMixin:
     """Mixin for automatic timestamp tracking on create/update."""
 
-    created_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    # onupdate uses a Python callable so it fires on ORM-level updates (not just Core UPDATE)
     updated_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(), onupdate=func.now(), nullable=False
+        server_default=func.now(), onupdate=_utcnow
     )
 
 
