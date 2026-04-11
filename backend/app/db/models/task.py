@@ -1,9 +1,13 @@
 import uuid
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from sqlalchemy import String, Text, ForeignKey, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, TimestampMixin, StatusEnum, PriorityEnum
+
+if TYPE_CHECKING:
+    from app.db.models.story import Story
+    from app.db.models.user import User
 
 
 class Task(TimestampMixin, Base):
