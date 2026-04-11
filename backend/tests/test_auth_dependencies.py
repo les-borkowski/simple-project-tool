@@ -1,5 +1,6 @@
 """Integration tests for app.auth.dependencies using a minimal FastAPI TestClient app."""
 
+import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
@@ -315,6 +316,30 @@ def test_require_scope_api_key_with_scope_passes():
         resp = client.get("/scoped", headers={"X-API-Key": raw_key})
         assert resp.status_code == 200
         assert resp.json()["user_id"] == str(user_id)
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_get_current_user_or_api_key_deleted_user_raises_401():
+    """Valid non-revoked API key but the associated user no longer exists → 401."""
+    raw_key = secrets.token_urlsafe(32)
+    key_hash = bcrypt.hashpw(raw_key.encode(), bcrypt.gensalt(rounds=4)).decode()
+
+    mock_api_key = MagicMock()
+    mock_api_key.key_hash = key_hash
+    mock_api_key.user_id = uuid.uuid4()
+
+    mock_db = AsyncMock()
+    mock_db.scalars.return_value = MagicMock(all=MagicMock(return_value=[mock_api_key]))
+    mock_db.get.return_value = None  # user deleted
+
+    async def override_db():
+        yield mock_db
+
+    app.dependency_overrides[get_db] = override_db
+    try:
+        resp = client.get("/me-or-key", headers={"X-API-Key": raw_key})
+        assert resp.status_code == 401
     finally:
         app.dependency_overrides.clear()
 

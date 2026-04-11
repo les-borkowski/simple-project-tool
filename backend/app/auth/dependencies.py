@@ -60,6 +60,8 @@ async def get_current_user_or_api_key(
                 key_record.last_used_at = datetime.now(UTC)
                 request.state.api_key = key_record
                 user = await db.get(User, key_record.user_id)
+                if not user:
+                    raise HTTPException(status_code=401, detail="User not found")
                 return user
 
     raise HTTPException(401, "Not authenticated")
