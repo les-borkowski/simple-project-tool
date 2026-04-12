@@ -1,9 +1,11 @@
 from __future__ import annotations
+
 import json
 from datetime import datetime
 from pathlib import Path
-from rich.console import Console
+
 from babel.dates import format_date as babel_format_date
+from rich.console import Console
 
 LOCALES_DIR = Path(__file__).parent / "locales"
 console = Console()

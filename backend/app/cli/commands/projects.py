@@ -1,11 +1,12 @@
 from __future__ import annotations
-from typing import Optional
+
 import typer
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
+
 from ..config import CLIConfig
 from ..http import APIClient
-from ..output import console, load_locale, t, short_id, fmt_date, status_label, priority_label
+from ..output import console, fmt_date, load_locale, priority_label, short_id, status_label, t
 
 app = typer.Typer(help="Project commands")
 
@@ -32,7 +33,8 @@ def list_projects(all_pages: bool = typer.Option(False, "--all", help="Fetch all
     table.add_column(t("col.created"))
     for p in items:
         table.add_row(
-            short_id(p["id"]), p["name"],
+            short_id(p["id"]),
+            p["name"],
             status_label(p.get("status", "")),
             priority_label(p.get("priority", "")),
             fmt_date(p.get("created_at")),
@@ -43,8 +45,8 @@ def list_projects(all_pages: bool = typer.Option(False, "--all", help="Fetch all
 @app.command()
 def create(
     name: str = typer.Option(..., prompt=True, help="Project name"),
-    description: Optional[str] = typer.Option(None, help="Project description"),
-    priority: Optional[str] = typer.Option(None, help="Priority: low|medium|high"),
+    description: str | None = typer.Option(None, help="Project description"),
+    priority: str | None = typer.Option(None, help="Priority: low|medium|high"),
 ) -> None:
     """Create a new project."""
     config, client = _setup()
@@ -62,14 +64,16 @@ def view(project_id: str = typer.Argument(..., help="Project ID")) -> None:
     """View project details."""
     config, client = _setup()
     d = client.get(f"/projects/{project_id}")
-    console.print(Panel(
-        f"[bold]{d['name']}[/bold]\n"
-        f"{t('col.status')}: {status_label(d.get('status',''))}\n"
-        f"{t('col.priority')}: {priority_label(d.get('priority',''))}\n"
-        f"{t('col.created')}: {fmt_date(d.get('created_at'))}\n"
-        f"{d.get('description') or ''}",
-        title=short_id(d["id"]),
-    ))
+    console.print(
+        Panel(
+            f"[bold]{d['name']}[/bold]\n"
+            f"{t('col.status')}: {status_label(d.get('status', ''))}\n"
+            f"{t('col.priority')}: {priority_label(d.get('priority', ''))}\n"
+            f"{t('col.created')}: {fmt_date(d.get('created_at'))}\n"
+            f"{d.get('description') or ''}",
+            title=short_id(d["id"]),
+        )
+    )
 
 
 @app.command()
@@ -113,7 +117,9 @@ def members(project_id: str = typer.Argument(...)) -> None:
     table.add_column(t("col.role"))
     for m in items:
         table.add_row(
-            short_id(m["user_id"]), m.get("name", ""),
-            m.get("email", ""), t(f"role.{m.get('role','')}"),
+            short_id(m["user_id"]),
+            m.get("name", ""),
+            m.get("email", ""),
+            t(f"role.{m.get('role', '')}"),
         )
     console.print(table)

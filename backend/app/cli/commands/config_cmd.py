@@ -1,11 +1,12 @@
 from __future__ import annotations
-from typing import Optional
+
 import typer
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
+
 from ..config import CLIConfig
 from ..http import APIClient
-from ..output import console, load_locale, t, short_id, fmt_date
+from ..output import console, fmt_date, load_locale, short_id, t
 
 app = typer.Typer(help="Configuration commands")
 api_keys_app = typer.Typer(help="API key management")
@@ -73,7 +74,8 @@ def api_keys_list() -> None:
     table.add_column(t("col.last_used"))
     for key in items:
         table.add_row(
-            short_id(key["id"]), key.get("label", ""),
+            short_id(key["id"]),
+            key.get("label", ""),
             ", ".join(key.get("scopes", [])),
             fmt_date(key.get("last_used_at")),
         )
@@ -83,17 +85,20 @@ def api_keys_list() -> None:
 @api_keys_app.command("create")
 def api_keys_create(
     label: str = typer.Option(..., prompt=True, help="Label for this API key"),
-    scopes: str = typer.Option(..., help="Comma-separated scopes, e.g. read:projects,write:projects"),
+    scopes: str = typer.Option(
+        ..., help="Comma-separated scopes, e.g. read:projects,write:projects"
+    ),
 ) -> None:
     """Create a new API key. The key is shown once only."""
     config, client = _setup()
     scope_list = [s.strip() for s in scopes.split(",") if s.strip()]
     data = client.post("/config/api-keys", json={"label": label, "scopes": scope_list})
-    console.print(Panel(
-        f"[bold yellow]{t('api_key.warning')}[/bold yellow]\n\n"
-        f"[green]{data['key']}[/green]",
-        title=f"API Key: {data['label']}",
-    ))
+    console.print(
+        Panel(
+            f"[bold yellow]{t('api_key.warning')}[/bold yellow]\n\n[green]{data['key']}[/green]",
+            title=f"API Key: {data['label']}",
+        )
+    )
 
 
 @api_keys_app.command("revoke")

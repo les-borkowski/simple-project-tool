@@ -1,9 +1,11 @@
 from __future__ import annotations
+
 import typer
 from rich.table import Table
+
 from ..config import CLIConfig
 from ..http import APIClient
-from ..output import console, load_locale, t, short_id, fmt_date
+from ..output import console, fmt_date, load_locale, short_id, t
 
 app = typer.Typer(help="Invitation commands")
 
@@ -26,8 +28,9 @@ def list_invitations() -> None:
     table.add_column(t("col.created"))
     for inv in items:
         table.add_row(
-            short_id(inv["id"]), inv.get("project_name", ""),
-            t(f"role.{inv.get('role','')}"),
+            short_id(inv["id"]),
+            inv.get("project_name", ""),
+            t(f"role.{inv.get('role', '')}"),
             fmt_date(inv.get("created_at")),
         )
     console.print(table)

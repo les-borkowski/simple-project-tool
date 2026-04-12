@@ -1,13 +1,17 @@
 from __future__ import annotations
+
 import typer
-from .commands import auth
-from .commands import projects
-from .commands import stories
-from .commands import tasks
-from .commands import comments
-from .commands import invitations
-from .commands import time_tracking
-from .commands import config_cmd
+
+from .commands import (
+    auth,
+    comments,
+    config_cmd,
+    invitations,
+    projects,
+    stories,
+    tasks,
+    time_tracking,
+)
 
 app = typer.Typer(name="spt", help="Simple Project Tool CLI", no_args_is_help=True)
 

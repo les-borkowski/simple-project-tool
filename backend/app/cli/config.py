@@ -1,8 +1,9 @@
 from __future__ import annotations
+
 import json
 import os
 import stat
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 CONFIG_PATH = Path.home() / ".config" / "spt" / "config.json"
@@ -18,7 +19,7 @@ class CLIConfig:
     locale: str = DEFAULT_LOCALE
 
     @classmethod
-    def load(cls) -> "CLIConfig":
+    def load(cls) -> CLIConfig:
         if not CONFIG_PATH.exists():
             return cls()
         try:

@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import typer
+
 from ..config import CLIConfig
 from ..http import APIClient
 from ..output import console, load_locale, t

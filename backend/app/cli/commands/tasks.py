@@ -1,10 +1,11 @@
 from __future__ import annotations
-from typing import Optional
+
 import typer
 from rich.table import Table
+
 from ..config import CLIConfig
 from ..http import APIClient
-from ..output import console, load_locale, t, short_id, fmt_date, status_label, priority_label
+from ..output import console, fmt_date, load_locale, priority_label, short_id, status_label, t
 
 app = typer.Typer(help="Task commands")
 
@@ -35,7 +36,8 @@ def list_tasks(
     table.add_column(t("col.created"))
     for task in items:
         table.add_row(
-            short_id(task["id"]), task.get("title", ""),
+            short_id(task["id"]),
+            task.get("title", ""),
             status_label(task.get("status", "")),
             priority_label(task.get("priority", "")),
             task.get("assignee_name") or "—",
@@ -48,9 +50,9 @@ def list_tasks(
 def create(
     story_id: str = typer.Argument(..., help="Story ID"),
     title: str = typer.Option(..., prompt=True),
-    description: Optional[str] = typer.Option(None),
-    priority: Optional[str] = typer.Option(None, help="low|medium|high"),
-    assignee_id: Optional[str] = typer.Option(None, "--assign"),
+    description: str | None = typer.Option(None),
+    priority: str | None = typer.Option(None, help="low|medium|high"),
+    assignee_id: str | None = typer.Option(None, "--assign"),
 ) -> None:
     """Create a task in a story."""
     config, client = _setup()
@@ -68,14 +70,23 @@ def create(
 @app.command()
 def update(
     task_id: str = typer.Argument(...),
-    title: Optional[str] = typer.Option(None),
-    status: Optional[str] = typer.Option(None, help="to_do|in_progress|in_review|in_testing|done"),
-    priority: Optional[str] = typer.Option(None, help="low|medium|high"),
-    description: Optional[str] = typer.Option(None),
+    title: str | None = typer.Option(None),
+    status: str | None = typer.Option(None, help="to_do|in_progress|in_review|in_testing|done"),
+    priority: str | None = typer.Option(None, help="low|medium|high"),
+    description: str | None = typer.Option(None),
 ) -> None:
     """Update a task."""
     config, client = _setup()
-    body = {k: v for k, v in {"title": title, "status": status, "priority": priority, "description": description}.items() if v is not None}
+    body = {
+        k: v
+        for k, v in {
+            "title": title,
+            "status": status,
+            "priority": priority,
+            "description": description,
+        }.items()
+        if v is not None
+    }
     client.patch(f"/tasks/{task_id}", json=body)
     console.print(t("task.updated"))
 

@@ -1,10 +1,11 @@
 from __future__ import annotations
-from typing import Optional
+
 import typer
 from rich.table import Table
+
 from ..config import CLIConfig
 from ..http import APIClient
-from ..output import console, load_locale, t, short_id, fmt_date, status_label, priority_label
+from ..output import console, fmt_date, load_locale, priority_label, short_id, status_label, t
 
 app = typer.Typer(help="Story commands")
 
@@ -34,7 +35,8 @@ def list_stories(
     table.add_column(t("col.created"))
     for s in items:
         table.add_row(
-            short_id(s["id"]), s.get("title", ""),
+            short_id(s["id"]),
+            s.get("title", ""),
             status_label(s.get("status", "")),
             priority_label(s.get("priority", "")),
             fmt_date(s.get("created_at")),
@@ -46,8 +48,8 @@ def list_stories(
 def create(
     project_id: str = typer.Argument(..., help="Project ID"),
     title: str = typer.Option(..., prompt=True),
-    description: Optional[str] = typer.Option(None),
-    priority: Optional[str] = typer.Option(None, help="low|medium|high"),
+    description: str | None = typer.Option(None),
+    priority: str | None = typer.Option(None, help="low|medium|high"),
 ) -> None:
     """Create a story in a project."""
     config, client = _setup()
@@ -63,14 +65,23 @@ def create(
 @app.command()
 def update(
     story_id: str = typer.Argument(...),
-    title: Optional[str] = typer.Option(None),
-    status: Optional[str] = typer.Option(None, help="to_do|in_progress|in_review|in_testing|done"),
-    priority: Optional[str] = typer.Option(None, help="low|medium|high"),
-    description: Optional[str] = typer.Option(None),
+    title: str | None = typer.Option(None),
+    status: str | None = typer.Option(None, help="to_do|in_progress|in_review|in_testing|done"),
+    priority: str | None = typer.Option(None, help="low|medium|high"),
+    description: str | None = typer.Option(None),
 ) -> None:
     """Update a story."""
     config, client = _setup()
-    body = {k: v for k, v in {"title": title, "status": status, "priority": priority, "description": description}.items() if v is not None}
+    body = {
+        k: v
+        for k, v in {
+            "title": title,
+            "status": status,
+            "priority": priority,
+            "description": description,
+        }.items()
+        if v is not None
+    }
     client.patch(f"/stories/{story_id}", json=body)
     console.print(t("story.updated"))
 

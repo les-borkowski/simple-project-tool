@@ -1,10 +1,12 @@
 from __future__ import annotations
+
 import typer
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
+
 from ..config import CLIConfig
 from ..http import APIClient
-from ..output import console, load_locale, t, short_id, fmt_date, fmt_duration, status_label
+from ..output import console, fmt_date, fmt_duration, load_locale, short_id, status_label, t
 
 VALID_TYPES = {"project", "story", "task"}
 

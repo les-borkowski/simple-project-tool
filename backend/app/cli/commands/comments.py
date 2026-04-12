@@ -1,9 +1,11 @@
 from __future__ import annotations
+
 import typer
 from rich.table import Table
+
 from ..config import CLIConfig
 from ..http import APIClient
-from ..output import console, load_locale, t, short_id, fmt_date
+from ..output import console, fmt_date, load_locale, short_id, t
 
 app = typer.Typer(help="Comment commands")
 
@@ -13,7 +15,9 @@ VALID_TYPES = {"project", "story", "task"}
 def _parse_item_ref(item_ref: str) -> tuple[str, str]:
     parts = item_ref.split(":", 1)
     if len(parts) != 2 or parts[0] not in VALID_TYPES:
-        raise typer.BadParameter(f"item must be in 'type:uuid' format, type one of: {', '.join(VALID_TYPES)}")
+        raise typer.BadParameter(
+            f"item must be in 'type:uuid' format, type one of: {', '.join(VALID_TYPES)}"
+        )
     return parts[0], parts[1]
 
 
@@ -50,7 +54,9 @@ def list_comments(
     table.add_column(t("col.created"))
     for c in items:
         table.add_row(
-            short_id(c["id"]), c.get("author_name", ""),
-            c.get("body", ""), fmt_date(c.get("created_at")),
+            short_id(c["id"]),
+            c.get("author_name", ""),
+            c.get("body", ""),
+            fmt_date(c.get("created_at")),
         )
     console.print(table)

@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 import httpx
 import typer
+
 from .config import CLIConfig
 
 
@@ -25,7 +27,8 @@ class APIClient:
 
         if resp.status_code == 401 and _retry and self.config.refresh_token:
             r = self._client.request(
-                "POST", "/auth/refresh",
+                "POST",
+                "/auth/refresh",
                 json={"refresh_token": self.config.refresh_token},
                 headers={},
             )
