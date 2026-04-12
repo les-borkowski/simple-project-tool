@@ -3,6 +3,7 @@ from collections.abc import AsyncGenerator
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
 
@@ -14,7 +15,9 @@ def anyio_backend():
 
 @pytest_asyncio.fixture(scope="session")
 async def engine():
-    async_engine = create_async_engine(settings.TEST_DATABASE_URL, echo=False)
+    async_engine = create_async_engine(
+        settings.TEST_DATABASE_URL, echo=False, poolclass=NullPool
+    )
     yield async_engine
     await async_engine.dispose()
 
