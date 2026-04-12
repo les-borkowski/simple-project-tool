@@ -38,7 +38,7 @@ async def register(data: UserCreate, db: AsyncSession) -> UserResponse:
     config = UserConfig(
         user_id=user.id,
         theme=ThemeEnum.system,
-        locale=LocaleEnum.en_GB,
+        locale=LocaleEnum.en_gb,
         display_preferences={},
     )
     db.add(config)

@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
 from app.auth.permissions import require_project_access, resolve_role, require_manager
+from app.db.base import PriorityEnum, StatusEnum
 from app.db.models import Task, Story, StatusHistory, User
 from app.api.schemas.task import TaskCreate, TaskUpdate, TaskResponse
 from app.api.schemas.common import PaginatedResponse
@@ -73,8 +74,8 @@ async def create_task(
         story_id=story_id,
         title=data.title,
         description=data.description,
-        status=data.status or Task.status.default.arg(),
-        priority=data.priority or Task.priority.default.arg(),
+        status=data.status or StatusEnum.to_do,
+        priority=data.priority or PriorityEnum.medium,
         assignee_id=data.assignee_id,
         created_by=user.id,
     )

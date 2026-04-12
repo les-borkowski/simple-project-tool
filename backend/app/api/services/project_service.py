@@ -6,7 +6,7 @@ from fastapi import HTTPException
 
 from app.auth.permissions import require_project_access, require_manager
 from app.db.models import Project, ProjectMember, User, StatusHistory
-from app.db.base import RoleEnum
+from app.db.base import PriorityEnum, RoleEnum, StatusEnum
 from app.api.schemas.project import (
     ProjectCreate,
     ProjectUpdate,
@@ -87,8 +87,8 @@ async def create_project(
     project = Project(
         name=data.name,
         description=data.description,
-        status=data.status or Project.status.default.arg(),
-        priority=data.priority or Project.priority.default.arg(),
+        status=data.status or StatusEnum.to_do,
+        priority=data.priority or PriorityEnum.medium,
         owner_id=user.id,
         created_by=user.id,
     )
@@ -179,7 +179,7 @@ async def archive_project(project_id: uuid.UUID, user: User, db: AsyncSession) -
     role = await require_project_access(user, project_id, db)
     require_manager(role)
 
-    project.archived_at = datetime.now(UTC)
+    project.archived_at = datetime.now(UTC).replace(tzinfo=None)
     await db.commit()
     return ProjectResponse.model_validate(project)
 

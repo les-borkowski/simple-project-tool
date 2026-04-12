@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
 from app.auth.permissions import require_project_access, require_manager
+from app.db.base import PriorityEnum, StatusEnum
 from app.db.models import Story, Project, StatusHistory, User
 from app.api.schemas.story import StoryCreate, StoryUpdate, StoryResponse
 from app.api.schemas.common import PaginatedResponse
@@ -62,8 +63,8 @@ async def create_story(
         project_id=project_id,
         title=data.title,
         description=data.description,
-        status=data.status or Story.status.default.arg(),
-        priority=data.priority or Story.priority.default.arg(),
+        status=data.status or StatusEnum.to_do,
+        priority=data.priority or PriorityEnum.medium,
         created_by=user.id,
     )
     db.add(story)

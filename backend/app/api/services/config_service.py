@@ -97,5 +97,5 @@ async def revoke_api_key(key_id: uuid.UUID, user: User, db: AsyncSession) -> Non
     if key.user_id != user.id:
         raise HTTPException(status_code=403, detail="Cannot revoke others' API keys")
 
-    key.revoked_at = datetime.now(UTC)
+    key.revoked_at = datetime.now(UTC).replace(tzinfo=None)
     await db.commit()

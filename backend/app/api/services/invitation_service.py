@@ -55,7 +55,7 @@ async def create_invitation(
         inviter_id=user.id,
         invitee_email=data.invitee_email,
         role=data.role,
-        expires_at=datetime.now(UTC) + timedelta(days=7),
+        expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(days=7),
     )
     db.add(invitation)
     await db.commit()
@@ -94,7 +94,7 @@ async def accept_invitation(
             status_code=409, detail="You have already responded to this invitation"
         )
 
-    if datetime.now(UTC) > invitation.expires_at:
+    if datetime.now(UTC).replace(tzinfo=None) > invitation.expires_at:
         raise HTTPException(status_code=400, detail="Invitation has expired")
 
     # Create ProjectMember
