@@ -1,0 +1,159 @@
+import uuid
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import HTTPException
+
+from app.auth.permissions import require_project_access, resolve_role, require_manager
+from app.db.models import Task, Story, StatusHistory, User
+from app.api.schemas.task import TaskCreate, TaskUpdate, TaskResponse
+from app.api.schemas.common import PaginatedResponse
+from app.api.pagination import encode_cursor, decode_cursor
+
+
+async def list_tasks(
+    story_id: uuid.UUID,
+    user: User,
+    db: AsyncSession,
+    cursor: str | None = None,
+    limit: int = 25,
+    status: str | None = None,
+    priority: str | None = None,
+    assignee_id: uuid.UUID | None = None,
+    q: str | None = None,
+) -> PaginatedResponse[TaskResponse]:
+    """List tasks in a story."""
+    limit = min(limit, 100)
+
+    story = await db.get(Story, story_id)
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+
+    await require_project_access(user, story.project_id, db)
+
+    stmt = select(Task).where(Task.story_id == story_id)
+
+    if status:
+        stmt = stmt.where(Task.status == status)
+    if priority:
+        stmt = stmt.where(Task.priority == priority)
+    if assignee_id:
+        stmt = stmt.where(Task.assignee_id == assignee_id)
+    if q:
+        stmt = stmt.where(Task.title.ilike(f"%{q}%"))
+
+    if cursor:
+        cursor_ts, cursor_id = decode_cursor(cursor)
+        stmt = stmt.where((Task.created_at, Task.id) < (cursor_ts, cursor_id))
+
+    stmt = stmt.order_by(Task.created_at.desc(), Task.id.desc()).limit(limit + 1)
+    items = (await db.scalars(stmt)).all()
+
+    next_cursor = None
+    if len(items) > limit:
+        items = items[:limit]
+        next_cursor = encode_cursor(items[-1].created_at, items[-1].id)
+
+    return PaginatedResponse(
+        items=[TaskResponse.model_validate(item) for item in items],
+        next_cursor=next_cursor,
+    )
+
+
+async def create_task(
+    story_id: uuid.UUID, data: TaskCreate, user: User, db: AsyncSession
+) -> TaskResponse:
+    """Create a task in a story."""
+    story = await db.get(Story, story_id)
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+
+    await require_project_access(user, story.project_id, db)
+
+    task = Task(
+        story_id=story_id,
+        title=data.title,
+        description=data.description,
+        status=data.status or Task.status.default.arg(),
+        priority=data.priority or Task.priority.default.arg(),
+        assignee_id=data.assignee_id,
+        created_by=user.id,
+    )
+    db.add(task)
+    await db.flush()
+
+    # Record initial status
+    history = StatusHistory(
+        task_id=task.id,
+        from_status=None,
+        to_status=task.status,
+        changed_by=user.id,
+    )
+    db.add(history)
+    await db.commit()
+
+    return TaskResponse.model_validate(task)
+
+
+async def get_task(task_id: uuid.UUID, user: User, db: AsyncSession) -> TaskResponse:
+    """Get a task by ID."""
+    task = await db.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    story = await db.get(Story, task.story_id)
+    await require_project_access(user, story.project_id, db)
+
+    return TaskResponse.model_validate(task)
+
+
+async def update_task(
+    task_id: uuid.UUID, data: TaskUpdate, user: User, db: AsyncSession
+) -> TaskResponse:
+    """Update a task."""
+    task = await db.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    story = await db.get(Story, task.story_id)
+    await require_project_access(user, story.project_id, db)
+
+    old_status = task.status
+
+    if data.title is not None:
+        task.title = data.title
+    if data.description is not None:
+        task.description = data.description
+    if data.status is not None:
+        task.status = data.status
+    if data.priority is not None:
+        task.priority = data.priority
+    if data.assignee_id is not None:
+        task.assignee_id = data.assignee_id
+
+    task.updated_by = user.id
+
+    if data.status is not None and old_status != data.status:
+        history = StatusHistory(
+            task_id=task.id,
+            from_status=old_status,
+            to_status=data.status,
+            changed_by=user.id,
+        )
+        db.add(history)
+
+    await db.commit()
+    return TaskResponse.model_validate(task)
+
+
+async def delete_task(task_id: uuid.UUID, user: User, db: AsyncSession) -> None:
+    """Delete a task. Only managers can delete."""
+    task = await db.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    story = await db.get(Story, task.story_id)
+    role = await resolve_role(user, story.project_id, db)
+    require_manager(role)
+
+    await db.delete(task)
+    await db.commit()

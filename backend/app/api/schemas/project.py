@@ -1,0 +1,53 @@
+from datetime import datetime
+from uuid import UUID
+from pydantic import BaseModel
+from app.db.base import StatusEnum, PriorityEnum, RoleEnum
+
+
+class ProjectCreate(BaseModel):
+    name: str
+    description: str | None = None
+    status: StatusEnum | None = None
+    priority: PriorityEnum | None = None
+
+
+class ProjectUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    status: StatusEnum | None = None
+    priority: PriorityEnum | None = None
+
+
+class ProjectResponse(BaseModel):
+    id: UUID
+    name: str
+    description: str | None
+    owner_id: UUID
+    status: StatusEnum
+    priority: PriorityEnum
+    archived_at: datetime | None
+    created_by: UUID
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class MemberAdd(BaseModel):
+    user_id: UUID
+    role: RoleEnum
+
+
+class MemberUpdate(BaseModel):
+    role: RoleEnum
+
+
+class MemberResponse(BaseModel):
+    user_id: UUID
+    role: RoleEnum
+    joined_at: datetime
+    name: str
+    email: str
+
+    class Config:
+        from_attributes = True
