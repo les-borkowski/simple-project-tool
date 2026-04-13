@@ -1,12 +1,11 @@
 from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, EmailStr
-from app.db.base import RoleEnum, InvitationStatusEnum
+from app.db.base import InvitationStatusEnum, RoleEnum
 
 
 class InvitationCreate(BaseModel):
     invitee_email: EmailStr
-    role: RoleEnum
 
 
 class InvitationResponse(BaseModel):

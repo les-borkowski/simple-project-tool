@@ -54,7 +54,7 @@ async def create_invitation(
         project_id=project_id,
         inviter_id=user.id,
         invitee_email=data.invitee_email,
-        role=data.role,
+        role=RoleEnum.contributor,
         expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(days=7),
     )
     db.add(invitation)

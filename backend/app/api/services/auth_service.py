@@ -29,7 +29,7 @@ async def register(data: UserCreate, db: AsyncSession) -> UserResponse:
         email=data.email,
         name=data.name,
         password_hash=hash_password(data.password),
-        role=RoleEnum.contributor,
+        role=RoleEnum.manager,
     )
     db.add(user)
     await db.flush()  # Get ID

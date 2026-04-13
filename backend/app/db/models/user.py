@@ -19,7 +19,7 @@ class User(TimestampMixin, Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[RoleEnum] = mapped_column(default=RoleEnum.contributor, nullable=False)
+    role: Mapped[RoleEnum] = mapped_column(default=RoleEnum.manager, nullable=False)
 
     # Relationships
     config: Mapped["UserConfig"] = relationship(
