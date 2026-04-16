@@ -41,7 +41,7 @@ export function ThemeSwitcher() {
           onClick={() => handleChange(value)}
           className={`px-4 py-2 text-sm rounded-md border transition-colors ${
             current === value
-              ? 'bg-indigo-600 border-indigo-600 text-white'
+              ? 'bg-sky-600 border-sky-600 text-white'
               : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
           }`}
         >

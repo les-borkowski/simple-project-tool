@@ -9,11 +9,16 @@ import { LoadMoreButton } from '../components/common/LoadMoreButton'
 import { EmptyState } from '../components/common/EmptyState'
 import { ConfirmDialog } from '../components/common/ConfirmDialog'
 import { projectsApi } from '../services/api'
+import { MarkdownEditor } from '../components/common/MarkdownEditor'
+import { SkeletonCard } from '../components/common/Skeleton'
+import { useToast } from '../context/ToastContext'
+import { formatRelative } from '../utils/time'
 import type { Status, Priority } from '../services/api'
 
 export function ProjectsPage() {
   const { t } = useTranslation()
   const { isManager } = useRole()
+  const { addToast } = useToast()
 
   const [statusFilter, setStatusFilter] = useState<Status | ''>('')
   const [priorityFilter, setPriorityFilter] = useState<Priority | ''>('')
@@ -41,6 +46,7 @@ export function ProjectsPage() {
       setNewName('')
       setNewDesc('')
       refresh()
+      addToast('Project created')
     } finally {
       setCreating(false)
     }
@@ -52,6 +58,23 @@ export function ProjectsPage() {
     await projectsApi.delete(deleteId)
     setDeleteId(null)
     refresh()
+    addToast('Project deleted')
+  }
+
+  const [editProject, setEditProject] = useState<{ id: string; name: string; description: string } | null>(null)
+  const [saving, setSaving] = useState(false)
+  const handleEditSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editProject) return
+    setSaving(true)
+    try {
+      await projectsApi.update(editProject.id, { name: editProject.name, description: editProject.description || undefined })
+      setEditProject(null)
+      refresh()
+      addToast('Project updated')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const statuses: Status[] = ['to_do', 'in_progress', 'in_review', 'in_testing', 'done']
@@ -64,7 +87,7 @@ export function ProjectsPage() {
         {isManager && (
           <button
             onClick={() => setShowCreate(true)}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-md font-medium"
+            className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-sm rounded-md font-medium"
           >
             {t('projects.create')}
           </button>
@@ -93,7 +116,7 @@ export function ProjectsPage() {
             <option key={p} value={p}>{t(`priority.${p}`)}</option>
           ))}
         </select>
-        <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+        <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
           <input
             type="checkbox"
             checked={archived}
@@ -112,47 +135,59 @@ export function ProjectsPage() {
 
       {/* List */}
       {!initialized ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       ) : items.length === 0 ? (
-        <EmptyState message={t('projects.empty')} />
+        <EmptyState
+          message={t('projects.empty')}
+          action={isManager ? { label: t('projects.create'), onClick: () => setShowCreate(true) } : undefined}
+        />
       ) : (
         <div className="space-y-3">
           {items.map((project) => (
             <div
               key={project.id}
-              className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex items-start justify-between gap-4"
+              className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 p-4 flex items-start justify-between gap-4"
             >
               <div className="flex-1 min-w-0">
                 <Link
                   to={`/projects/${project.id}`}
-                  className="text-base font-medium text-indigo-600 hover:underline"
+                  className="text-base font-medium text-sky-600 hover:underline"
                 >
                   {project.name}
                 </Link>
                 {project.description && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                  <p className="text-sm text-gray-500 dark:text-gray-300 mt-0.5 truncate">
                     {project.description}
                   </p>
                 )}
-                <div className="flex gap-2 mt-2">
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
                   <StatusBadge status={project.status} />
                   <PriorityBadge priority={project.priority} />
                   {project.archived_at && (
-                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                       Archived
                     </span>
                   )}
+                  <span className="text-xs text-gray-400 dark:text-gray-400">{formatRelative(project.created_at)}</span>
                 </div>
               </div>
               {isManager && (
-                <button
-                  onClick={() => setDeleteId(project.id)}
-                  className="text-sm text-red-500 hover:text-red-700 shrink-0"
-                >
-                  {t('actions.delete')}
-                </button>
+                <div className="flex gap-3 shrink-0">
+                  <button
+                    onClick={() => setEditProject({ id: project.id, name: project.name, description: project.description ?? '' })}
+                    className="text-sm text-sky-500 hover:text-sky-700"
+                  >
+                    {t('actions.edit')}
+                  </button>
+                  <button
+                    onClick={() => setDeleteId(project.id)}
+                    className="text-sm text-red-500 hover:text-red-700"
+                  >
+                    {t('actions.delete')}
+                  </button>
+                </div>
               )}
             </div>
           ))}
@@ -179,12 +214,7 @@ export function ProjectsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">{t('projects.description')}</label>
-                <textarea
-                  value={newDesc}
-                  onChange={(e) => setNewDesc(e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
-                />
+                <MarkdownEditor value={newDesc} onChange={setNewDesc} rows={3} />
               </div>
               <div className="flex justify-end gap-3">
                 <button
@@ -197,9 +227,50 @@ export function ProjectsPage() {
                 <button
                   type="submit"
                   disabled={creating}
-                  className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md disabled:opacity-50"
+                  className="px-4 py-2 text-sm bg-sky-600 hover:bg-sky-700 text-white rounded-md disabled:opacity-50"
                 >
                   {t('actions.create')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit modal */}
+      {editProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">{t('actions.edit')}</h3>
+            <form onSubmit={handleEditSave} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">{t('projects.name')}</label>
+                <input
+                  type="text"
+                  value={editProject.name}
+                  onChange={(e) => setEditProject({ ...editProject, name: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">{t('projects.description')}</label>
+                <MarkdownEditor value={editProject.description} onChange={(v) => setEditProject({ ...editProject, description: v })} rows={3} />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditProject(null)}
+                  className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md"
+                >
+                  {t('actions.cancel')}
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 text-sm bg-sky-600 hover:bg-sky-700 text-white rounded-md disabled:opacity-50"
+                >
+                  {t('actions.save')}
                 </button>
               </div>
             </form>

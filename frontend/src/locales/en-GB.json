@@ -103,8 +103,10 @@
   "auth.have_account": "Already have an account?",
   "auth.logging_in": "Logging in…",
   "auth.registering": "Registering…",
+  "auth.confirm_password": "Confirm password",
 
   "errors.generic": "Something went wrong. Please try again.",
+  "errors.password_mismatch": "Passwords do not match.",
   "errors.not_found": "Page not found",
   "errors.back_home": "Back to projects",
 

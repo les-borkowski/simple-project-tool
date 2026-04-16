@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { ToastProvider } from './context/ToastContext'
 import { ProtectedRoute } from './components/layout/ProtectedRoute'
 import { NavBar } from './components/layout/NavBar'
 import { LoginPage } from './pages/LoginPage'
@@ -24,6 +25,7 @@ function ProtectedLayout() {
 
 export default function App() {
   return (
+    <ToastProvider>
     <BrowserRouter>
       <Routes>
         {/* Public */}
@@ -50,5 +52,6 @@ export default function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
+    </ToastProvider>
   )
 }

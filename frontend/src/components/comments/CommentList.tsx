@@ -74,7 +74,7 @@ export function CommentList({ itemType, itemId }: Props) {
       ) : (
         <div className="space-y-3">
           {comments.map((c) => (
-            <div key={c.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+            <div key={c.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 p-4">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm font-medium">{c.author_name}</span>
                 <span className="text-xs text-gray-400">{formatDate(c.created_at, i18n.language)}</span>
@@ -88,7 +88,7 @@ export function CommentList({ itemType, itemId }: Props) {
                     className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
                   />
                   <div className="flex gap-2">
-                    <button onClick={() => handleEdit(c.id)} className="px-3 py-1 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded">{t('actions.save')}</button>
+                    <button onClick={() => handleEdit(c.id)} className="px-3 py-1 text-sm bg-sky-600 hover:bg-sky-700 text-white rounded">{t('actions.save')}</button>
                     <button onClick={() => setEditId(null)} className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded">{t('actions.cancel')}</button>
                   </div>
                 </div>
@@ -115,12 +115,12 @@ export function CommentList({ itemType, itemId }: Props) {
           onChange={(e) => setNewBody(e.target.value)}
           placeholder={t('comments.placeholder')}
           rows={2}
-          className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
         />
         <button
           type="submit"
           disabled={submitting || !newBody.trim()}
-          className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md disabled:opacity-50"
+          className="px-4 py-2 text-sm bg-sky-600 hover:bg-sky-700 text-white rounded-md disabled:opacity-50"
         >
           {t('comments.submit')}
         </button>

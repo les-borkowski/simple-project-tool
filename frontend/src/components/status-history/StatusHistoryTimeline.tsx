@@ -43,7 +43,7 @@ export function StatusHistoryTimeline({ itemType, itemId }: Props) {
       {history.map((entry, i) => (
         <div key={entry.id} className="flex gap-4 items-start">
           <div className="flex flex-col items-center">
-            <div className="w-2 h-2 rounded-full bg-indigo-400 mt-1.5" />
+            <div className="w-2 h-2 rounded-full bg-sky-400 mt-1.5" />
             {i < history.length - 1 && <div className="w-px flex-1 bg-gray-200 dark:bg-gray-700 mt-1" />}
           </div>
           <div className="flex-1 pb-4">
@@ -57,7 +57,7 @@ export function StatusHistoryTimeline({ itemType, itemId }: Props) {
                 </span>
               )}
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-500 dark:text-gray-300 mt-0.5">
               {t('history.changed_by')}: {entry.changed_by_name} &middot; {formatDate(entry.changed_at, i18n.language)}
             </p>
           </div>

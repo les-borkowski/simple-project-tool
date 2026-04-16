@@ -67,7 +67,7 @@ export function ApiKeyList() {
       <div className="flex justify-end mb-4">
         <button
           onClick={() => setShowCreate(true)}
-          className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md"
+          className="px-4 py-2 text-sm bg-sky-600 hover:bg-sky-700 text-white rounded-md"
         >
           {t('api_keys.create')}
         </button>
@@ -80,14 +80,14 @@ export function ApiKeyList() {
           {keys.map((key) => (
             <div
               key={key.id}
-              className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between gap-4"
+              className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 p-4 flex items-center justify-between gap-4"
             >
               <div>
                 <p className="font-medium text-sm">{key.label}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                <p className="text-xs text-gray-500 dark:text-gray-300 mt-0.5">
                   {key.scopes.join(', ')}
                 </p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-400 dark:text-gray-400 mt-0.5">
                   {t('api_keys.last_used')}: {key.last_used_at ? formatDate(key.last_used_at, i18n.language) : t('api_keys.never')}
                 </p>
               </div>
@@ -113,7 +113,7 @@ export function ApiKeyList() {
             </code>
             <button
               onClick={() => setRawKey(null)}
-              className="w-full py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md"
+              className="w-full py-2 text-sm bg-sky-600 hover:bg-sky-700 text-white rounded-md"
             >
               {t('actions.confirm')}
             </button>
@@ -154,7 +154,7 @@ export function ApiKeyList() {
               </div>
               <div className="flex justify-end gap-3">
                 <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md">{t('actions.cancel')}</button>
-                <button type="submit" disabled={creating} className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-md disabled:opacity-50">{t('actions.create')}</button>
+                <button type="submit" disabled={creating} className="px-4 py-2 text-sm bg-sky-600 hover:bg-sky-700 text-white rounded-md disabled:opacity-50">{t('actions.create')}</button>
               </div>
             </form>
           </div>
