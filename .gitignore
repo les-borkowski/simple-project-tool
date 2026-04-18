@@ -117,3 +117,4 @@ htmlcov/
 # .python-version
 ### Worktrees
 .worktrees/
+.worktrees/
