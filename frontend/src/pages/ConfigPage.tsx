@@ -93,13 +93,13 @@ export function ConfigPage() {
 
               {/* Appearance */}
               <section className="rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-5 space-y-5">
-                <h3 className="text-[14px] font-medium">Appearance</h3>
+                <h3 className="text-[14px] font-medium">{t('config.appearance')}</h3>
                 <div>
                   <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-2">{t('config.theme')}</label>
                   <ThemeSwitcher />
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-wider text-stone-400 font-medium">Accent colour</label>
+                  <label className="text-[11px] uppercase tracking-wider text-stone-400 font-medium">{t('config.accent_colour')}</label>
                   <div className="flex gap-2 mt-2">
                     {(['indigo','violet','emerald','rose','amber','stone'] as const).map(a => (
                       <button
@@ -113,7 +113,7 @@ export function ConfigPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-2">Density</label>
+                  <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-2">{t('config.density')}</label>
                   <div className="flex gap-2">
                     {(['compact','balanced','spacious'] as const).map(d => (
                       <button
@@ -141,8 +141,8 @@ export function ConfigPage() {
           {tab === 'api_keys' && (
             <section className="rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 overflow-hidden">
               <div className="px-5 py-4 border-b border-stone-100 dark:border-stone-800">
-                <h3 className="text-[14px] font-medium">API keys</h3>
-                <p className="text-[12px] text-stone-500 mt-0.5">Use keys to access the SPT API from scripts and integrations. Keep them secret.</p>
+                <h3 className="text-[14px] font-medium">{t('config.api_keys')}</h3>
+                <p className="text-[12px] text-stone-500 mt-0.5">{t('config.api_keys_desc')}</p>
               </div>
               <div className="p-5">
                 <ApiKeyList />
@@ -153,7 +153,7 @@ export function ConfigPage() {
           {tab === 'security' && (
             <section className="rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-5">
               <h3 className="text-[14px] font-medium mb-2">{t('config.security')}</h3>
-              <p className="text-[13px] text-stone-500">Password change coming in v2.</p>
+              <p className="text-[13px] text-stone-500">{t('config.security_placeholder')}</p>
             </section>
           )}
         </div>

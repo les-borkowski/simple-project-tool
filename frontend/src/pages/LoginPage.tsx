@@ -42,8 +42,8 @@ export function LoginPage() {
             <span className="text-[15px] font-semibold">Simple Project Tool</span>
           </div>
 
-          <h1 className="text-[26px] font-semibold tracking-tight mb-1">Welcome back.</h1>
-          <p className="text-[13px] text-stone-500 mb-7">Sign in to continue to your workspace.</p>
+          <h1 className="text-[26px] font-semibold tracking-tight mb-1">{t('auth.welcome_back')}</h1>
+          <p className="text-[13px] text-stone-500 mb-7">{t('auth.sign_in_subtitle')}</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

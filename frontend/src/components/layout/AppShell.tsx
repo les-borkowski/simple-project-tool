@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useNavigate, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/AuthContext'
 import { invitationsApi } from '../../services/api'
 
@@ -42,6 +43,7 @@ interface Props {
 export function AppShell({ children }: Props) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [pendingCount, setPendingCount] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const initials = user?.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
@@ -66,7 +68,7 @@ export function AppShell({ children }: Props) {
           <Link to="/projects" className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-stone-50 dark:hover:bg-stone-900">
             <span className="w-6 h-6 rounded-md accent-bg flex items-center justify-center text-[11px] font-semibold">SP</span>
             <span className="flex-1 min-w-0">
-              <span className="block text-[13px] font-semibold leading-tight">Simple Project Tool</span>
+              <span className="block text-[13px] font-semibold leading-tight">{t('shell.workspace')}</span>
             </span>
           </Link>
         </div>
@@ -75,7 +77,7 @@ export function AppShell({ children }: Props) {
         <div className="px-3 pt-3">
           <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-stone-200 dark:border-stone-800 text-stone-400 text-[12px]">
             <ISearch />
-            <span className="flex-1 text-left">Search…</span>
+            <span className="flex-1 text-left">{t('shell.search')}</span>
           </div>
         </div>
 
@@ -89,7 +91,7 @@ export function AppShell({ children }: Props) {
             }
           >
             <span className="text-stone-400"><IHome /></span>
-            <span>Projects</span>
+            <span>{t('nav.projects')}</span>
           </NavLink>
           <NavLink
             to="/invitations"
@@ -98,7 +100,7 @@ export function AppShell({ children }: Props) {
             }
           >
             <span className="text-stone-400"><IInbox /></span>
-            <span className="flex-1">Invitations</span>
+            <span className="flex-1">{t('nav.invitations')}</span>
             {pendingCount > 0 && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-medium">{pendingCount}</span>
             )}
@@ -117,7 +119,7 @@ export function AppShell({ children }: Props) {
             }
           >
             <span className="text-stone-400"><ICog /></span>
-            <span>Settings</span>
+            <span>{t('nav.settings')}</span>
           </NavLink>
 
           <div className="relative">
@@ -141,13 +143,13 @@ export function AppShell({ children }: Props) {
                   onClick={() => setMenuOpen(false)}
                   className="flex items-center gap-2 px-3 py-2 text-[12.5px] text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
                 >
-                  <ICog /> Settings
+                  <ICog /> {t('nav.settings')}
                 </Link>
                 <button
                   onClick={handleLogout}
                   className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
                 >
-                  <IPlus /> Sign out
+                  <IPlus /> {t('shell.sign_out')}
                 </button>
               </div>
             )}

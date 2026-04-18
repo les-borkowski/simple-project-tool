@@ -225,10 +225,10 @@ export function StoryDetailPage() {
                   onChange={(e) => setSortField(e.target.value as SortField)}
                   className="text-[11px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
                 >
-                  <option value="created_at">Created</option>
-                  <option value="status">Status</option>
-                  <option value="priority">Priority</option>
-                  <option value="title">Title</option>
+                  <option value="created_at">{t('sort.created')}</option>
+                  <option value="status">{t('sort.status')}</option>
+                  <option value="priority">{t('sort.priority')}</option>
+                  <option value="title">{t('sort.title')}</option>
                 </select>
                 <button
                   onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
@@ -326,10 +326,10 @@ export function StoryDetailPage() {
 
         {/* Right rail */}
         <aside className="border-l border-stone-200 dark:border-stone-800 bg-stone-50/40 dark:bg-stone-950/30 px-5 py-5 space-y-5 text-[12.5px]">
-          <DetailField label="Status"><StatusPill status={story.status} /></DetailField>
-          <DetailField label="Priority"><PriorityBars priority={story.priority} withLabel /></DetailField>
-          <DetailField label="Project"><span className="text-stone-700 dark:text-stone-200">{projectName}</span></DetailField>
-          <DetailField label="Created"><span className="text-stone-500">{formatRelative(story.created_at)}</span></DetailField>
+          <DetailField label={t('detail.status')}><StatusPill status={story.status} /></DetailField>
+          <DetailField label={t('detail.priority')}><PriorityBars priority={story.priority} withLabel /></DetailField>
+          <DetailField label={t('detail.project')}><span className="text-stone-700 dark:text-stone-200">{projectName}</span></DetailField>
+          <DetailField label={t('detail.created')}><span className="text-stone-500">{formatRelative(story.created_at)}</span></DetailField>
           <div>
             <div className="text-[10.5px] uppercase tracking-wider text-stone-400 mb-2 font-medium">{t('history.title')}</div>
             <StatusHistoryTimeline itemType="story" itemId={storyId!} />

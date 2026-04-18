@@ -17,13 +17,7 @@ import { formatRelative } from '../utils/time'
 
 type Tab = 'board' | 'stories' | 'members'
 
-const STATUSES: { id: Status; label: string }[] = [
-  { id: 'to_do',       label: 'To do' },
-  { id: 'in_progress', label: 'In progress' },
-  { id: 'in_review',   label: 'In review' },
-  { id: 'in_testing',  label: 'In testing' },
-  { id: 'done',        label: 'Done' },
-]
+const STATUS_IDS: Status[] = ['to_do', 'in_progress', 'in_review', 'in_testing', 'done']
 
 const STATUS_VARS: Record<Status, string> = {
   to_do: '--st-todo', in_progress: '--st-prog', in_review: '--st-rev',
@@ -327,7 +321,7 @@ export function ProjectDetailPage() {
                 </button>
               )}
               {project.archived_at && (
-                <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-stone-100 dark:bg-stone-800 text-stone-500">Archived</span>
+                <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-stone-100 dark:bg-stone-800 text-stone-500">{t('board.archived')}</span>
               )}
             </div>
             {project.description && (
@@ -342,7 +336,7 @@ export function ProjectDetailPage() {
                   onClick={() => setShowInvite(true)}
                   className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-900 inline-flex items-center gap-1.5 text-stone-600 dark:text-stone-300"
                 >
-                  <IUser /> Invite
+                  <IUser /> {t('board.invite')}
                 </button>
                 <button
                   onClick={() => setShowCreateStory(true)}
@@ -375,9 +369,9 @@ export function ProjectDetailPage() {
         {/* Sub-tabs */}
         <div className="mt-4 flex items-center gap-5 text-[13px]">
           {([
-            ['board', 'Board', <IBoard key="b" />],
-            ['stories', 'Stories', <IList key="s" />],
-            ['members', 'Members', <IUser key="m" />],
+            ['board', t('tabs.board'), <IBoard key="b" />],
+            ['stories', t('tabs.stories'), <IList key="s" />],
+            ['members', t('tabs.members'), <IUser key="m" />],
           ] as [Tab, string, React.ReactNode][]).map(([key, label, icon]) => (
             <button
               key={key}
@@ -394,13 +388,13 @@ export function ProjectDetailPage() {
       {tab === 'board' && (
         <div className="flex-1 overflow-x-auto scroll-hidden bg-stone-50 dark:bg-stone-950/50 fine-grid">
           <div className="flex gap-3 px-7 py-5 min-w-min min-h-full">
-            {STATUSES.map((s) => {
-              const columnTasks = allTasks.filter(({ task }) => task.status === s.id)
+            {STATUS_IDS.map((statusId) => {
+              const columnTasks = allTasks.filter(({ task }) => task.status === statusId)
               return (
-                <div key={s.id} className="w-[272px] shrink-0">
+                <div key={statusId} className="w-[272px] shrink-0">
                   <div className="flex items-center gap-2 px-1 mb-2">
-                    <span className="w-2 h-2 rounded-full" style={{ background: `var(${STATUS_VARS[s.id]})` }} />
-                    <span className="text-[12px] font-medium">{s.label}</span>
+                    <span className="w-2 h-2 rounded-full" style={{ background: `var(${STATUS_VARS[statusId]})` }} />
+                    <span className="text-[12px] font-medium">{t(`status.${statusId}`)}</span>
                     <span className="text-[11px] text-stone-400 tabular-nums">{columnTasks.length}</span>
                     <span className="flex-1" />
                     <button
@@ -437,11 +431,11 @@ export function ProjectDetailPage() {
             <>
               <div className="rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 overflow-hidden">
                 <div className="grid grid-cols-[1fr_120px_100px_100px_80px] px-4 py-2 text-[10.5px] uppercase tracking-wider text-stone-400 font-medium border-b border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/30">
-                  <span>Title</span>
-                  <span>Status</span>
-                  <span>Priority</span>
-                  <span>Tasks</span>
-                  <span className="text-right">Updated</span>
+                  <span>{t('board.col_title')}</span>
+                  <span>{t('board.col_status')}</span>
+                  <span>{t('board.col_priority')}</span>
+                  <span>{t('board.col_tasks')}</span>
+                  <span className="text-right">{t('board.col_updated')}</span>
                 </div>
                 {storiesHook.items.map((story) => (
                   <div key={story.id} className="border-b border-stone-100 dark:border-stone-800 last:border-0">

@@ -122,7 +122,7 @@ export function ProjectsPage() {
           <div>
             <h1 className="text-[22px] font-semibold tracking-tight">{t('projects.title')}</h1>
             {initialized && (
-              <p className="text-[13px] text-stone-500 mt-0.5">{items.length} {archived ? 'archived' : 'active'}</p>
+              <p className="text-[13px] text-stone-500 mt-0.5">{items.length} {archived ? t('projects.archived_label') : t('projects.active')}</p>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -201,7 +201,7 @@ export function ProjectsPage() {
                   />
                   <StatusPill status={project.status} />
                   {project.archived_at && (
-                    <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-stone-100 dark:bg-stone-800 text-stone-500">Archived</span>
+                    <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-stone-100 dark:bg-stone-800 text-stone-500">{t('board.archived')}</span>
                   )}
                   <span className="flex-1" />
                   {isManager && (

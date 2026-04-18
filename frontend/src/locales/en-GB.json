@@ -116,5 +116,50 @@
   "time.days": "{{count}}d",
 
   "tabs.stories": "Stories",
-  "tabs.members": "Members"
+  "tabs.members": "Members",
+  "tabs.board": "Board",
+
+  "shell.search": "Search…",
+  "shell.sign_out": "Sign out",
+  "shell.workspace": "Simple Project Tool",
+
+  "board.invite": "Invite",
+  "board.archived": "Archived",
+  "board.active": "active",
+  "board.col_title": "Title",
+  "board.col_status": "Status",
+  "board.col_priority": "Priority",
+  "board.col_tasks": "Tasks",
+  "board.col_updated": "Updated",
+
+  "detail.status": "Status",
+  "detail.priority": "Priority",
+  "detail.project": "Project",
+  "detail.created": "Created",
+  "detail.assignee": "Assignee",
+  "detail.story": "Story",
+  "detail.description": "Description",
+  "detail.assigned_to": "Assigned to {{name}}",
+  "detail.add_description": "Add description…",
+
+  "sort.created": "Created",
+  "sort.status": "Status",
+  "sort.priority": "Priority",
+  "sort.title": "Title",
+
+  "config.appearance": "Appearance",
+  "config.accent_colour": "Accent colour",
+  "config.density": "Density",
+  "config.api_keys_desc": "Use keys to access the SPT API from scripts and integrations. Keep them secret.",
+  "config.security_placeholder": "Password change coming in v2.",
+
+  "auth.welcome_back": "Welcome back.",
+  "auth.sign_in_subtitle": "Sign in to continue to your workspace.",
+  "auth.register_subtitle": "Create your account to get started.",
+
+  "inbox.subtitle": "Project invitations waiting for your response.",
+
+  "projects.active": "active",
+  "projects.archived_label": "archived",
+  "projects.delete_confirm": "Delete project?"
 }

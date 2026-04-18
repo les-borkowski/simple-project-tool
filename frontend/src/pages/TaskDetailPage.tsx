@@ -165,7 +165,7 @@ export function TaskDetailPage() {
                 </button>
               )}
               {assignee && (
-                <span className="text-[11.5px] text-stone-500">· Assigned to {assignee.name}</span>
+                <span className="text-[11.5px] text-stone-500">· {t('detail.assigned_to', { name: assignee.name })}</span>
               )}
             </div>
           </div>
@@ -178,7 +178,7 @@ export function TaskDetailPage() {
         <div className="px-7 py-5 space-y-8 overflow-y-auto">
           {/* Description */}
           <section>
-            <h2 className="text-[13px] font-medium text-stone-700 dark:text-stone-200 mb-2">Description</h2>
+            <h2 className="text-[13px] font-medium text-stone-700 dark:text-stone-200 mb-2">{t('detail.description')}</h2>
             <div className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-4">
               {editingDesc ? (
                 <div className="space-y-2">
@@ -192,7 +192,7 @@ export function TaskDetailPage() {
                 <button onClick={() => setEditingDesc(true)} className="w-full text-left">
                   {task.description
                     ? <div className="prose prose-sm dark:prose-invert max-w-none text-[13.5px] leading-relaxed"><ReactMarkdown remarkPlugins={[remarkGfm]}>{task.description}</ReactMarkdown></div>
-                    : <p className="text-[13px] text-stone-400 italic">Add description…</p>}
+                    : <p className="text-[13px] text-stone-400 italic">{t('detail.add_description')}</p>}
                 </button>
               )}
             </div>
@@ -207,9 +207,9 @@ export function TaskDetailPage() {
 
         {/* Right rail */}
         <aside className="border-l border-stone-200 dark:border-stone-800 bg-stone-50/40 dark:bg-stone-950/30 px-5 py-5 space-y-5 text-[12.5px]">
-          <DetailField label="Status"><StatusPill status={task.status} /></DetailField>
-          <DetailField label="Priority"><PriorityBars priority={task.priority} withLabel /></DetailField>
-          <DetailField label="Assignee">
+          <DetailField label={t('detail.status')}><StatusPill status={task.status} /></DetailField>
+          <DetailField label={t('detail.priority')}><PriorityBars priority={task.priority} withLabel /></DetailField>
+          <DetailField label={t('detail.assignee')}>
             <select
               value={task.assignee_id ?? ''}
               onChange={(e) => handleAssigneeChange(e.target.value)}
@@ -222,14 +222,14 @@ export function TaskDetailPage() {
             </select>
           </DetailField>
           {story && (
-            <DetailField label="Story">
+            <DetailField label={t('detail.story')}>
               <Link to={`/projects/${story.project_id}/stories/${storyId}`} className="accent-text hover:underline text-[12.5px]">
                 {story.title}
               </Link>
             </DetailField>
           )}
-          <DetailField label="Project"><span className="text-stone-700 dark:text-stone-200">{projectName}</span></DetailField>
-          <DetailField label="Created"><span className="text-stone-500">{formatRelative(task.created_at)}</span></DetailField>
+          <DetailField label={t('detail.project')}><span className="text-stone-700 dark:text-stone-200">{projectName}</span></DetailField>
+          <DetailField label={t('detail.created')}><span className="text-stone-500">{formatRelative(task.created_at)}</span></DetailField>
           <div>
             <div className="text-[10.5px] uppercase tracking-wider text-stone-400 mb-2 font-medium">{t('history.title')}</div>
             <StatusHistoryTimeline itemType="task" itemId={taskId!} />

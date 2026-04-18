@@ -118,5 +118,50 @@
   "time.days": "{{count}} dni",
 
   "tabs.stories": "Historyjki",
-  "tabs.members": "Członkowie"
+  "tabs.members": "Członkowie",
+  "tabs.board": "Tablica",
+
+  "shell.search": "Szukaj…",
+  "shell.sign_out": "Wyloguj się",
+  "shell.workspace": "Simple Project Tool",
+
+  "board.invite": "Zaproś",
+  "board.archived": "Zarchiwizowany",
+  "board.active": "aktywny",
+  "board.col_title": "Tytuł",
+  "board.col_status": "Status",
+  "board.col_priority": "Priorytet",
+  "board.col_tasks": "Zadania",
+  "board.col_updated": "Zaktualizowano",
+
+  "detail.status": "Status",
+  "detail.priority": "Priorytet",
+  "detail.project": "Projekt",
+  "detail.created": "Utworzono",
+  "detail.assignee": "Przypisany",
+  "detail.story": "Historyjka",
+  "detail.description": "Opis",
+  "detail.assigned_to": "Przypisano do {{name}}",
+  "detail.add_description": "Dodaj opis…",
+
+  "sort.created": "Utworzono",
+  "sort.status": "Status",
+  "sort.priority": "Priorytet",
+  "sort.title": "Tytuł",
+
+  "config.appearance": "Wygląd",
+  "config.accent_colour": "Kolor akcentu",
+  "config.density": "Gęstość",
+  "config.api_keys_desc": "Użyj kluczy, aby uzyskać dostęp do API SPT ze skryptów i integracji. Trzymaj je w tajemnicy.",
+  "config.security_placeholder": "Zmiana hasła dostępna w wersji 2.",
+
+  "auth.welcome_back": "Witaj ponownie.",
+  "auth.sign_in_subtitle": "Zaloguj się, aby kontynuować pracę.",
+  "auth.register_subtitle": "Utwórz konto, aby rozpocząć.",
+
+  "inbox.subtitle": "Zaproszenia do projektów czekające na Twoją odpowiedź.",
+
+  "projects.active": "aktywny",
+  "projects.archived_label": "zarchiwizowany",
+  "projects.delete_confirm": "Usunąć projekt?"
 }

@@ -50,7 +50,7 @@ export function InvitationsPage() {
       {/* Header */}
       <div className="px-7 pt-6 pb-4 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
         <h1 className="text-[22px] font-semibold tracking-tight">{t('invitations.title')}</h1>
-        <p className="text-[13px] text-stone-500 mt-0.5">Project invitations waiting for your response.</p>
+        <p className="text-[13px] text-stone-500 mt-0.5">{t('inbox.subtitle')}</p>
       </div>
 
       <div className="px-7 py-5 flex-1">

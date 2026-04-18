@@ -48,7 +48,7 @@ export function RegisterPage() {
 
         <div className="bg-white dark:bg-stone-900 rounded-xl shadow-sm border border-stone-200 dark:border-stone-800 p-8">
           <h2 className="text-[20px] font-semibold tracking-tight mb-1">{t('auth.register')}</h2>
-          <p className="text-[12.5px] text-stone-500 mb-6">Create your account to get started.</p>
+          <p className="text-[12.5px] text-stone-500 mb-6">{t('auth.register_subtitle')}</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
