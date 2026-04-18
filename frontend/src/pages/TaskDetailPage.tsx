@@ -5,19 +5,35 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { tasksApi, projectsApi, storiesApi } from '../services/api'
 import type { TaskResponse, MemberResponse, Status, Priority, StoryResponse } from '../services/api'
-import { StatusBadge } from '../components/common/StatusBadge'
-import { PriorityBadge } from '../components/common/PriorityBadge'
+import { StatusPill } from '../components/common/StatusPill'
+import { PriorityBars } from '../components/common/PriorityBars'
 import { MarkdownEditor } from '../components/common/MarkdownEditor'
 import { SkeletonCard } from '../components/common/Skeleton'
 import { useToast } from '../context/ToastContext'
 import { CommentList } from '../components/comments/CommentList'
 import { StatusHistoryTimeline } from '../components/status-history/StatusHistoryTimeline'
+import { formatRelative } from '../utils/time'
+
+const ICaret = () => (
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="m6 9 6 6 6-6"/>
+  </svg>
+)
+
+function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-[80px_1fr] items-center gap-3">
+      <span className="text-[10.5px] uppercase tracking-wider text-stone-400 font-medium">{label}</span>
+      <div>{children}</div>
+    </div>
+  )
+}
 
 export function TaskDetailPage() {
   const { storyId, taskId } = useParams<{ storyId: string; taskId: string }>()
   const { t } = useTranslation()
-
   const { addToast } = useToast()
+
   const [task, setTask] = useState<TaskResponse | null>(null)
   const [story, setStory] = useState<StoryResponse | null>(null)
   const [projectName, setProjectName] = useState('')
@@ -33,7 +49,6 @@ export function TaskDetailPage() {
     tasksApi.get(taskId).then(async (res) => {
       setTask(res.data)
       setDesc(res.data.description ?? '')
-      // Get project members for assignee picker via story
       try {
         const storyRes = await storiesApi.get(res.data.story_id)
         setStory(storyRes.data)
@@ -82,46 +97,54 @@ export function TaskDetailPage() {
   const priorities: Priority[] = ['low', 'medium', 'high']
 
   if (loading) return (
-    <div className="space-y-3 mt-6">
-      {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
+    <div className="flex-1 flex flex-col">
+      <div className="px-7 pt-6 pb-4">
+        <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}</div>
+      </div>
     </div>
   )
   if (!task) return null
 
-  return (
-    <div>
-      <nav className="text-sm text-gray-500 dark:text-gray-300 mb-4">
-        <Link to="/projects" className="hover:underline">{t('projects.title')}</Link>
-        <span className="mx-2">/</span>
-        {story && (
-          <>
-            <Link to={`/projects/${story.project_id}`} className="hover:underline">{projectName || '…'}</Link>
-            <span className="mx-2">/</span>
-            <Link to={`/projects/${story.project_id}/stories/${storyId}`} className="hover:underline">{story.title}</Link>
-            <span className="mx-2">/</span>
-          </>
-        )}
-        <span>{task.title}</span>
-      </nav>
+  const assignee = members.find(m => m.user_id === task.assignee_id)
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main */}
-        <div className="lg:col-span-2 space-y-6">
+  return (
+    <div className="flex-1 flex flex-col">
+      {/* Header */}
+      <div className="px-7 pt-5 pb-4 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
+        <div className="flex items-center gap-2 text-[11.5px] text-stone-500 mb-2">
+          <Link to="/projects" className="hover:text-stone-800 dark:hover:text-stone-200">{t('projects.title')}</Link>
+          <span>/</span>
+          {story && (
+            <>
+              <Link to={`/projects/${story.project_id}`} className="hover:text-stone-800 dark:hover:text-stone-200">{projectName || '…'}</Link>
+              <span>/</span>
+              <Link to={`/projects/${story.project_id}/stories/${storyId}`} className="hover:text-stone-800 dark:hover:text-stone-200">{story.title}</Link>
+              <span>/</span>
+            </>
+          )}
+          <span>{task.title}</span>
+        </div>
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold mb-3">{task.title}</h1>
-            <div className="flex items-center gap-2 mb-4">
+            <h1 className="text-[22px] font-semibold tracking-tight leading-tight">{task.title}</h1>
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
               {editingStatus ? (
                 <select
                   autoFocus
                   defaultValue={task.status}
                   onChange={(e) => handleStatusChange(e.target.value as Status)}
                   onBlur={() => setEditingStatus(false)}
-                  className="text-sm px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                  className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
                 >
                   {statuses.map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
                 </select>
               ) : (
-                <button onClick={() => setEditingStatus(true)}><StatusBadge status={task.status} /></button>
+                <button
+                  onClick={() => setEditingStatus(true)}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-stone-100 dark:hover:bg-stone-900"
+                >
+                  <StatusPill status={task.status} /> <ICaret />
+                </button>
               )}
               {editingPriority ? (
                 <select
@@ -129,66 +152,89 @@ export function TaskDetailPage() {
                   defaultValue={task.priority}
                   onChange={(e) => handlePriorityChange(e.target.value as Priority)}
                   onBlur={() => setEditingPriority(false)}
-                  className="text-sm px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                  className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
                 >
                   {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
                 </select>
               ) : (
-                <button onClick={() => setEditingPriority(true)}>
-                  <PriorityBadge priority={task.priority} />
+                <button
+                  onClick={() => setEditingPriority(true)}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-stone-100 dark:hover:bg-stone-900"
+                >
+                  <PriorityBars priority={task.priority} withLabel /> <ICaret />
                 </button>
               )}
+              {assignee && (
+                <span className="text-[11.5px] text-stone-500">· Assigned to {assignee.name}</span>
+              )}
             </div>
+          </div>
+        </div>
+      </div>
 
-            {/* Description */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 p-4">
+      {/* Two-column layout */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_300px] min-h-0">
+        {/* Main */}
+        <div className="px-7 py-5 space-y-8 overflow-y-auto">
+          {/* Description */}
+          <section>
+            <h2 className="text-[13px] font-medium text-stone-700 dark:text-stone-200 mb-2">Description</h2>
+            <div className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-4">
               {editingDesc ? (
                 <div className="space-y-2">
-                  <MarkdownEditor value={desc} onChange={setDesc} rows={4} />
+                  <MarkdownEditor value={desc} onChange={setDesc} rows={5} />
                   <div className="flex gap-2">
-                    <button onClick={handleSaveDesc} className="px-3 py-1 text-sm bg-sky-600 hover:bg-sky-700 text-white rounded">{t('actions.save')}</button>
-                    <button onClick={() => { setEditingDesc(false); setDesc(task.description ?? '') }} className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded">{t('actions.cancel')}</button>
+                    <button onClick={handleSaveDesc} className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md">{t('actions.save')}</button>
+                    <button onClick={() => { setEditingDesc(false); setDesc(task.description ?? '') }} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300">{t('actions.cancel')}</button>
                   </div>
                 </div>
               ) : (
                 <button onClick={() => setEditingDesc(true)} className="w-full text-left">
                   {task.description
-                    ? <ReactMarkdown remarkPlugins={[remarkGfm]} className="prose prose-sm dark:prose-invert max-w-none text-left">{task.description}</ReactMarkdown>
-                    : <p className="text-sm text-gray-400 dark:text-gray-400 italic">Add description…</p>}
+                    ? <div className="prose prose-sm dark:prose-invert max-w-none text-[13.5px] leading-relaxed"><ReactMarkdown remarkPlugins={[remarkGfm]}>{task.description}</ReactMarkdown></div>
+                    : <p className="text-[13px] text-stone-400 italic">Add description…</p>}
                 </button>
               )}
             </div>
-          </div>
+          </section>
 
           {/* Comments */}
-          <div>
-            <h2 className="text-lg font-semibold mb-4">{t('comments.title')}</h2>
+          <section>
+            <h2 className="text-[13px] font-medium text-stone-700 dark:text-stone-200 mb-3">{t('comments.title')}</h2>
             <CommentList itemType="task" itemId={taskId!} />
-          </div>
-
-          {/* Status history */}
-          <div>
-            <h2 className="text-lg font-semibold mb-4">{t('history.title')}</h2>
-            <StatusHistoryTimeline itemType="task" itemId={taskId!} />
-          </div>
+          </section>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 p-4">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-300 mb-2">{t('tasks.assignee')}</h3>
+        {/* Right rail */}
+        <aside className="border-l border-stone-200 dark:border-stone-800 bg-stone-50/40 dark:bg-stone-950/30 px-5 py-5 space-y-5 text-[12.5px]">
+          <DetailField label="Status"><StatusPill status={task.status} /></DetailField>
+          <DetailField label="Priority"><PriorityBars priority={task.priority} withLabel /></DetailField>
+          <DetailField label="Assignee">
             <select
               value={task.assignee_id ?? ''}
               onChange={(e) => handleAssigneeChange(e.target.value)}
-              className="w-full text-sm px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+              className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
             >
               <option value="">{t('tasks.unassigned')}</option>
               {members.map((m) => (
                 <option key={m.user_id} value={m.user_id}>{m.name}</option>
               ))}
             </select>
+          </DetailField>
+          {story && (
+            <DetailField label="Story">
+              <Link to={`/projects/${story.project_id}/stories/${storyId}`} className="accent-text hover:underline text-[12.5px]">
+                {story.title}
+              </Link>
+            </DetailField>
+          )}
+          <DetailField label="Project"><span className="text-stone-700 dark:text-stone-200">{projectName}</span></DetailField>
+          <DetailField label="Created"><span className="text-stone-500">{formatRelative(task.created_at)}</span></DetailField>
+          <div>
+            <div className="text-[10.5px] uppercase tracking-wider text-stone-400 mb-2 font-medium">{t('history.title')}</div>
+            <StatusHistoryTimeline itemType="task" itemId={taskId!} />
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   )

@@ -1,6 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
-html {
-  font-size: 17px;
+html, body {
+  font-family: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
 }
+
+/* ── Design tokens ── */
+:root {
+  --st-todo:  #94a3b8;
+  --st-prog:  #6366f1;
+  --st-rev:   #d97706;
+  --st-test:  #db2777;
+  --st-done:  #059669;
+  --pr-low:   #94a3b8;
+  --pr-med:   #d97706;
+  --pr-high:  #dc2626;
+  --accent:   #6366f1;
+  --accent-soft: #eef2ff;
+  --accent-text: #4338ca;
+}
+
+.dark {
+  --accent-soft: #1e1b4b;
+  --accent-text: #a5b4fc;
+}
+
+/* ── Status pills ── */
+.st-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 3px 8px 3px 6px;
+  border-radius: 999px;
+}
+.st-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  flex: none;
+}
+.st-todo  { color: var(--st-todo);  background: color-mix(in oklab, var(--st-todo) 12%, transparent); }
+.st-prog  { color: var(--st-prog);  background: color-mix(in oklab, var(--st-prog) 12%, transparent); }
+.st-rev   { color: var(--st-rev);   background: color-mix(in oklab, var(--st-rev)  14%, transparent); }
+.st-test  { color: var(--st-test);  background: color-mix(in oklab, var(--st-test) 12%, transparent); }
+.st-done  { color: var(--st-done);  background: color-mix(in oklab, var(--st-done) 14%, transparent); }
+
+/* ── Priority bars ── */
+.pr-bars { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 10px; }
+.pr-bars span { width: 2.5px; background: currentColor; border-radius: 1px; opacity: .25; }
+.pr-bars[data-level="1"] span:nth-child(1) { opacity: 1; }
+.pr-bars[data-level="2"] span:nth-child(-n+2) { opacity: 1; }
+.pr-bars[data-level="3"] span { opacity: 1; }
+.pr-bars span:nth-child(1) { height: 30%; }
+.pr-bars span:nth-child(2) { height: 65%; }
+.pr-bars span:nth-child(3) { height: 100%; }
+.pr-low  { color: var(--pr-low); }
+.pr-med  { color: var(--pr-med); }
+.pr-high { color: var(--pr-high); }
+
+/* ── Avatar gradients ── */
+.av-1 { background: linear-gradient(135deg,#fb7185,#f59e0b); }
+.av-2 { background: linear-gradient(135deg,#6366f1,#8b5cf6); }
+.av-3 { background: linear-gradient(135deg,#10b981,#06b6d4); }
+.av-4 { background: linear-gradient(135deg,#f43f5e,#a855f7); }
+.av-5 { background: linear-gradient(135deg,#0ea5e9,#22d3ee); }
+.av-6 { background: linear-gradient(135deg,#84cc16,#facc15); }
+
+/* ── Accent utilities ── */
+.accent-bg { background: var(--accent); color: white; }
+.accent-bg:hover { filter: brightness(.95); }
+.accent-soft { background: var(--accent-soft); color: var(--accent-text); }
+.accent-text { color: var(--accent-text); }
+.accent-border { border-color: var(--accent); }
+.accent-ring { box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 20%, transparent); }
+.focus-ring:focus { outline: none; box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent); }
+
+/* ── Card lift ── */
+.lift { transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease; }
+.lift:hover { transform: translateY(-1px); }
+
+/* ── Scrollbar hidden ── */
+.scroll-hidden::-webkit-scrollbar { display: none; }
+.scroll-hidden { scrollbar-width: none; }
+
+/* ── Pulse animation for active status indicator ── */
+@keyframes pulse-soft { 0%,100% { opacity: .9 } 50% { opacity: .45 } }
+.pulse-soft { animation: pulse-soft 1.8s ease-in-out infinite; }
+
+/* ── Fine grid board bg ── */
+.fine-grid {
+  background-image: linear-gradient(to right, rgba(0,0,0,.04) 1px, transparent 1px);
+  background-size: 280px 100%;
+}
+.dark .fine-grid {
+  background-image: linear-gradient(to right, rgba(255,255,255,.04) 1px, transparent 1px);
+}
+
+/* ── kbd ── */
+kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  font-family: 'Geist Mono', monospace; font-size: 10.5px;
+  border-radius: 4px;
+  background: rgba(0,0,0,.05); color: rgba(0,0,0,.55);
+  border: 1px solid rgba(0,0,0,.06); line-height: 1;
+}
+.dark kbd { background: rgba(255,255,255,.06); color: rgba(255,255,255,.6); border-color: rgba(255,255,255,.08); }
+
+font-mono { font-family: 'Geist Mono', ui-monospace, monospace; }

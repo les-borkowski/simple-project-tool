@@ -38,80 +38,74 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 px-4">
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-gray-100 mb-8">
-          SPT
-        </h1>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-600 p-8">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">
-            {t('auth.register')}
-          </h2>
+        {/* Logo */}
+        <div className="flex items-center gap-2 mb-8">
+          <span className="w-7 h-7 rounded-md accent-bg flex items-center justify-center text-[12px] font-semibold">SP</span>
+          <span className="text-[15px] font-semibold">Simple Project Tool</span>
+        </div>
+
+        <div className="bg-white dark:bg-stone-900 rounded-xl shadow-sm border border-stone-200 dark:border-stone-800 p-8">
+          <h2 className="text-[20px] font-semibold tracking-tight mb-1">{t('auth.register')}</h2>
+          <p className="text-[12.5px] text-stone-500 mb-6">Create your account to get started.</p>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {t('auth.name')}
-              </label>
+              <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1">{t('auth.name')}</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {t('auth.email')}
-              </label>
+              <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1">{t('auth.email')}</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {t('auth.password')}
-              </label>
+              <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1">{t('auth.password')}</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={8}
-                className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {t('auth.confirm_password')}
-              </label>
+              <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1">{t('auth.confirm_password')}</label>
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 minLength={8}
-                className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
               />
             </div>
-            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+            {error && <p className="text-[12.5px] text-rose-600 dark:text-rose-400">{error}</p>}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 px-4 bg-sky-600 hover:bg-sky-700 text-white rounded-md text-sm font-medium disabled:opacity-50"
+              className="w-full py-2.5 rounded-md accent-bg text-[13.5px] font-medium disabled:opacity-50"
             >
               {loading ? t('auth.registering') : t('auth.register')}
             </button>
           </form>
-          <p className="mt-4 text-sm text-center text-gray-500 dark:text-gray-300">
+
+          <p className="mt-5 text-[12.5px] text-stone-500">
             {t('auth.have_account')}{' '}
-            <Link to="/login" className="text-sky-600 hover:underline">
-              {t('auth.login')}
-            </Link>
+            <Link to="/login" className="accent-text hover:underline">{t('auth.login')}</Link>
           </p>
         </div>
       </div>

@@ -8,6 +8,17 @@ import { useToast } from '../context/ToastContext'
 import i18n from '../i18n'
 import { formatDate } from '../utils/format'
 
+const ICheck = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <path d="m5 12 5 5L20 7"/>
+  </svg>
+)
+const IDecline = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M18 6 6 18M6 6l12 12"/>
+  </svg>
+)
+
 export function InvitationsPage() {
   const { t } = useTranslation()
   const { addToast } = useToast()
@@ -34,51 +45,62 @@ export function InvitationsPage() {
     load()
   }
 
-  if (loading) return (
-    <div className="space-y-3 mt-6">
-      {Array.from({ length: 2 }).map((_, i) => <SkeletonCard key={i} />)}
-    </div>
-  )
-
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">{t('invitations.title')}</h1>
-      {invitations.length === 0 ? (
-        <EmptyState message={t('invitations.empty')} />
-      ) : (
-        <div className="space-y-3">
-          {invitations.map((inv) => (
-            <div
-              key={inv.id}
-              className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 p-4 flex items-center justify-between gap-4"
-            >
-              <div>
-                <p className="font-medium text-sm">{inv.project_name}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-300">
-                  {t('invitations.invited_by')}: {inv.inviter_name} &middot; {t('invitations.role_offered')}: {t(`role.${inv.role}`)}
-                </p>
-                <p className="text-xs text-gray-400 dark:text-gray-400 mt-0.5">
-                  {t('invitations.expires')}: {formatDate(inv.expires_at, i18n.language)}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleAccept(inv.id)}
-                  className="px-3 py-1.5 text-sm bg-sky-600 hover:bg-sky-700 text-white rounded-md"
+    <div className="flex-1 flex flex-col">
+      {/* Header */}
+      <div className="px-7 pt-6 pb-4 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
+        <h1 className="text-[22px] font-semibold tracking-tight">{t('invitations.title')}</h1>
+        <p className="text-[13px] text-stone-500 mt-0.5">Project invitations waiting for your response.</p>
+      </div>
+
+      <div className="px-7 py-5 flex-1">
+        {loading ? (
+          <div className="space-y-3 max-w-2xl">
+            {Array.from({ length: 2 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : invitations.length === 0 ? (
+          <EmptyState message={t('invitations.empty')} />
+        ) : (
+          <div className="space-y-2 max-w-2xl">
+            {invitations.map((inv) => {
+              const projInitials = inv.project_name.split(' ').map(w => w[0]).slice(0, 2).join('')
+              return (
+                <div
+                  key={inv.id}
+                  className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-4 flex items-center gap-4"
                 >
-                  {t('invitations.accept')}
-                </button>
-                <button
-                  onClick={() => handleDecline(inv.id)}
-                  className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  {t('invitations.decline')}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+                  <span className="w-10 h-10 rounded-lg accent-soft inline-flex items-center justify-center font-mono text-[11px] accent-text font-semibold shrink-0">
+                    {projInitials}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13.5px] font-medium">{inv.project_name}</div>
+                    <div className="text-[11.5px] text-stone-500 mt-0.5">
+                      {t('invitations.invited_by')}: {inv.inviter_name} &middot; {t('invitations.role_offered')}: <span className="text-stone-700 dark:text-stone-300">{t(`role.${inv.role}`)}</span>
+                    </div>
+                    <div className="text-[11px] text-stone-400 mt-0.5">
+                      {t('invitations.expires')}: {formatDate(inv.expires_at, i18n.language)}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => handleDecline(inv.id)}
+                      className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-800 inline-flex items-center gap-1.5 text-stone-600 dark:text-stone-300"
+                    >
+                      <IDecline /> {t('invitations.decline')}
+                    </button>
+                    <button
+                      onClick={() => handleAccept(inv.id)}
+                      className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5"
+                    >
+                      <ICheck /> {t('invitations.accept')}
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

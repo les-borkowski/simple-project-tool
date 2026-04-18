@@ -1,7 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ToastProvider } from './context/ToastContext'
 import { ProtectedRoute } from './components/layout/ProtectedRoute'
-import { NavBar } from './components/layout/NavBar'
+import { AppShell } from './components/layout/AppShell'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { ProjectsPage } from './pages/ProjectsPage'
@@ -14,44 +14,41 @@ import { NotFoundPage } from './pages/NotFoundPage'
 
 function ProtectedLayout() {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
-      <NavBar />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <ProtectedRoute />
-      </main>
-    </div>
+    <AppShell>
+      <ProtectedRoute />
+    </AppShell>
   )
 }
 
 export default function App() {
   return (
     <ToastProvider>
-    <BrowserRouter>
-      <Routes>
-        {/* Public */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+      <BrowserRouter>
+        <Routes>
+          {/* Public */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
-        {/* Protected */}
-        <Route element={<ProtectedLayout />}>
-          <Route path="/" element={<Navigate to="/projects" replace />} />
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/projects/:id" element={<ProjectDetailPage />} />
-          <Route
-            path="/projects/:projectId/stories/:storyId"
-            element={<StoryDetailPage />}
-          />
-          <Route
-            path="/stories/:storyId/tasks/:taskId"
-            element={<TaskDetailPage />}
-          />
-          <Route path="/invitations" element={<InvitationsPage />} />
-          <Route path="/config" element={<ConfigPage />} />
-        </Route>
+          {/* Protected */}
+          <Route element={<ProtectedLayout />}>
+            <Route path="/" element={<Navigate to="/projects" replace />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/projects/:id" element={<ProjectDetailPage />} />
+            <Route
+              path="/projects/:projectId/stories/:storyId"
+              element={<StoryDetailPage />}
+            />
+            <Route
+              path="/stories/:storyId/tasks/:taskId"
+              element={<TaskDetailPage />}
+            />
+            <Route path="/invitations" element={<InvitationsPage />} />
+            <Route path="/config" element={<ConfigPage />} />
+          </Route>
 
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </BrowserRouter>
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </BrowserRouter>
     </ToastProvider>
   )
 }
