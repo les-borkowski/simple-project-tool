@@ -1,9 +1,19 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
+import { useTheme, type AccentColor } from '../context/ThemeContext'
 import { LocaleSwitcher } from '../components/config/LocaleSwitcher'
 import { ThemeSwitcher } from '../components/config/ThemeSwitcher'
 import { ApiKeyList } from '../components/config/ApiKeyList'
+
+const ACCENT_COLORS: Record<AccentColor, string> = {
+  indigo: '#6366f1',
+  violet: '#8b5cf6',
+  emerald: '#059669',
+  rose: '#e11d48',
+  amber: '#d97706',
+  stone: '#44403c',
+}
 
 type Tab = 'profile' | 'api_keys' | 'security'
 
@@ -26,6 +36,7 @@ const IShield = () => (
 export function ConfigPage() {
   const { t } = useTranslation()
   const { user } = useAuth()
+  const { accent, setAccent, density, setDensity } = useTheme()
   const [tab, setTab] = useState<Tab>('profile')
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
@@ -86,6 +97,38 @@ export function ConfigPage() {
                 <div>
                   <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-2">{t('config.theme')}</label>
                   <ThemeSwitcher />
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-stone-400 font-medium">Accent colour</label>
+                  <div className="flex gap-2 mt-2">
+                    {(['indigo','violet','emerald','rose','amber','stone'] as const).map(a => (
+                      <button
+                        key={a}
+                        title={a}
+                        onClick={() => setAccent(a)}
+                        style={{ background: ACCENT_COLORS[a] }}
+                        className={`w-6 h-6 rounded-full transition-all ${accent === a ? 'ring-2 ring-offset-2 ring-current' : 'opacity-70 hover:opacity-100'}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-2">Density</label>
+                  <div className="flex gap-2">
+                    {(['compact','balanced','spacious'] as const).map(d => (
+                      <button
+                        key={d}
+                        onClick={() => setDensity(d)}
+                        className={`px-3 py-1.5 text-[12px] rounded-md border transition-colors capitalize ${
+                          density === d
+                            ? 'accent-bg border-transparent text-white'
+                            : 'border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800'
+                        }`}
+                      >
+                        {d}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-2">{t('config.locale')}</label>

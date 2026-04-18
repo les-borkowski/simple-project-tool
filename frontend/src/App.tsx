@@ -1,5 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ToastProvider } from './context/ToastContext'
+import { ThemeProvider, useTheme } from './context/ThemeContext'
+import { ThemeStyle } from './components/layout/ThemeStyle'
 import { ProtectedRoute } from './components/layout/ProtectedRoute'
 import { AppShell } from './components/layout/AppShell'
 import { LoginPage } from './pages/LoginPage'
@@ -20,9 +22,11 @@ function ProtectedLayout() {
   )
 }
 
-export default function App() {
+function ThemedApp() {
+  const { accent } = useTheme()
   return (
-    <ToastProvider>
+    <>
+      <ThemeStyle accent={accent} />
       <BrowserRouter>
         <Routes>
           {/* Public */}
@@ -49,6 +53,16 @@ export default function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </BrowserRouter>
-    </ToastProvider>
+    </>
+  )
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <ToastProvider>
+        <ThemedApp />
+      </ToastProvider>
+    </ThemeProvider>
   )
 }
