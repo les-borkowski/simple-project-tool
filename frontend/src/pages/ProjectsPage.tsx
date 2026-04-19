@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useProjects } from '../hooks/useProjects'
 import { useRole } from '../hooks/useRole'
@@ -65,6 +65,14 @@ export function ProjectsPage() {
     archived,
     q: search,
   })
+
+  const location = useLocation()
+  useEffect(() => {
+    if ((location.state as { modal?: string } | null)?.modal === 'create-project') {
+      setShowCreate(true)
+      window.history.replaceState({}, '')
+    }
+  }, [])
 
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')

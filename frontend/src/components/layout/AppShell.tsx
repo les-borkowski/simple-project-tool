@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/AuthContext'
 import { invitationsApi, projectsApi, recentApi } from '../../services/api'
 import type { ProjectResponse, RecentItemResponse } from '../../services/api'
+import { CommandPalette } from './CommandPalette'
 
 const ISearch = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -92,6 +93,18 @@ export function AppShell({ children }: Props) {
   const { t } = useTranslation()
   const [pendingCount, setPendingCount] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setPaletteOpen(true)
+      }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [])
   const [recentProjects, setRecentProjects] = useState<ProjectResponse[]>([])
   const [hasMoreProjects, setHasMoreProjects] = useState(false)
   const [recentItems, setRecentItems] = useState<RecentItemResponse[]>([])
@@ -140,10 +153,14 @@ export function AppShell({ children }: Props) {
 
           {/* Search stub */}
           <div className="px-3 pt-3 shrink-0">
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-stone-200 dark:border-stone-800 text-stone-400 text-[12px]">
+            <button
+              onClick={() => setPaletteOpen(true)}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-stone-200 dark:border-stone-800 text-stone-400 text-[12px] hover:bg-stone-50 dark:hover:bg-stone-900 hover:border-stone-300 dark:hover:border-stone-700"
+            >
               <ISearch />
               <span className="flex-1 text-left">{t('shell.search')}</span>
-            </div>
+              <span className="text-[10px] text-stone-300 dark:text-stone-600 shrink-0">⌘K</span>
+            </button>
           </div>
 
           {/* Primary nav */}
@@ -267,6 +284,7 @@ export function AppShell({ children }: Props) {
       <main className="flex-1 min-w-0 flex flex-col min-h-screen">
         {children}
       </main>
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   )
 }

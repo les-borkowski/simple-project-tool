@@ -184,6 +184,17 @@ export function ProjectDetailPage() {
   const [boardFilterStory, setBoardFilterStory] = useState('')
 
   useEffect(() => {
+    const modal = (location.state as { modal?: string } | null)?.modal
+    if (modal === 'create-story') {
+      setShowCreateStory(true)
+      window.history.replaceState({}, '')
+    } else if (modal === 'create-task') {
+      setShowCreateTask(true)
+      window.history.replaceState({}, '')
+    }
+  }, [])
+
+  useEffect(() => {
     if (!id) return
     Promise.all([
       projectsApi.get(id),

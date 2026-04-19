@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { storiesApi, tasksApi, projectsApi } from '../services/api'
 import type { StoryResponse, Status, Priority, MemberResponse } from '../services/api'
@@ -52,6 +52,7 @@ export function StoryDetailPage() {
   const { t } = useTranslation()
   const { isManager } = useRole(projectId)
   const { addToast } = useToast()
+  const location = useLocation()
 
   const [story, setStory] = useState<StoryResponse | null>(null)
   const [projectName, setProjectName] = useState('')
@@ -62,6 +63,14 @@ export function StoryDetailPage() {
 
   const tasksHook = useTasks(storyId ?? '')
   const [showCreateTask, setShowCreateTask] = useState(false)
+
+  useEffect(() => {
+    if ((location.state as { modal?: string } | null)?.modal === 'create-task') {
+      setShowCreateTask(true)
+      window.history.replaceState({}, '')
+    }
+  }, [])
+
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [creatingTask, setCreatingTask] = useState(false)
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null)
