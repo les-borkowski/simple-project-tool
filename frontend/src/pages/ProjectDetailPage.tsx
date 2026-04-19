@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { projectsApi, invitationsApi, storiesApi, tasksApi } from '../services/api'
 import type { ProjectResponse, MemberResponse, StoryResponse, TaskResponse, Status, Priority, Role } from '../services/api'
@@ -133,12 +133,14 @@ export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const location = useLocation()
   const { isManager } = useRole(id)
   const { addToast } = useToast()
 
   const [project, setProject] = useState<ProjectResponse | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<Tab>('board')
+  const initialTab = (new URLSearchParams(location.search).get('tab') as Tab | null) ?? 'board'
+  const [tab, setTab] = useState<Tab>(initialTab)
   const [members, setMembers] = useState<MemberResponse[]>([])
   const [editingStatus, setEditingStatus] = useState(false)
   const [editingPriority, setEditingPriority] = useState(false)
@@ -805,6 +807,7 @@ export function ProjectDetailPage() {
                 onChange={setNewTaskDescription}
                 rows={4}
                 placeholder={t('tasks.description')}
+                autoExpand
               />
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
@@ -943,7 +946,7 @@ export function ProjectDetailPage() {
                 required
                 className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
               />
-              <MarkdownEditor value={editStory.description} onChange={(v) => setEditStory({ ...editStory, description: v })} rows={3} />
+              <MarkdownEditor value={editStory.description} onChange={(v) => setEditStory({ ...editStory, description: v })} rows={3} autoExpand />
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={() => setEditStory(null)} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
                   {t('actions.cancel')}

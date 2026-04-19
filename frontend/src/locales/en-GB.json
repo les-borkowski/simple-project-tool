@@ -178,5 +178,22 @@
 
   "projects.active": "active",
   "projects.archived_label": "archived",
-  "projects.delete_confirm": "Delete project?"
+  "projects.delete_confirm": "Delete project?",
+
+  "palette.placeholder": "Search or type a command…",
+  "palette.quick_actions": "Quick actions",
+  "palette.new_project": "New project",
+  "palette.new_story": "New story",
+  "palette.new_task": "New task",
+  "palette.invite_member": "Invite member",
+  "palette.open_settings": "Open settings",
+  "palette.toggle_dark": "Toggle dark mode",
+  "palette.toggle_light": "Toggle light mode",
+  "palette.see_all": "See all {{count}} results",
+
+  "search.title": "Search results for \"{{q}}\"",
+  "search.empty": "No results for \"{{q}}\"",
+  "search.group_projects": "Projects",
+  "search.group_stories": "Stories",
+  "search.group_tasks": "Tasks"
 }

@@ -260,7 +260,7 @@ export function ProjectsPage() {
               </div>
               <div>
                 <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1">{t('projects.description')}</label>
-                <MarkdownEditor value={newDesc} onChange={setNewDesc} rows={3} />
+                <MarkdownEditor value={newDesc} onChange={setNewDesc} rows={3} autoExpand />
               </div>
               <div className="flex justify-end gap-2 pt-1">
                 <button
@@ -301,7 +301,7 @@ export function ProjectsPage() {
               </div>
               <div>
                 <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1">{t('projects.description')}</label>
-                <MarkdownEditor value={editProject.description} onChange={(v) => setEditProject({ ...editProject, description: v })} rows={3} />
+                <MarkdownEditor value={editProject.description} onChange={(v) => setEditProject({ ...editProject, description: v })} rows={3} autoExpand />
               </div>
               <div className="flex justify-end gap-2 pt-1">
                 <button

@@ -158,7 +158,7 @@ export function StoryDetailPage() {
         <div className="flex items-center gap-2 text-[11.5px] text-stone-500 mb-2">
           <Link to="/projects" className="hover:text-stone-800 dark:hover:text-stone-200">{t('projects.title')}</Link>
           <span>/</span>
-          <Link to={`/projects/${projectId}`} className="hover:text-stone-800 dark:hover:text-stone-200">{projectName || '…'}</Link>
+          <Link to={`/projects/${projectId}?tab=stories`} className="hover:text-stone-800 dark:hover:text-stone-200">{projectName || '…'}</Link>
           <span>/</span>
           <span>{story.title}</span>
         </div>
@@ -376,7 +376,7 @@ export function StoryDetailPage() {
                 required
                 className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
               />
-              <MarkdownEditor value={editTask.description} onChange={(v) => setEditTask({ ...editTask, description: v })} rows={3} />
+              <MarkdownEditor value={editTask.description} onChange={(v) => setEditTask({ ...editTask, description: v })} rows={3} autoExpand />
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={() => setEditTask(null)} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
                   {t('actions.cancel')}

@@ -1,0 +1,105 @@
+<h2>Sorting — 3 Approaches</h2>
+<p class="subtitle">All three use the same UI: a "Sort by" dropdown + direction toggle next to the list header. They differ in where the sort logic runs.</p>
+
+<div style="margin-bottom: 24px;">
+  <div class="mockup">
+    <div class="mockup-header">What the Sort Control Looks Like (same for all approaches)</div>
+    <div class="mockup-body" style="padding: 16px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <span style="font-weight: 600; font-size: 15px;">Stories</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label style="font-size: 12px; color: #888;">Sort by</label>
+          <select style="font-size: 13px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px; background: white;">
+            <option>Created date</option>
+            <option>Updated date</option>
+            <option>Status</option>
+            <option>Priority</option>
+            <option>Title</option>
+          </select>
+          <button style="font-size: 13px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px; background: white; cursor: pointer;" title="Toggle direction">↓ Desc</button>
+          <button style="font-size: 13px; padding: 4px 8px; border: 1px solid #6366f1; border-radius: 6px; background: #6366f1; color: white; cursor: pointer;">+ New Story</button>
+        </div>
+      </div>
+      <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span style="font-size: 14px; font-weight: 500; color: #6366f1;">User authentication flow</span>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <span style="font-size: 11px; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px;">in review</span>
+            <span style="font-size: 11px; background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px;">high</span>
+          </div>
+        </div>
+        <span style="font-size: 11px; color: #9ca3af;">2h ago</span>
+      </div>
+      <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span style="font-size: 14px; font-weight: 500; color: #6366f1;">Dashboard redesign</span>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <span style="font-size: 11px; background: #dbeafe; color: #1e40af; padding: 2px 6px; border-radius: 4px;">in progress</span>
+            <span style="font-size: 11px; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px;">medium</span>
+          </div>
+        </div>
+        <span style="font-size: 11px; color: #9ca3af;">1d ago</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Client-side sort <span style="font-size:12px;color:#6366f1;font-weight:400;">(recommended)</span></h3>
+      <p>Sort the items already loaded in the browser. No backend changes needed. Works instantly — just re-orders the state array when the user picks a field.</p>
+      <div class="pros-cons" style="margin-top: 8px;">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>Zero backend changes</li>
+          <li>Instant — no network round-trip</li>
+          <li>Fully reversible / no state to persist</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>Only sorts items already loaded (not cross-page)</li>
+          <li>Default load order is always created_at DESC</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Server-side sort</h3>
+      <p>Add <code>order_by</code> and <code>order_dir</code> query params to stories and tasks list endpoints. Correct sorting across all pages, regardless of pagination.</p>
+      <div class="pros-cons" style="margin-top: 8px;">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>Works correctly with pagination</li>
+          <li>Consistent results for large datasets</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>Requires backend API + DB query changes</li>
+          <li>Cursor-based pagination breaks with non-date sort fields (needs redesign)</li>
+          <li>More moving parts</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Client-side + load all</h3>
+      <p>When user picks a sort field, fetch all items at once (remove pagination). Sort in the browser. Re-enable pagination only when sort is cleared.</p>
+      <div class="pros-cons" style="margin-top: 8px;">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>Correct sort across all items</li>
+          <li>Minimal backend changes (just add a high limit)</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>Could be slow for large lists</li>
+          <li>Complex state management (pagination ↔ no-pagination toggle)</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top: 16px;">My recommendation: <strong>Option A</strong> — lists in a project management tool rarely exceed 50–100 items per page, so client-side sort covers the practical use case cleanly. Option B adds significant complexity with marginal real-world benefit at this scale.</p>

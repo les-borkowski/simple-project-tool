@@ -343,3 +343,12 @@ export const configApi = {
 export const recentApi = {
   list: () => api.get<RecentItemResponse[]>('/recent'),
 }
+
+// ---------------------------------------------------------------------------
+// Search API
+// ---------------------------------------------------------------------------
+
+export const searchApi = {
+  search: (q: string) =>
+    api.get<RecentItemResponse[]>('/search', { params: { q } }),
+}

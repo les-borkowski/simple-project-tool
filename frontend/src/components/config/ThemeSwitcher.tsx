@@ -2,16 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { configApi } from '../../services/api'
 import type { Theme } from '../../services/api'
-
-function applyTheme(theme: Theme) {
-  const root = document.documentElement
-  if (theme === 'dark') root.classList.add('dark')
-  else if (theme === 'light') root.classList.remove('dark')
-  else {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    root.classList.toggle('dark', prefersDark)
-  }
-}
+import { applyTheme } from '../../utils/theme'
 
 export function ThemeSwitcher() {
   const { t } = useTranslation()

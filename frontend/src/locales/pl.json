@@ -188,5 +188,22 @@
 
   "projects.active": "aktywny",
   "projects.archived_label": "zarchiwizowany",
-  "projects.delete_confirm": "Usunąć projekt?"
+  "projects.delete_confirm": "Usunąć projekt?",
+
+  "palette.placeholder": "Szukaj lub wpisz polecenie…",
+  "palette.quick_actions": "Szybkie akcje",
+  "palette.new_project": "Nowy projekt",
+  "palette.new_story": "Nowa historyjka",
+  "palette.new_task": "Nowe zadanie",
+  "palette.invite_member": "Zaproś członka",
+  "palette.open_settings": "Otwórz ustawienia",
+  "palette.toggle_dark": "Włącz tryb ciemny",
+  "palette.toggle_light": "Włącz tryb jasny",
+  "palette.see_all": "Zobacz wszystkie {{count}} wyniki",
+
+  "search.title": "Wyniki wyszukiwania dla \"{{q}}\"",
+  "search.empty": "Brak wyników dla \"{{q}}\"",
+  "search.group_projects": "Projekty",
+  "search.group_stories": "Historyjki",
+  "search.group_tasks": "Zadania"
 }

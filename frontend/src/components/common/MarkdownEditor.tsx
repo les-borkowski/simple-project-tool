@@ -6,11 +6,12 @@ interface Props {
   rows?: number
   placeholder?: string
   autoExpand?: boolean
+  maxHeight?: string
 }
 
 type WrapConfig = { before: string; after: string; placeholder: string }
 
-export function MarkdownEditor({ value, onChange, rows = 4, placeholder = 'Add description…', autoExpand = false }: Props) {
+export function MarkdownEditor({ value, onChange, rows = 4, placeholder = 'Add description…', autoExpand = false, maxHeight = '75vh' }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -82,7 +83,7 @@ export function MarkdownEditor({ value, onChange, rows = 4, placeholder = 'Add d
         onChange={(e) => onChange(e.target.value)}
         rows={rows}
         placeholder={placeholder}
-        style={autoExpand ? { overflow: 'hidden', maxHeight: 'calc(100vh - 240px)' } : undefined}
+        style={autoExpand ? { overflowY: 'auto', maxHeight } : undefined}
         className="w-full px-3 py-2 rounded-b border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
       />
     </div>
