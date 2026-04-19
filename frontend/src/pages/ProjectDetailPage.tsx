@@ -583,12 +583,14 @@ export function ProjectDetailPage() {
               <div className="flex items-center gap-2 mb-4">
                 <input
                   type="text"
+                  aria-label={t('filter.search')}
                   placeholder={t('filter.search')}
                   value={storySearch}
                   onChange={e => setStorySearch(e.target.value)}
                   className="w-40 px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
                 />
                 <select
+                  aria-label={t('filter.status')}
                   value={storyFilterStatus}
                   onChange={e => setStoryFilterStatus(e.target.value as Status | 'all')}
                   className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
@@ -597,6 +599,7 @@ export function ProjectDetailPage() {
                   {statuses.map(s => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
                 </select>
                 <select
+                  aria-label={t('filter.priority')}
                   value={storyFilterPriority}
                   onChange={e => setStoryFilterPriority(e.target.value as Priority | 'all')}
                   className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
@@ -605,6 +608,7 @@ export function ProjectDetailPage() {
                   {priorities.map(p => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
                 </select>
                 <select
+                  aria-label="Sort by"
                   value={storySortField}
                   onChange={e => setStorySortField(e.target.value as StorySortField)}
                   className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
