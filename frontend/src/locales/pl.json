@@ -91,6 +91,7 @@
   "filter.assignee": "Przypisany",
   "filter.story": "Historyjka",
   "filter.no_story": "Bez historyjki",
+  "filter.no_results": "Brak wyników pasujących do filtrów",
 
   "toolbar.tasks_count_one": "{{count}} zadanie",
   "toolbar.tasks_count_few": "{{count}} zadania",

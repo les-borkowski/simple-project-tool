@@ -89,6 +89,7 @@
   "filter.assignee": "Assignee",
   "filter.story": "Story",
   "filter.no_story": "No story",
+  "filter.no_results": "No results match your filters",
 
   "toolbar.tasks_count": "{{count}} tasks",
   "toolbar.stories_count": "{{count}} stories",

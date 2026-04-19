@@ -575,6 +575,7 @@ export function ProjectDetailPage() {
                 </select>
                 <button
                   onClick={() => setStorySortDir(d => d === 'asc' ? 'desc' : 'asc')}
+                  aria-label={storySortDir === 'asc' ? 'Sort descending' : 'Sort ascending'}
                   className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
                 >
                   {storySortDir === 'asc' ? '↑' : '↓'}
@@ -595,7 +596,7 @@ export function ProjectDetailPage() {
 
               {/* Stories table */}
               {filteredStories.length === 0 ? (
-                <p className="text-[13px] text-stone-400 py-8 text-center">{t('stories.empty')}</p>
+                <p className="text-[13px] text-stone-400 py-8 text-center">{t('filter.no_results')}</p>
               ) : (
                 <div className="rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 overflow-hidden">
                   <div className="grid grid-cols-[1fr_120px_100px_100px_80px] px-4 py-2 text-[10.5px] uppercase tracking-wider text-stone-400 font-medium border-b border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/30">
