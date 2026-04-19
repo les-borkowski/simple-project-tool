@@ -21,6 +21,7 @@ from app.api.routes import (
     time_tracking,
     config,
     recent,
+    search,
 )
 
 # Global locales dict
@@ -180,3 +181,4 @@ app.include_router(invitations.router, prefix="/api/v1")
 app.include_router(time_tracking.router, prefix="/api/v1")
 app.include_router(config.router, prefix="/api/v1")
 app.include_router(recent.router, prefix="/api/v1")
+app.include_router(search.router, prefix="/api/v1")
