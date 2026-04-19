@@ -92,9 +92,20 @@
   "filter.story": "Historyjka",
   "filter.no_story": "Bez historyjki",
 
-  "toolbar.tasks_count": "{{count}} zadań",
-  "toolbar.stories_count": "{{count}} historyjek",
-  "toolbar.done_count": "{{count}} ukończonych",
+  "toolbar.tasks_count_one": "{{count}} zadanie",
+  "toolbar.tasks_count_few": "{{count}} zadania",
+  "toolbar.tasks_count_many": "{{count}} zadań",
+  "toolbar.tasks_count_other": "{{count}} zadań",
+
+  "toolbar.stories_count_one": "{{count}} historyjka",
+  "toolbar.stories_count_few": "{{count}} historyjki",
+  "toolbar.stories_count_many": "{{count}} historyjek",
+  "toolbar.stories_count_other": "{{count}} historyjek",
+
+  "toolbar.done_count_one": "{{count}} ukończone",
+  "toolbar.done_count_few": "{{count}} ukończone",
+  "toolbar.done_count_many": "{{count}} ukończonych",
+  "toolbar.done_count_other": "{{count}} ukończonych",
 
   "actions.save": "Zapisz",
   "actions.cancel": "Anuluj",
