@@ -91,9 +91,12 @@
   "filter.no_story": "No story",
   "filter.no_results": "No results match your filters",
 
-  "toolbar.tasks_count": "{{count}} tasks",
-  "toolbar.stories_count": "{{count}} stories",
-  "toolbar.done_count": "{{count}} done",
+  "toolbar.tasks_count_one": "{{count}} task",
+  "toolbar.tasks_count_other": "{{count}} tasks",
+  "toolbar.stories_count_one": "{{count}} story",
+  "toolbar.stories_count_other": "{{count}} stories",
+  "toolbar.done_count_one": "{{count}} done",
+  "toolbar.done_count_other": "{{count}} done",
 
   "actions.save": "Save",
   "actions.cancel": "Cancel",

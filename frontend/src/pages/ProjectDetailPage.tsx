@@ -495,12 +495,14 @@ export function ProjectDetailPage() {
           <div className="flex items-center gap-2 px-7 py-2.5 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
             <input
               type="text"
+              aria-label={t('filter.search')}
               placeholder={t('filter.search')}
               value={boardSearch}
               onChange={e => setBoardSearch(e.target.value)}
               className="w-40 px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
             />
             <select
+              aria-label={t('filter.priority')}
               value={boardFilterPriority}
               onChange={e => setBoardFilterPriority(e.target.value as Priority | 'all')}
               className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
@@ -509,6 +511,7 @@ export function ProjectDetailPage() {
               {priorities.map(p => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
             </select>
             <select
+              aria-label={t('filter.assignee')}
               value={boardFilterAssignee}
               onChange={e => setBoardFilterAssignee(e.target.value)}
               className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
@@ -517,6 +520,7 @@ export function ProjectDetailPage() {
               {members.map(m => <option key={m.user_id} value={m.user_id}>{m.name}</option>)}
             </select>
             <select
+              aria-label={t('filter.story')}
               value={boardFilterStory}
               onChange={e => setBoardFilterStory(e.target.value)}
               className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
@@ -548,7 +552,6 @@ export function ProjectDetailPage() {
                       <span className="w-2 h-2 rounded-full" style={{ background: `var(${STATUS_VARS[statusId]})` }} />
                       <span className="text-[12px] font-medium">{t(`status.${statusId}`)}</span>
                       <span className="text-[11px] text-stone-400 tabular-nums">{columnTasks.length}</span>
-                      <span className="flex-1" />
                     </div>
                     <div className="space-y-1.5">
                       {columnTasks.map(({ task, story }) => (
