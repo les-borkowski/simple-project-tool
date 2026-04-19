@@ -344,7 +344,7 @@ export function ProjectDetailPage() {
   ]
 
   // Stories tab derived values
-  const totalTaskCount = Object.values(tasksByStory).reduce((sum, arr) => sum + arr.length, 0)
+  const totalTaskCount = allTasks.length
 
   const filteredStories = storiesHook.items
     .filter(s => !storySearch || s.title.toLowerCase().includes(storySearch.toLowerCase()))
