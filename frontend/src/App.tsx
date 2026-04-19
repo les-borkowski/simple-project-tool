@@ -14,6 +14,7 @@ import { BacklogPage } from './pages/BacklogPage'
 import { InvitationsPage } from './pages/InvitationsPage'
 import { ConfigPage } from './pages/ConfigPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { SearchResultsPage } from './pages/SearchResultsPage'
 
 function ProtectedLayout() {
   return (
@@ -57,6 +58,7 @@ function ThemedApp() {
             />
             <Route path="/invitations" element={<InvitationsPage />} />
             <Route path="/config" element={<ConfigPage />} />
+            <Route path="/search" element={<SearchResultsPage />} />
           </Route>
 
           <Route path="*" element={<NotFoundPage />} />
