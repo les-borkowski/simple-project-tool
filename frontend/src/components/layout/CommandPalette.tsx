@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { searchApi, configApi } from '../../services/api'
@@ -91,6 +91,7 @@ interface CommandPaletteProps {
 }
 
 interface Action {
+  id: string
   label: string
   icon: React.ReactNode
   onClick: () => void
@@ -115,10 +116,6 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const pathParts = location.pathname.split('/')
   const projectsIdx = pathParts.indexOf('projects')
   const projectId = projectsIdx !== -1 ? pathParts[projectsIdx + 1] : undefined
-  const storiesIdx = pathParts.indexOf('stories')
-  const storyId = storiesIdx !== -1 ? pathParts[storiesIdx + 1] : undefined
-  // storyId is parsed but not needed for current action definitions — kept for future use
-  void storyId
 
   // Focus input when palette opens
   useEffect(() => {
@@ -126,8 +123,11 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       setQuery('')
       setResults([])
       setFocusedIndex(-1)
-      setTimeout(() => inputRef.current?.focus(), 0)
     }
+  }, [open])
+
+  useLayoutEffect(() => {
+    if (open) inputRef.current?.focus()
   }, [open])
 
   // Debounced search
@@ -165,6 +165,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
   if (location.pathname === '/projects') {
     quickActions.push({
+      id: 'new-project',
       label: t('palette.new_project'),
       icon: <IPlus />,
       onClick: () => { navigate('/projects', { state: { modal: 'create-project' } }); onClose() },
@@ -173,16 +174,19 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
   if (projectId) {
     quickActions.push({
+      id: 'new-story',
       label: t('palette.new_story'),
       icon: <IDoc />,
       onClick: () => { navigate(`/projects/${projectId}`, { state: { modal: 'create-story' } }); onClose() },
     })
     quickActions.push({
+      id: 'new-task',
       label: t('palette.new_task'),
       icon: <ICheck />,
       onClick: () => { navigate(`/projects/${projectId}`, { state: { modal: 'create-task' } }); onClose() },
     })
     quickActions.push({
+      id: 'invite-member',
       label: t('palette.invite_member'),
       icon: <IUser />,
       onClick: () => { navigate(`/projects/${projectId}?tab=members`); onClose() },
@@ -190,6 +194,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   }
 
   quickActions.push({
+    id: 'open-settings',
     label: t('palette.open_settings'),
     icon: <ICog />,
     onClick: () => { navigate('/config'); onClose() },
@@ -197,6 +202,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
   const currentTheme = getCurrentTheme()
   quickActions.push({
+    id: 'toggle-theme',
     label: currentTheme === 'dark' ? t('palette.toggle_light') : t('palette.toggle_dark'),
     icon: currentTheme === 'dark' ? <ISun /> : <IMoon />,
     onClick: () => {
@@ -254,8 +260,14 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     <div
       className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-start justify-center pt-[20vh]"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+      onKeyDown={(e) => { if (e.key === 'Tab') e.preventDefault() }}
     >
-      <div className="max-w-xl w-full mx-4 bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800">
+      <div
+        className="max-w-xl w-full mx-4 bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
+      >
 
         {/* Search input row */}
         <div className="flex items-center gap-3 px-4 py-3">
@@ -284,7 +296,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         <div className="border-t border-stone-100 dark:border-stone-800" />
 
         {/* List */}
-        <div className="py-1.5 max-h-[360px] overflow-y-auto">
+        <div className="py-1.5 max-h-[360px] overflow-y-auto" role="listbox">
 
           {/* Quick actions (empty query) */}
           {query === '' && (
@@ -294,7 +306,9 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
               </div>
               {quickActions.map((action, idx) => (
                 <div
-                  key={action.label}
+                  key={action.id}
+                  role="option"
+                  aria-selected={focusedIndex === idx}
                   className={focusedIndex === idx ? ROW_FOCUSED : ROW_NORMAL}
                   onMouseEnter={() => setFocusedIndex(idx)}
                   onMouseLeave={() => setFocusedIndex(-1)}
@@ -308,6 +322,10 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           )}
 
           {/* Search results */}
+          {query !== '' && isSearching && (
+            <div className="px-4 py-3 text-[12.5px] text-stone-400 italic">Searching…</div>
+          )}
+
           {query !== '' && !isSearching && results.length === 0 && (
             <div className="px-4 py-4 text-[13px] italic text-stone-400 dark:text-stone-500">
               {t('search.empty', { q: query })}
@@ -317,6 +335,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           {query !== '' && displayedResults.map((item, idx) => (
             <div
               key={`${item.type}-${item.id}`}
+              role="option"
+              aria-selected={focusedIndex === idx}
               className={focusedIndex === idx ? ROW_FOCUSED : ROW_NORMAL}
               onMouseEnter={() => setFocusedIndex(idx)}
               onMouseLeave={() => setFocusedIndex(-1)}
@@ -330,11 +350,14 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
           {query !== '' && hasMore && (
             <div
+              role="option"
+              aria-selected={focusedIndex === displayedResults.length}
               className={focusedIndex === displayedResults.length ? ROW_FOCUSED : ROW_NORMAL}
               onMouseEnter={() => setFocusedIndex(displayedResults.length)}
               onMouseLeave={() => setFocusedIndex(-1)}
               onMouseDown={() => { navigate('/search?q=' + encodeURIComponent(query)); onClose() }}
             >
+              <span className="w-[14px] shrink-0" />
               <span className="text-[13px] text-stone-500 dark:text-stone-400">
                 {t('palette.see_all', { count: results.length })}
               </span>
