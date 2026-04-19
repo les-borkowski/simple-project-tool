@@ -52,6 +52,11 @@ const ICheck = () => (
     <path d="M20 6 9 17l-5-5"/>
   </svg>
 )
+const IClock = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+    <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>
+  </svg>
+)
 const ISignOut = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -148,6 +153,7 @@ export function AppShell({ children }: Props) {
             {recentItems.length > 0 && (
               <div className="mb-1">
                 <div className="flex items-center gap-2.5 px-2 py-1.5 text-stone-600 dark:text-stone-300 select-none">
+                  <span className="text-stone-400"><IClock /></span>
                   <span className="flex-1">{t('nav.recent_work')}</span>
                 </div>
                 {recentItems.map(item => (
