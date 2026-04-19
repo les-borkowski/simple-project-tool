@@ -86,6 +86,15 @@ export interface InvitationResponse {
   expires_at: string
 }
 
+export interface RecentItemResponse {
+  type: 'project' | 'story' | 'task'
+  id: string
+  title: string
+  project_id: string
+  story_id: string | null
+  updated_at: string
+}
+
 export interface StatusHistoryEntry {
   id: string
   from_status: Status | null
@@ -325,4 +334,12 @@ export const configApi = {
   createApiKey: (data: { label: string; scopes: string[] }) =>
     api.post<ApiKeyCreatedResponse>('/config/api-keys', data),
   revokeApiKey: (id: string) => api.delete(`/config/api-keys/${id}`),
+}
+
+// ---------------------------------------------------------------------------
+// Recent Items API
+// ---------------------------------------------------------------------------
+
+export const recentApi = {
+  list: () => api.get<RecentItemResponse[]>('/recent'),
 }
