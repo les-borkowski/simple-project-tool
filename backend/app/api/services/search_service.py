@@ -1,4 +1,3 @@
-# backend/app/api/services/search_service.py
 from sqlalchemy import cast, literal, null, or_, select, union_all
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,6 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.schemas.search import SearchResultItem
 from app.db.base import RoleEnum
 from app.db.models import Project, ProjectMember, Story, Task, User
+
+MAX_SEARCH_RESULTS = 20
 
 
 async def search_items(q: str, user: User, db: AsyncSession) -> list[SearchResultItem]:
@@ -67,7 +68,7 @@ async def search_items(q: str, user: User, db: AsyncSession) -> list[SearchResul
     )
 
     combined = union_all(projects_q, stories_q, tasks_q).subquery()
-    stmt = select(combined).order_by(combined.c.updated_at.desc()).limit(20)
+    stmt = select(combined).order_by(combined.c.updated_at.desc()).limit(MAX_SEARCH_RESULTS)
 
     rows = (await db.execute(stmt)).fetchall()
 
