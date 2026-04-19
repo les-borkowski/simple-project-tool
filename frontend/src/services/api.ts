@@ -46,7 +46,8 @@ export interface StoryResponse {
 
 export interface TaskResponse {
   id: string
-  story_id: string
+  project_id: string
+  story_id: string | null
   title: string
   description: string | null
   status: Status
@@ -244,8 +245,12 @@ export const storiesApi = {
 export const tasksApi = {
   list: (storyId: string, params?: Record<string, unknown>) =>
     api.get<PaginatedResponse<TaskResponse>>(`/stories/${storyId}/tasks`, { params }),
-  create: (storyId: string, data: { title: string; description?: string; status?: Status; priority?: Priority }) =>
+  listForProject: (projectId: string, params?: Record<string, unknown>) =>
+    api.get<PaginatedResponse<TaskResponse>>(`/projects/${projectId}/tasks`, { params }),
+  create: (storyId: string, data: { title: string; description?: string; status?: Status; priority?: Priority; assignee_id?: string }) =>
     api.post<TaskResponse>(`/stories/${storyId}/tasks`, data),
+  createForProject: (projectId: string, data: { title: string; description?: string; status?: Status; priority?: Priority; assignee_id?: string }) =>
+    api.post<TaskResponse>(`/projects/${projectId}/tasks`, data),
   get: (id: string) => api.get<TaskResponse>(`/tasks/${id}`),
   update: (id: string, data: Partial<{ title: string; description: string; status: Status; priority: Priority; assignee_id: string | null }>) =>
     api.patch<TaskResponse>(`/tasks/${id}`, data),

@@ -13,6 +13,38 @@ from app.api.services import task_service
 router = APIRouter(tags=["tasks"])
 
 
+@router.get("/projects/{project_id}/tasks", response_model=PaginatedResponse[TaskResponse])
+async def list_project_tasks(
+    project_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    cursor: str | None = Query(None),
+    limit: int = Query(25, ge=1, le=100),
+    status: StatusEnum | None = Query(None),
+    priority: PriorityEnum | None = Query(None),
+    assignee_id: uuid.UUID | None = Query(None),
+    q: str | None = Query(None),
+    unassigned: bool = Query(False),
+):
+    """List tasks under a project (optionally only those with no story)."""
+    status_val = str(status.value) if status else None
+    priority_val = str(priority.value) if priority else None
+    return await task_service.list_project_tasks(
+        project_id, user, db, cursor, limit, status_val, priority_val, assignee_id, q, unassigned
+    )
+
+
+@router.post("/projects/{project_id}/tasks", response_model=TaskResponse, status_code=201)
+async def create_task_for_project(
+    project_id: uuid.UUID,
+    data: TaskCreate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a task directly under a project (no story required)."""
+    return await task_service.create_task_for_project(project_id, data, user, db)
+
+
 @router.get("/stories/{story_id}/tasks", response_model=PaginatedResponse[TaskResponse])
 async def list_tasks(
     story_id: uuid.UUID,

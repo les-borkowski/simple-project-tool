@@ -1,0 +1,1589 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SPT — Redesign</title>
+<script src="https://cdn.tailwindcss.com?plugins=typography,forms"></script>
+<script>tailwind.config = { darkMode: 'class' };</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Instrument+Serif&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  html, body { font-family: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  .font-mono { font-family: 'Geist Mono', ui-monospace, monospace; }
+  .font-serif { font-family: 'Instrument Serif', serif; }
+  /* Tokens — exposed as CSS vars per theme/variation */
+  :root {
+    /* status spectrum (warm-cool perceptual) */
+    --st-todo:  #94a3b8;  /* slate-400 */
+    --st-prog:  #6366f1;  /* indigo */
+    --st-rev:   #d97706;  /* amber-600 */
+    --st-test:  #db2777;  /* pink-600 */
+    --st-done:  #059669;  /* emerald-600 */
+    --pr-low:   #94a3b8;
+    --pr-med:   #d97706;
+    --pr-high:  #dc2626;
+    --accent:   #6366f1;  /* indigo primary */
+    --accent-soft: #eef2ff;
+  }
+  .dark { --accent-soft: #1e1b4b; }
+  /* status pill — open ring style */
+  .st-pill { display:inline-flex; align-items:center; gap:.4rem; font-size:11px; font-weight:500; line-height:1; padding:3px 8px 3px 6px; border-radius: 999px; }
+  .st-pill .dot { width:6px; height:6px; border-radius:999px; background: currentColor; flex:none; }
+  .st-todo  { color: var(--st-todo);  background: color-mix(in oklab, var(--st-todo) 12%, transparent); }
+  .st-prog  { color: var(--st-prog);  background: color-mix(in oklab, var(--st-prog) 12%, transparent); }
+  .st-rev   { color: var(--st-rev);   background: color-mix(in oklab, var(--st-rev)  14%, transparent); }
+  .st-test  { color: var(--st-test);  background: color-mix(in oklab, var(--st-test) 12%, transparent); }
+  .st-done  { color: var(--st-done);  background: color-mix(in oklab, var(--st-done) 14%, transparent); }
+  .pr-low   { color: var(--pr-low); }
+  .pr-med   { color: var(--pr-med); }
+  .pr-high  { color: var(--pr-high); }
+  /* priority bars (tiny vertical bars, like Linear) */
+  .pr-bars { display:inline-flex; align-items:flex-end; gap:1.5px; height:10px; }
+  .pr-bars span { width:2.5px; background: currentColor; border-radius: 1px; opacity: .25; }
+  .pr-bars[data-level="1"] span:nth-child(1){opacity:1}
+  .pr-bars[data-level="2"] span:nth-child(-n+2){opacity:1}
+  .pr-bars[data-level="3"] span{opacity:1}
+  .pr-bars span:nth-child(1){height:30%}
+  .pr-bars span:nth-child(2){height:65%}
+  .pr-bars span:nth-child(3){height:100%}
+  /* hide scrollbar for board columns wrapper but keep scroll */
+  .scroll-hidden::-webkit-scrollbar { display: none; }
+  .scroll-hidden { scrollbar-width: none; }
+  /* avatar gradient backgrounds */
+  .av-1 { background: linear-gradient(135deg,#fb7185,#f59e0b); }
+  .av-2 { background: linear-gradient(135deg,#6366f1,#8b5cf6); }
+  .av-3 { background: linear-gradient(135deg,#10b981,#06b6d4); }
+  .av-4 { background: linear-gradient(135deg,#f43f5e,#a855f7); }
+  .av-5 { background: linear-gradient(135deg,#0ea5e9,#22d3ee); }
+  .av-6 { background: linear-gradient(135deg,#84cc16,#facc15); }
+  /* fine grid for board background in variation B */
+  .fine-grid {
+    background-image: linear-gradient(to right, rgba(0,0,0,.04) 1px, transparent 1px);
+    background-size: 280px 100%;
+  }
+  .dark .fine-grid {
+    background-image: linear-gradient(to right, rgba(255,255,255,.04) 1px, transparent 1px);
+  }
+  /* kbd */
+  kbd {
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:18px; height:18px; padding: 0 5px;
+    font-family: 'Geist Mono', monospace; font-size: 10.5px;
+    border-radius: 4px;
+    background: rgba(0,0,0,.05); color: rgba(0,0,0,.55);
+    border: 1px solid rgba(0,0,0,.06);
+    line-height:1;
+  }
+  .dark kbd { background: rgba(255,255,255,.06); color: rgba(255,255,255,.6); border-color: rgba(255,255,255,.08); }
+  /* shimmer for current state indicator */
+  @keyframes pulse-soft { 0%,100% { opacity: .9 } 50% { opacity: .45 } }
+  .pulse-soft { animation: pulse-soft 1.8s ease-in-out infinite; }
+  /* card hover lift */
+  .lift { transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease; }
+  .lift:hover { transform: translateY(-1px); }
+  /* drag handle dots */
+  .drag-handle {
+    background-image: radial-gradient(currentColor 1px, transparent 1px);
+    background-size: 4px 4px;
+    background-position: 0 0, 2px 2px;
+  }
+  /* scoped frame — both variations live in their own theme container */
+  .frame { container-type: inline-size; }
+</style>
+</head>
+<body class="bg-stone-100 dark:bg-black text-stone-900 dark:text-stone-100">
+<div id="root"></div>
+
+<script type="text/babel" data-presets="env,react">
+const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+/* =========================================================================
+   TWEAKS — persisted via host (with sane defaults)
+========================================================================= */
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "variation": "B",
+  "theme": "light",
+  "accent": "violet",
+  "density": "balanced",
+  "screen": "board",
+  "showOnboarding": true
+}/*EDITMODE-END*/;
+
+/* =========================================================================
+   SAMPLE DATA — small team (5 people), one active project + a few others
+========================================================================= */
+const PEOPLE = [
+  { id:'u1', name:'Maya Chen',     initials:'MC', av:'av-2', role:'manager' },
+  { id:'u2', name:'Ben Okafor',    initials:'BO', av:'av-1', role:'contributor' },
+  { id:'u3', name:'Priya Shah',    initials:'PS', av:'av-3', role:'contributor' },
+  { id:'u4', name:'Lukas Vogel',   initials:'LV', av:'av-4', role:'contributor' },
+  { id:'u5', name:'Aria Tan',      initials:'AT', av:'av-5', role:'contributor' },
+  { id:'u6', name:'Diego Romero',  initials:'DR', av:'av-6', role:'contributor' },
+];
+const ME = PEOPLE[0];
+
+const PROJECTS = [
+  { id:'p1', key:'ORB', name:'Orbit Mobile App',  desc:'Q2 launch — iOS + Android',  status:'in_progress', priority:'high',  members:[PEOPLE[0],PEOPLE[1],PEOPLE[2],PEOPLE[3],PEOPLE[4]], stories:18, openTasks:42, updated:'2h' },
+  { id:'p2', key:'PAY', name:'Billing v3',        desc:'Stripe migration + invoices', status:'in_review', priority:'high',  members:[PEOPLE[0],PEOPLE[1],PEOPLE[5]], stories:11, openTasks:6,  updated:'1d' },
+  { id:'p3', key:'WEB', name:'Marketing Site',    desc:'Refresh of public pages',     status:'to_do',     priority:'medium',members:[PEOPLE[2],PEOPLE[3]], stories:7,  openTasks:14, updated:'3d' },
+  { id:'p4', key:'OPS', name:'Internal Ops Tools',desc:'Admin console + reports',     status:'in_progress',priority:'low',  members:[PEOPLE[0],PEOPLE[5]], stories:5,  openTasks:9,  updated:'5d' },
+  { id:'p5', key:'API', name:'Public API',        desc:'v1 stability + docs',         status:'done',      priority:'medium',members:[PEOPLE[1],PEOPLE[4]], stories:14, openTasks:0,  updated:'2w' },
+];
+const ACTIVE = PROJECTS[0];
+
+// Stories for active project, each with tasks
+const STORIES = [
+  { id:'s1', code:'ORB-12', title:'Onboarding flow', desc:'Welcome → permissions → first project. Re-design from research.', status:'in_progress', priority:'high',  assignees:[PEOPLE[2]], updated:'1h',
+    tasks:[
+      { id:'t1', code:'ORB-101', title:'Welcome screen — illustration variants',           status:'in_review',   priority:'medium', assignee:PEOPLE[2], updated:'30m' },
+      { id:'t2', code:'ORB-102', title:'Permissions: rationale copy + iOS/Android prompts', status:'in_progress', priority:'high',   assignee:PEOPLE[3], updated:'1h' },
+      { id:'t3', code:'ORB-103', title:'First-project empty state',                         status:'to_do',       priority:'medium', assignee:null,      updated:'2h' },
+      { id:'t4', code:'ORB-104', title:'Push opt-in: A/B test wiring',                      status:'to_do',       priority:'low',    assignee:PEOPLE[1], updated:'4h' },
+    ]},
+  { id:'s2', code:'ORB-13', title:'Push notifications', desc:'Server + client, with topics.', status:'in_progress', priority:'high', assignees:[PEOPLE[1],PEOPLE[3]], updated:'4h',
+    tasks:[
+      { id:'t5', code:'ORB-110', title:'APNs cert rotation runbook',     status:'done',        priority:'medium', assignee:PEOPLE[1], updated:'1d' },
+      { id:'t6', code:'ORB-111', title:'Topic subscription API',          status:'in_testing',  priority:'high',   assignee:PEOPLE[1], updated:'3h' },
+      { id:'t7', code:'ORB-112', title:'Foreground notification handler', status:'in_progress', priority:'high',   assignee:PEOPLE[3], updated:'2h' },
+    ]},
+  { id:'s3', code:'ORB-14', title:'Offline mode', desc:'Local cache + sync conflict UI', status:'to_do', priority:'medium', assignees:[PEOPLE[4]], updated:'1d',
+    tasks:[
+      { id:'t8', code:'ORB-120', title:'Outbox queue persistence',  status:'to_do', priority:'medium', assignee:PEOPLE[4], updated:'1d' },
+      { id:'t9', code:'ORB-121', title:'Conflict resolution sheet', status:'to_do', priority:'low',    assignee:null,      updated:'1d' },
+    ]},
+  { id:'s4', code:'ORB-15', title:'Crash & analytics SDK',  desc:'Sentry + Amplitude. PII review.', status:'in_review',  priority:'medium', assignees:[PEOPLE[1]], updated:'6h',
+    tasks:[
+      { id:'t10', code:'ORB-130', title:'Sentry release wiring',       status:'in_review',  priority:'medium', assignee:PEOPLE[1], updated:'6h' },
+      { id:'t11', code:'ORB-131', title:'Event taxonomy doc',           status:'done',       priority:'low',    assignee:PEOPLE[0], updated:'1d' },
+    ]},
+  { id:'s5', code:'ORB-16', title:'App store assets',       desc:'Screens, copy, keywords for both stores.', status:'done', priority:'low', assignees:[PEOPLE[2],PEOPLE[5]], updated:'2d',
+    tasks:[
+      { id:'t12', code:'ORB-140', title:'Screenshots — iOS', status:'done', priority:'low', assignee:PEOPLE[2], updated:'2d' },
+      { id:'t13', code:'ORB-141', title:'Screenshots — Android', status:'done', priority:'low', assignee:PEOPLE[5], updated:'2d' },
+      { id:'t14', code:'ORB-142', title:'Keyword research',  status:'done', priority:'low', assignee:PEOPLE[0], updated:'3d' },
+    ]},
+];
+
+const STATUSES = [
+  { id:'to_do',       label:'To do',       cls:'st-todo', cssVar:'--st-todo'},
+  { id:'in_progress', label:'In progress', cls:'st-prog', cssVar:'--st-prog'},
+  { id:'in_review',   label:'In review',   cls:'st-rev',  cssVar:'--st-rev'},
+  { id:'in_testing',  label:'In testing',  cls:'st-test', cssVar:'--st-test'},
+  { id:'done',        label:'Done',        cls:'st-done', cssVar:'--st-done'},
+];
+const ST_BY_ID = Object.fromEntries(STATUSES.map(s=>[s.id,s]));
+const PRIORITIES = [
+  { id:'low',    label:'Low',    cls:'pr-low',  level:1 },
+  { id:'medium', label:'Medium', cls:'pr-med',  level:2 },
+  { id:'high',   label:'High',   cls:'pr-high', level:3 },
+];
+const PR_BY_ID = Object.fromEntries(PRIORITIES.map(p=>[p.id,p]));
+
+// flat list of all tasks for table view
+const ALL_TASKS = STORIES.flatMap(s => s.tasks.map(t => ({...t, story:s})));
+
+const COMMENTS = [
+  { id:'c1', author:PEOPLE[2], at:'2h', body:'Final illustrations are in Figma — page **"Onboarding / v3"**. Copy still needs marketing review.' },
+  { id:'c2', author:PEOPLE[0], at:'1h', body:'Marketing has signed off. Pushing to staging today.' },
+  { id:'c3', author:PEOPLE[3], at:'20m', body:'Permissions copy reads great. One nit: the *push* rationale could lose a sentence — feels long on small phones.' },
+];
+
+const HISTORY = [
+  { from:null,         to:'to_do',       by:PEOPLE[0], at:'4 days ago' },
+  { from:'to_do',      to:'in_progress', by:PEOPLE[2], at:'2 days ago', dur:'2d' },
+  { from:'in_progress',to:'in_review',   by:PEOPLE[2], at:'3 hours ago', dur:'1d 22h' },
+];
+
+const ACTIVITY = [
+  { who:PEOPLE[2], verb:'moved',  what:'ORB-101 Welcome screen', to:'In review', at:'30m' },
+  { who:PEOPLE[1], verb:'commented on', what:'ORB-12 Onboarding flow', at:'1h' },
+  { who:PEOPLE[3], verb:'started', what:'ORB-102 Permissions copy', at:'1h' },
+  { who:PEOPLE[0], verb:'invited', what:'diego@orbit.app to Orbit Mobile App', at:'3h' },
+  { who:PEOPLE[1], verb:'completed', what:'ORB-110 APNs cert rotation', at:'1d' },
+];
+
+/* =========================================================================
+   PRIMITIVES
+========================================================================= */
+function StatusPill({ id, size='sm' }) {
+  const s = ST_BY_ID[id] || ST_BY_ID.to_do;
+  return (
+    <span className={`st-pill ${s.cls}`} style={{fontSize: size==='lg'?12:11}}>
+      <span className="dot" />
+      {s.label}
+    </span>
+  );
+}
+function PriorityBars({ id, withLabel }) {
+  const p = PR_BY_ID[id]; if (!p) return null;
+  return (
+    <span className={`inline-flex items-center gap-1.5 ${p.cls}`}>
+      <span className="pr-bars" data-level={p.level}><span/><span/><span/></span>
+      {withLabel && <span className="text-[11px] font-medium">{p.label}</span>}
+    </span>
+  );
+}
+function Avatar({ p, size=22, ring }) {
+  if (!p) return <span style={{width:size,height:size}} className="inline-flex items-center justify-center rounded-full border border-dashed border-stone-300 dark:border-stone-700 text-stone-400 text-[10px]">·</span>;
+  return (
+    <span title={p.name} style={{width:size,height:size,fontSize: size>=28? 11 : 9.5}}
+      className={`${p.av} inline-flex items-center justify-center rounded-full text-white font-medium ${ring?'ring-2 ring-white dark:ring-stone-900':''}`}>
+      {p.initials}
+    </span>
+  );
+}
+function AvatarStack({ people, max=4, size=20 }) {
+  const visible = people.slice(0,max), more = people.length - visible.length;
+  return (
+    <div className="flex -space-x-1.5">
+      {visible.map((p,i) => <Avatar key={i} p={p} size={size} ring />)}
+      {more > 0 && (
+        <span style={{width:size,height:size,fontSize: 9.5}}
+          className="rounded-full bg-stone-200 dark:bg-stone-800 text-stone-600 dark:text-stone-300 inline-flex items-center justify-center font-medium ring-2 ring-white dark:ring-stone-900">
+          +{more}
+        </span>
+      )}
+    </div>
+  );
+}
+function Toggle({ on, onChange, label }) {
+  return (
+    <button onClick={()=>onChange(!on)} className={`inline-flex items-center gap-2 text-xs ${on?'text-indigo-600 dark:text-indigo-400':'text-stone-500'}`}>
+      <span className={`w-7 h-4 rounded-full p-0.5 transition-colors ${on?'bg-indigo-600':'bg-stone-300 dark:bg-stone-700'}`}>
+        <span className={`block w-3 h-3 rounded-full bg-white transition-transform ${on?'translate-x-3':''}`} />
+      </span>
+      {label}
+    </button>
+  );
+}
+function Sep(){ return <span className="text-stone-300 dark:text-stone-700">·</span>; }
+
+/* =========================================================================
+   TWEAKS PANEL (host integration)
+========================================================================= */
+function useTweaks() {
+  const [t, setT] = useState(() => {
+    try { return { ...TWEAK_DEFAULTS, ...(JSON.parse(localStorage.getItem('spt-tweaks')||'{}')) }; }
+    catch { return TWEAK_DEFAULTS; }
+  });
+  useEffect(()=>{ localStorage.setItem('spt-tweaks', JSON.stringify(t)); }, [t]);
+  const set = (patch) => {
+    setT(prev => ({...prev, ...patch}));
+    try { window.parent?.postMessage({type:'__edit_mode_set_keys', edits: patch}, '*'); } catch {}
+  };
+  return [t, set];
+}
+function TweaksPanel({ open, t, set, onClose }) {
+  if (!open) return null;
+  const Row = ({label, children}) => (
+    <div className="grid grid-cols-[100px_1fr] items-center gap-3 text-xs">
+      <span className="text-stone-500 dark:text-stone-400">{label}</span>
+      <div className="flex flex-wrap gap-1">{children}</div>
+    </div>
+  );
+  const Btn = ({active, ...p}) => (
+    <button {...p} className={`px-2 py-1 rounded-md border text-[11px] font-medium transition-colors ${active ? 'bg-stone-900 text-white border-stone-900 dark:bg-white dark:text-stone-900 dark:border-white' : 'bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800 text-stone-700 dark:text-stone-300 hover:border-stone-400'}`}/>
+  );
+  const accents = [
+    ['indigo','#6366f1'], ['violet','#8b5cf6'], ['emerald','#059669'],
+    ['rose','#e11d48'], ['amber','#d97706'], ['stone','#0c0a09']
+  ];
+  return (
+    <div className="fixed bottom-4 right-4 z-50 w-[320px] rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 shadow-xl">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-stone-200 dark:border-stone-800">
+        <div className="flex items-center gap-2 text-xs font-medium">
+          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" /> Tweaks
+        </div>
+        <button onClick={onClose} className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 text-sm leading-none">×</button>
+      </div>
+      <div className="p-3 space-y-3">
+        <Row label="Variation">
+          <Btn active={t.variation==='A'} onClick={()=>set({variation:'A'})}>A · Focus</Btn>
+          <Btn active={t.variation==='B'} onClick={()=>set({variation:'B'})}>B · Command</Btn>
+        </Row>
+        <Row label="Theme">
+          <Btn active={t.theme==='light'} onClick={()=>set({theme:'light'})}>Light</Btn>
+          <Btn active={t.theme==='dark'} onClick={()=>set({theme:'dark'})}>Dark</Btn>
+        </Row>
+        <Row label="Screen">
+          {[['board','Board'],['list','Projects'],['story','Story'],['task','Task'],['login','Login'],['settings','Settings'],['invites','Invites']].map(([id,l])=>(
+            <Btn key={id} active={t.screen===id} onClick={()=>set({screen:id})}>{l}</Btn>
+          ))}
+        </Row>
+        <Row label="Density">
+          <Btn active={t.density==='compact'} onClick={()=>set({density:'compact'})}>Compact</Btn>
+          <Btn active={t.density==='balanced'} onClick={()=>set({density:'balanced'})}>Balanced</Btn>
+          <Btn active={t.density==='spacious'} onClick={()=>set({density:'spacious'})}>Spacious</Btn>
+        </Row>
+        <Row label="Accent">
+          {accents.map(([id,c]) => (
+            <button key={id} title={id} onClick={()=>set({accent:id})}
+              style={{background:c, outline: t.accent===id ? '2px solid currentColor':'1px solid rgba(0,0,0,.08)', outlineOffset: 1}}
+              className="w-5 h-5 rounded-full" />
+          ))}
+        </Row>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   GLOBAL THEME WIRING
+========================================================================= */
+const ACCENTS = {
+  indigo:  { hex:'#6366f1', soft:'#eef2ff', softDark:'#1e1b4b', text:'#4338ca', textDark:'#a5b4fc' },
+  violet:  { hex:'#8b5cf6', soft:'#f5f3ff', softDark:'#2e1065', text:'#6d28d9', textDark:'#c4b5fd' },
+  emerald: { hex:'#059669', soft:'#ecfdf5', softDark:'#022c22', text:'#047857', textDark:'#6ee7b7' },
+  rose:    { hex:'#e11d48', soft:'#fff1f2', softDark:'#4c0519', text:'#be123c', textDark:'#fda4af' },
+  amber:   { hex:'#d97706', soft:'#fffbeb', softDark:'#451a03', text:'#b45309', textDark:'#fcd34d' },
+  stone:   { hex:'#0c0a09', soft:'#f5f5f4', softDark:'#1c1917', text:'#1c1917', textDark:'#e7e5e4' },
+};
+function ThemeStyle({ tweaks }) {
+  const a = ACCENTS[tweaks.accent] || ACCENTS.indigo;
+  return (
+    <style>{`
+      :root { --accent:${a.hex}; --accent-soft:${a.soft}; --accent-text:${a.text}; }
+      .dark { --accent-soft:${a.softDark}; --accent-text:${a.textDark}; }
+      .accent-bg { background: var(--accent); color:white; }
+      .accent-bg:hover { filter: brightness(.95); }
+      .accent-soft { background: var(--accent-soft); color: var(--accent-text); }
+      .accent-text { color: var(--accent-text); }
+      .accent-border { border-color: var(--accent); }
+      .accent-ring { box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 20%, transparent); }
+      .focus-ring:focus { outline:none; box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent); }
+    `}</style>
+  );
+}
+
+/* =========================================================================
+   ICON SET — inline SVGs (consistent stroke)
+========================================================================= */
+const I = {
+  search: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>,
+  plus:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>,
+  home:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/></svg>,
+  inbox:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M3 13h5l1 3h6l1-3h5"/><path d="M3 13l3-8h12l3 8v6H3z"/></svg>,
+  board:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="3" y="4" width="6" height="16" rx="1"/><rect x="11" y="4" width="6" height="10" rx="1"/><rect x="19" y="4" width="2" height="13" rx="1"/></svg>,
+  list:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>,
+  cal:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg>,
+  chart:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>,
+  cog:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1A2 2 0 1 1 4.3 17l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>,
+  filter: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 5h18M6 12h12M10 19h4"/></svg>,
+  sort:   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M7 4v16M3 8l4-4 4 4M17 20V4M21 16l-4 4-4-4"/></svg>,
+  more:   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>,
+  caret:  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>,
+  arrow:  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 6 6 6-6 6"/></svg>,
+  check:  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m5 12 5 5L20 7"/></svg>,
+  bell:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9zM10 21a2 2 0 0 0 4 0"/></svg>,
+  send:   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m3 11 18-8-8 18-2-8z"/></svg>,
+  link:   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7L11 7"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 1 0 5.7 5.7L13 17"/></svg>,
+  archive:<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v12h14V8M10 12h4"/></svg>,
+  hash:   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M5 9h14M5 15h14M10 3 8 21M16 3l-2 18"/></svg>,
+  cmd:    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 9V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3z"/></svg>,
+  sparkle:<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5z"/></svg>,
+  user:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>,
+  key:    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9-3-3-2 2 1 1-2 2-1-1-2 2 1 1-1 1 1 1z"/></svg>,
+  globe:  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>,
+  moon:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/></svg>,
+  pin:    <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 9 9H4l4 4-2 9 6-5 6 5-2-9 4-4h-5z"/></svg>,
+  copy:   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="9" y="9" width="11" height="11" rx="2"/><rect x="4" y="4" width="11" height="11" rx="2"/></svg>,
+};
+
+/* =========================================================================
+   VARIATION A — "Focus" : left sidebar, balanced density, board-first
+========================================================================= */
+function VariationA({ tweaks, setTweaks, onCmdK }) {
+  const screen = tweaks.screen || 'board';
+  const dense = tweaks.density === 'compact';
+
+  return (
+    <div className="flex min-h-screen">
+      {/* SIDEBAR */}
+      <aside className="w-[248px] shrink-0 border-r border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 flex flex-col">
+        {/* Workspace switcher */}
+        <div className="px-3 py-3 border-b border-stone-200 dark:border-stone-800">
+          <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-stone-50 dark:hover:bg-stone-900 text-left">
+            <span className="w-6 h-6 rounded-md accent-bg flex items-center justify-center text-[11px] font-semibold">SP</span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-[13px] font-medium leading-tight">Sparrow Studio</span>
+              <span className="block text-[10.5px] text-stone-500 leading-tight">5 members · Free</span>
+            </span>
+            <span className="text-stone-400">{I.caret}</span>
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="px-3 pt-3">
+          <button onClick={onCmdK} className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-stone-200 dark:border-stone-800 text-stone-500 hover:border-stone-300 text-[12px]">
+            <span>{I.search}</span>
+            <span className="flex-1 text-left">Search or jump to…</span>
+            <span className="flex items-center gap-0.5"><kbd>⌘</kbd><kbd>K</kbd></span>
+          </button>
+        </div>
+
+        {/* Primary nav */}
+        <nav className="px-2 py-3 space-y-0.5 text-[13px]">
+          {[
+            { id:'home',   label:'Home',         icon:I.home,   to:'list',  badge:null },
+            { id:'inbox',  label:'Inbox',        icon:I.inbox,  to:'invites', badge:'3' },
+            { id:'mywork', label:'My work',      icon:I.user,   to:'list',  badge:'7' },
+          ].map(n => (
+            <button key={n.id} onClick={()=>setTweaks({screen:n.to})}
+              className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-900">
+              <span className="text-stone-400">{n.icon}</span>
+              <span className="flex-1 text-left">{n.label}</span>
+              {n.badge && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 font-medium">{n.badge}</span>}
+            </button>
+          ))}
+        </nav>
+
+        {/* Projects list */}
+        <div className="px-3 mt-2 mb-1 flex items-center justify-between">
+          <span className="text-[10px] uppercase tracking-wider text-stone-400 font-medium">Projects</span>
+          <button className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200" title="New project">{I.plus}</button>
+        </div>
+        <div className="px-2 space-y-0.5 text-[13px] flex-1 overflow-y-auto">
+          {PROJECTS.map(p => {
+            const active = p.id === ACTIVE.id && (screen==='board' || screen==='story' || screen==='task');
+            return (
+              <button key={p.id} onClick={()=>setTweaks({screen:'board'})}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md ${active ? 'bg-stone-100 dark:bg-stone-900 text-stone-900 dark:text-stone-100' : 'text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-900'}`}>
+                <span className="font-mono text-[10px] text-stone-400 w-9 text-left">{p.key}</span>
+                <span className="flex-1 text-left truncate">{p.name}</span>
+                {p.openTasks > 0 && <span className="text-[10px] text-stone-400">{p.openTasks}</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-stone-200 dark:border-stone-800 p-2 space-y-0.5">
+          <button onClick={()=>setTweaks({screen:'settings'})} className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[13px] text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-900">
+            <span className="text-stone-400">{I.cog}</span><span>Settings</span>
+          </button>
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <Avatar p={ME} size={22} />
+            <span className="flex-1 min-w-0">
+              <span className="block text-[12px] font-medium leading-tight truncate">{ME.name}</span>
+              <span className="block text-[10.5px] text-stone-500 leading-tight">Manager</span>
+            </span>
+          </div>
+        </div>
+      </aside>
+
+      {/* MAIN */}
+      <main className="flex-1 min-w-0 flex flex-col">
+        {screen === 'board'    && <ProjectBoard_A tweaks={tweaks} setTweaks={setTweaks} />}
+        {screen === 'list'     && <ProjectsList_A setTweaks={setTweaks} />}
+        {screen === 'story'    && <StoryDetail_A setTweaks={setTweaks} />}
+        {screen === 'task'     && <TaskDetail_A setTweaks={setTweaks} />}
+        {screen === 'settings' && <Settings_A />}
+        {screen === 'invites'  && <Invites_A />}
+        {screen === 'login'    && <Login />}
+      </main>
+    </div>
+  );
+}
+
+/* ----- A: Project header (shared) ----- */
+function ProjectHeader_A({ active, setTweaks }) {
+  return (
+    <div className="px-7 pt-5 pb-3 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
+      <div className="flex items-center gap-2 text-[11.5px] text-stone-500 mb-2">
+        <button onClick={()=>setTweaks({screen:'list'})} className="hover:text-stone-800 dark:hover:text-stone-200">Projects</button>
+        <span>/</span>
+        <span className="font-mono text-stone-400">{active.key}</span>
+      </div>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <h1 className="text-[22px] font-semibold tracking-tight">{active.name}</h1>
+            <StatusPill id={active.status} />
+            <PriorityBars id={active.priority} withLabel />
+          </div>
+          <p className="text-[13px] text-stone-500 mt-1">{active.desc}</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <AvatarStack people={active.members} max={5} size={24} />
+          <button className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-900 inline-flex items-center gap-1.5">{I.user}<span>Invite</span></button>
+          <button className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5">{I.plus}<span>New task</span></button>
+          <button className="px-1.5 py-1.5 rounded-md hover:bg-stone-50 dark:hover:bg-stone-900 text-stone-500">{I.more}</button>
+        </div>
+      </div>
+      {/* sub-tabs */}
+      <div className="mt-4 flex items-center gap-5 text-[13px]">
+        {[
+          ['Board', I.board, true],
+          ['List', I.list, false],
+          ['Timeline', I.cal, false],
+          ['Insights', I.chart, false],
+          ['Members', I.user, false],
+        ].map(([l,ic,act],i)=>(
+          <button key={i} className={`pb-2 -mb-px flex items-center gap-1.5 border-b-2 ${act ? 'border-stone-900 dark:border-stone-100 text-stone-900 dark:text-stone-100' : 'border-transparent text-stone-500 hover:text-stone-800 dark:hover:text-stone-200'}`}>
+            <span className="text-stone-400">{ic}</span>{l}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ----- A: Board ----- */
+function ProjectBoard_A({ tweaks, setTweaks }) {
+  return (
+    <div className="flex flex-col min-h-0 flex-1 bg-stone-50 dark:bg-stone-950/50">
+      <ProjectHeader_A active={ACTIVE} setTweaks={setTweaks} />
+
+      {/* Toolbar */}
+      <div className="px-7 py-2 border-b border-stone-200 dark:border-stone-800 bg-white/70 dark:bg-stone-950/70 flex items-center gap-2 text-[12px]">
+        <button className="px-2 py-1 rounded-md hover:bg-stone-100 dark:hover:bg-stone-900 inline-flex items-center gap-1.5 text-stone-600 dark:text-stone-300">{I.filter} Filter</button>
+        <button className="px-2 py-1 rounded-md hover:bg-stone-100 dark:hover:bg-stone-900 inline-flex items-center gap-1.5 text-stone-600 dark:text-stone-300">{I.sort} Group: Status</button>
+        <span className="w-px h-4 bg-stone-200 dark:bg-stone-800 mx-1" />
+        <div className="flex items-center gap-1">
+          {ACTIVE.members.slice(0,5).map((p,i)=>(
+            <button key={i} className="rounded-full hover:opacity-90"><Avatar p={p} size={20} /></button>
+          ))}
+          <button className="text-stone-400 ml-1 text-xs">+ Assignee</button>
+        </div>
+        <span className="flex-1" />
+        <span className="text-stone-400">14 stories · 42 tasks</span>
+      </div>
+
+      {/* Board */}
+      <div className="flex-1 overflow-x-auto scroll-hidden">
+        <div className="flex gap-3 px-7 py-5 min-w-min">
+          {STATUSES.map(s => {
+            const tasks = ALL_TASKS.filter(t => t.status === s.id);
+            return (
+              <div key={s.id} className="w-[290px] shrink-0">
+                {/* Column header */}
+                <div className="flex items-center gap-2 px-1 mb-2">
+                  <span className={`st-pill ${s.cls}`}><span className="dot"/>{s.label}</span>
+                  <span className="text-[11px] text-stone-400">{tasks.length}</span>
+                  <span className="flex-1" />
+                  <button className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200">{I.plus}</button>
+                </div>
+                {/* Cards */}
+                <div className="space-y-2">
+                  {tasks.map(t => <BoardCard key={t.id} task={t} onOpen={()=>setTweaks({screen:'task'})} />)}
+                  <button className="w-full px-2 py-2 text-[12px] text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 rounded-md hover:bg-white dark:hover:bg-stone-900 text-left inline-flex items-center gap-1.5">{I.plus} Add task</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+function BoardCard({ task, onOpen }) {
+  return (
+    <div onClick={onOpen} className="lift cursor-pointer bg-white dark:bg-stone-900 rounded-lg border border-stone-200 dark:border-stone-800 p-3 hover:border-stone-300 dark:hover:border-stone-700">
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <span className="font-mono text-[10.5px] text-stone-400">{task.code}</span>
+        <PriorityBars id={task.priority} />
+      </div>
+      <div className="text-[13px] leading-snug">{task.title}</div>
+      <div className="flex items-center gap-2 mt-3">
+        <span className="text-[10.5px] text-stone-400">{task.story.code}</span>
+        <span className="flex-1" />
+        <span className="text-[10.5px] text-stone-400">{task.updated}</span>
+        <Avatar p={task.assignee} size={18} />
+      </div>
+    </div>
+  );
+}
+
+/* ----- A: Projects list ----- */
+function ProjectsList_A({ setTweaks }) {
+  return (
+    <div className="flex-1 flex flex-col">
+      <div className="px-7 pt-6 pb-4 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
+        <div className="flex items-end justify-between">
+          <div>
+            <h1 className="text-[22px] font-semibold tracking-tight">Projects</h1>
+            <p className="text-[13px] text-stone-500 mt-0.5">5 active · 1 archived</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-900 inline-flex items-center gap-1.5 text-stone-600 dark:text-stone-300">{I.filter} Filters</button>
+            <button className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5">{I.plus} New project</button>
+          </div>
+        </div>
+      </div>
+      <div className="px-7 py-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        {PROJECTS.map(p => (
+          <button key={p.id} onClick={()=>setTweaks({screen:'board'})}
+            className="lift text-left bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 p-4 hover:border-stone-300 dark:hover:border-stone-700">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="font-mono text-[10.5px] text-stone-400">{p.key}</span>
+              <StatusPill id={p.status} />
+            </div>
+            <div className="text-[15px] font-medium tracking-tight">{p.name}</div>
+            <p className="text-[12.5px] text-stone-500 mt-0.5 line-clamp-1">{p.desc}</p>
+            {/* Mini progress */}
+            <ProjectMiniProgress projectKey={p.key} />
+            <div className="mt-3 flex items-center justify-between">
+              <AvatarStack people={p.members} max={4} size={20} />
+              <div className="flex items-center gap-3 text-[11px] text-stone-500">
+                <span>{p.stories} stories</span>
+                <span>{p.openTasks} open</span>
+                <PriorityBars id={p.priority} />
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+function ProjectMiniProgress({ projectKey }) {
+  // Fake distribution for visual interest
+  const segs = projectKey === 'API'
+    ? [{cssVar:'--st-done', w:100}]
+    : projectKey === 'WEB'
+    ? [{cssVar:'--st-todo', w:80},{cssVar:'--st-prog',w:20}]
+    : [
+        {cssVar:'--st-todo', w:25},
+        {cssVar:'--st-prog', w:35},
+        {cssVar:'--st-rev',  w:15},
+        {cssVar:'--st-test', w:10},
+        {cssVar:'--st-done', w:15},
+      ];
+  return (
+    <div className="mt-3 flex h-1.5 rounded-full overflow-hidden bg-stone-100 dark:bg-stone-800">
+      {segs.map((s,i)=>(<span key={i} style={{width:`${s.w}%`, background:`var(${s.cssVar})`}} />))}
+    </div>
+  );
+}
+
+/* ----- A: Story detail ----- */
+function StoryDetail_A({ setTweaks }) {
+  const story = STORIES[0];
+  return (
+    <div className="flex-1 flex flex-col">
+      <div className="px-7 pt-5 pb-4 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
+        <div className="flex items-center gap-2 text-[11.5px] text-stone-500 mb-2">
+          <button onClick={()=>setTweaks({screen:'list'})} className="hover:text-stone-800 dark:hover:text-stone-200">Projects</button>
+          <span>/</span>
+          <button onClick={()=>setTweaks({screen:'board'})} className="hover:text-stone-800 dark:hover:text-stone-200">{ACTIVE.name}</button>
+          <span>/</span>
+          <span className="font-mono">{story.code}</span>
+        </div>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-[22px] font-semibold tracking-tight">{story.title}</h1>
+            <p className="text-[13px] text-stone-500 mt-1">{story.desc}</p>
+            <div className="flex items-center gap-2 mt-3">
+              <StatusPill id={story.status} />
+              <PriorityBars id={story.priority} withLabel />
+              <Sep/>
+              <AvatarStack people={story.assignees} size={20} />
+              <Sep/>
+              <span className="text-[11.5px] text-stone-500">Updated {story.updated} ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-0 flex-1">
+        <div className="px-7 py-5 space-y-6">
+          {/* tasks list */}
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-[13px] font-medium text-stone-700 dark:text-stone-200">Tasks <span className="text-stone-400 font-normal ml-1">{story.tasks.length}</span></h2>
+              <button className="text-[12px] text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 inline-flex items-center gap-1">{I.plus} Add task</button>
+            </div>
+            <div className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 divide-y divide-stone-100 dark:divide-stone-800/80">
+              {story.tasks.map(t => (
+                <button key={t.id} onClick={()=>setTweaks({screen:'task'})} className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-stone-50/80 dark:hover:bg-stone-800/50">
+                  <span className="font-mono text-[10.5px] text-stone-400 w-16">{t.code}</span>
+                  <span className="flex-1 text-[13px] truncate">{t.title}</span>
+                  <PriorityBars id={t.priority} />
+                  <StatusPill id={t.status} />
+                  <Avatar p={t.assignee} size={20} />
+                  <span className="text-[11px] text-stone-400 w-10 text-right">{t.updated}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* description / notes */}
+          <section>
+            <h2 className="text-[13px] font-medium text-stone-700 dark:text-stone-200 mb-2">Description</h2>
+            <div className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-4 text-[13.5px] leading-relaxed text-stone-700 dark:text-stone-300 space-y-2">
+              <p>Re-think the welcome flow based on usability tests run last sprint. Specifically:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Reduce permissions friction by explaining <em>why</em> we ask</li>
+                <li>Defer push opt-in until first meaningful moment</li>
+                <li>Collapse the 4-screen tour into 2 with optional deep-dive</li>
+              </ul>
+            </div>
+          </section>
+
+          {/* comments */}
+          <section>
+            <h2 className="text-[13px] font-medium text-stone-700 dark:text-stone-200 mb-2">Comments</h2>
+            <CommentsThread />
+          </section>
+        </div>
+
+        {/* right rail */}
+        <aside className="border-l border-stone-200 dark:border-stone-800 bg-stone-50/40 dark:bg-stone-950/30 px-5 py-5 space-y-5 text-[12.5px]">
+          <DetailField label="Status"><StatusPill id={story.status} /></DetailField>
+          <DetailField label="Priority"><PriorityBars id={story.priority} withLabel /></DetailField>
+          <DetailField label="Assignees"><AvatarStack people={story.assignees} size={20} /></DetailField>
+          <DetailField label="Project"><span className="text-stone-700 dark:text-stone-200">{ACTIVE.name}</span></DetailField>
+          <DetailField label="Created"><span className="text-stone-500">4 days ago by Maya</span></DetailField>
+          <DetailField label="Updated"><span className="text-stone-500">{story.updated} ago</span></DetailField>
+          <div>
+            <div className="text-[10.5px] uppercase tracking-wider text-stone-400 mb-2 font-medium">History</div>
+            <HistoryTimeline />
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+function DetailField({ label, children }) {
+  return (
+    <div className="grid grid-cols-[80px_1fr] items-center gap-3">
+      <span className="text-[10.5px] uppercase tracking-wider text-stone-400 font-medium">{label}</span>
+      <div>{children}</div>
+    </div>
+  );
+}
+function CommentsThread() {
+  return (
+    <div className="space-y-3">
+      {COMMENTS.map(c => (
+        <div key={c.id} className="flex gap-3">
+          <Avatar p={c.author} size={28} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 text-[12px]"><span className="font-medium text-stone-800 dark:text-stone-100">{c.author.name}</span><span className="text-stone-400">{c.at} ago</span></div>
+            <div className="mt-1 text-[13px] text-stone-700 dark:text-stone-300 leading-relaxed">{c.body.split('**').map((part,i)=> i%2 ? <strong key={i}>{part}</strong> : part)}</div>
+          </div>
+        </div>
+      ))}
+      <div className="flex gap-3 pt-2">
+        <Avatar p={ME} size={28} />
+        <div className="flex-1 rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 focus-within:accent-ring transition-shadow">
+          <textarea rows={2} placeholder="Write a comment…" className="w-full bg-transparent px-3 py-2 outline-none text-[13px] resize-none placeholder:text-stone-400"/>
+          <div className="flex items-center justify-between border-t border-stone-100 dark:border-stone-800 px-2 py-1.5">
+            <div className="flex items-center gap-1 text-stone-400">
+              <button className="px-1.5 py-1 hover:text-stone-700 dark:hover:text-stone-200 text-[11px]">B</button>
+              <button className="px-1.5 py-1 hover:text-stone-700 dark:hover:text-stone-200 text-[11px] italic">i</button>
+              <button className="px-1.5 py-1 hover:text-stone-700 dark:hover:text-stone-200">{I.link}</button>
+            </div>
+            <button className="px-2.5 py-1 text-[11.5px] rounded-md accent-bg inline-flex items-center gap-1">{I.send} Post</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+function HistoryTimeline() {
+  return (
+    <ol className="relative pl-3">
+      <span className="absolute left-[3px] top-1 bottom-1 w-px bg-stone-200 dark:bg-stone-800" />
+      {HISTORY.map((h,i) => (
+        <li key={i} className="relative pl-4 pb-3 last:pb-0">
+          <span className="absolute -left-[2px] top-1 w-1.5 h-1.5 rounded-full" style={{background:`var(${ST_BY_ID[h.to].cssVar})`}}/>
+          <div className="text-[12px]">
+            {h.from ? <><span className="text-stone-500">moved to</span> <span className="font-medium">{ST_BY_ID[h.to].label}</span></> : <><span className="text-stone-500">created as</span> <span className="font-medium">{ST_BY_ID[h.to].label}</span></>}
+          </div>
+          <div className="text-[10.5px] text-stone-400">{h.by.name} · {h.at}{h.dur && ` · stayed ${h.dur}`}</div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/* ----- A: Task detail ----- */
+function TaskDetail_A({ setTweaks }) {
+  const story = STORIES[0];
+  const task  = story.tasks[1]; // ORB-102 Permissions copy (in progress)
+  return (
+    <div className="flex-1 flex flex-col">
+      <div className="px-7 pt-5 pb-4 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
+        <div className="flex items-center gap-2 text-[11.5px] text-stone-500 mb-2">
+          <button onClick={()=>setTweaks({screen:'list'})} className="hover:text-stone-800 dark:hover:text-stone-200">Projects</button><span>/</span>
+          <button onClick={()=>setTweaks({screen:'board'})} className="hover:text-stone-800 dark:hover:text-stone-200">{ACTIVE.name}</button><span>/</span>
+          <button onClick={()=>setTweaks({screen:'story'})} className="hover:text-stone-800 dark:hover:text-stone-200">{story.title}</button><span>/</span>
+          <span className="font-mono">{task.code}</span>
+        </div>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[22px] font-semibold tracking-tight leading-tight">{task.title}</h1>
+            <div className="flex items-center gap-2 mt-2">
+              <StatusPill id={task.status} />
+              <PriorityBars id={task.priority} withLabel />
+              <Sep/>
+              <span className="text-[11.5px] text-stone-500 inline-flex items-center gap-1.5">Assigned to <Avatar p={task.assignee} size={18} /> {task.assignee?.name}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button className="px-2 py-1.5 text-[11.5px] rounded-md border border-stone-200 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-900 inline-flex items-center gap-1.5 text-stone-600 dark:text-stone-300">{I.copy} Copy link</button>
+            <button className="px-1.5 py-1.5 rounded-md hover:bg-stone-50 dark:hover:bg-stone-900 text-stone-500">{I.more}</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-0 flex-1">
+        <div className="px-7 py-6 space-y-6 max-w-3xl">
+          <section>
+            <h2 className="text-[13px] font-medium text-stone-700 dark:text-stone-200 mb-2">Description</h2>
+            <div className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-4 text-[13.5px] leading-relaxed text-stone-700 dark:text-stone-300 space-y-3">
+              <p>Final permissions copy for the onboarding sequence on iOS and Android.</p>
+              <p>Cover three permissions in this order:</p>
+              <ol className="list-decimal pl-5 space-y-1">
+                <li><strong>Notifications</strong> — explained on a rationale screen first; system prompt only after tap.</li>
+                <li><strong>Contacts</strong> — optional; allow skip.</li>
+                <li><strong>Location (when in use)</strong> — only required if user enables nearby projects.</li>
+              </ol>
+              <p>Coordinate with marketing for tone match. Strings live in <code className="font-mono text-[12px] px-1 py-0.5 rounded bg-stone-100 dark:bg-stone-800">i18n/onboarding.json</code>.</p>
+            </div>
+          </section>
+
+          {/* Sub-tasks / checklist */}
+          <section>
+            <h2 className="text-[13px] font-medium text-stone-700 dark:text-stone-200 mb-2">Checklist <span className="text-stone-400 font-normal">2 / 4</span></h2>
+            <div className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900">
+              {[
+                ['Draft notification rationale (EN)', true],
+                ['Draft contacts rationale (EN)', true],
+                ['Localize EN → PL', false],
+                ['Marketing review pass', false],
+              ].map(([l,d],i)=>(
+                <label key={i} className="flex items-center gap-3 px-3 py-2 border-b border-stone-100 dark:border-stone-800 last:border-0">
+                  <span className={`w-4 h-4 rounded border ${d?'accent-bg accent-border':'border-stone-300 dark:border-stone-700'} inline-flex items-center justify-center text-white`}>{d && I.check}</span>
+                  <span className={`text-[13px] ${d?'line-through text-stone-400':''}`}>{l}</span>
+                </label>
+              ))}
+              <button className="w-full px-3 py-2 text-left text-[12px] text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 inline-flex items-center gap-1.5">{I.plus} Add item</button>
+            </div>
+          </section>
+
+          {/* Comments */}
+          <section>
+            <h2 className="text-[13px] font-medium text-stone-700 dark:text-stone-200 mb-2">Activity & comments</h2>
+            <CommentsThread />
+          </section>
+        </div>
+        <aside className="border-l border-stone-200 dark:border-stone-800 bg-stone-50/40 dark:bg-stone-950/30 px-5 py-5 space-y-5 text-[12.5px]">
+          <DetailField label="Status"><StatusPill id={task.status} /></DetailField>
+          <DetailField label="Priority"><PriorityBars id={task.priority} withLabel /></DetailField>
+          <DetailField label="Assignee">
+            <span className="inline-flex items-center gap-2"><Avatar p={task.assignee} size={20} /> <span className="text-[12.5px]">{task.assignee?.name}</span></span>
+          </DetailField>
+          <DetailField label="Story"><button onClick={()=>setTweaks({screen:'story'})} className="accent-text hover:underline">{story.title}</button></DetailField>
+          <DetailField label="Project"><span className="text-stone-700 dark:text-stone-200">{ACTIVE.name}</span></DetailField>
+          <DetailField label="Created"><span className="text-stone-500">3 days ago</span></DetailField>
+          <div>
+            <div className="text-[10.5px] uppercase tracking-wider text-stone-400 mb-2 font-medium">Time in status</div>
+            <TimeInStatus />
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+function TimeInStatus() {
+  const segs = [
+    { id:'to_do', label:'To do', val:'1d 4h', w:30 },
+    { id:'in_progress', label:'In progress', val:'2d 1h', w:55, current:true },
+    { id:'in_review', label:'In review', val:'—', w:0 },
+  ];
+  return (
+    <div className="space-y-2">
+      {segs.map(s => (
+        <div key={s.id}>
+          <div className="flex items-center justify-between text-[11.5px]">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full" style={{background:`var(${ST_BY_ID[s.id].cssVar})`}} />
+              {s.label}
+            </span>
+            <span className={`tabular-nums ${s.current?'text-stone-700 dark:text-stone-200 font-medium':'text-stone-400'}`}>{s.val}{s.current && <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-soft align-middle"/>}</span>
+          </div>
+          <div className="h-1 bg-stone-100 dark:bg-stone-800 rounded-full mt-1 overflow-hidden">
+            <div className="h-full" style={{width:`${s.w}%`, background:`var(${ST_BY_ID[s.id].cssVar})`}} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ----- A: Settings ----- */
+function Settings_A() {
+  const tabs = ['Profile', 'Notifications', 'Members', 'API keys', 'Billing'];
+  const [tab, setTab] = useState('Profile');
+  return (
+    <div className="flex-1 flex flex-col bg-stone-50 dark:bg-stone-950/40">
+      <div className="px-7 pt-6 pb-3 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
+        <h1 className="text-[22px] font-semibold tracking-tight">Settings</h1>
+      </div>
+      <div className="grid grid-cols-[200px_1fr] flex-1">
+        <nav className="border-r border-stone-200 dark:border-stone-800 px-3 py-4 space-y-0.5">
+          {tabs.map(t => (
+            <button key={t} onClick={()=>setTab(t)} className={`w-full text-left px-2 py-1.5 rounded-md text-[13px] ${tab===t ? 'bg-stone-100 dark:bg-stone-900 font-medium' : 'text-stone-600 dark:text-stone-300 hover:bg-stone-100/60 dark:hover:bg-stone-900/60'}`}>
+              {t}
+            </button>
+          ))}
+        </nav>
+        <div className="px-7 py-6 max-w-2xl space-y-6">
+          {tab === 'Profile' && <>
+            <section className="rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-5">
+              <div className="flex items-center gap-4">
+                <Avatar p={ME} size={56} />
+                <div>
+                  <div className="text-[15px] font-medium">{ME.name}</div>
+                  <div className="text-[12.5px] text-stone-500">maya@sparrow.studio · Manager</div>
+                </div>
+                <button className="ml-auto px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-800">Change photo</button>
+              </div>
+              <div className="mt-5 grid grid-cols-2 gap-4">
+                <Field label="Full name" value="Maya Chen" />
+                <Field label="Display name" value="maya" />
+                <Field label="Email" value="maya@sparrow.studio" />
+                <Field label="Time zone" value="Europe / London" />
+              </div>
+            </section>
+            <section className="rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-5">
+              <h3 className="text-[14px] font-medium mb-3">Appearance</h3>
+              <div className="grid grid-cols-3 gap-2">
+                {['Light','Dark','System'].map((m,i) => (
+                  <button key={m} className={`rounded-lg border p-3 text-left ${i===0?'accent-border':'border-stone-200 dark:border-stone-800'}`}>
+                    <div className={`h-12 rounded-md mb-2 border ${i===1?'bg-stone-900 border-stone-700':'bg-stone-50 border-stone-200'}`} />
+                    <div className="text-[12.5px]">{m}</div>
+                  </button>
+                ))}
+              </div>
+            </section>
+          </>}
+          {tab === 'API keys' && (
+            <section className="rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900">
+              <div className="flex items-center justify-between p-4 border-b border-stone-100 dark:border-stone-800">
+                <div>
+                  <h3 className="text-[14px] font-medium">API keys</h3>
+                  <p className="text-[12px] text-stone-500">Use keys to access the SPT API. Keep them secret.</p>
+                </div>
+                <button className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5">{I.plus} New key</button>
+              </div>
+              {[
+                ['ci-deploy', 'tasks:read tasks:write', '2h ago'],
+                ['zapier-prod', 'projects:read', '3d ago'],
+              ].map(([l,sc,used],i)=>(
+                <div key={i} className="flex items-center gap-4 p-4 border-b border-stone-100 dark:border-stone-800 last:border-0">
+                  <span className="text-stone-400">{I.key}</span>
+                  <div className="flex-1">
+                    <div className="text-[13px] font-medium">{l}</div>
+                    <div className="text-[11.5px] text-stone-500 font-mono">{sc}</div>
+                  </div>
+                  <span className="text-[11.5px] text-stone-400">used {used}</span>
+                  <button className="text-[12px] text-rose-600 hover:underline">Revoke</button>
+                </div>
+              ))}
+            </section>
+          )}
+          {tab === 'Notifications' && (
+            <section className="rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-5 space-y-4">
+              {[
+                ['Mentions',           'Always notify in app + email'],
+                ['Assigned to me',     'Notify in app'],
+                ['Status changes',     'Daily digest'],
+                ['Comments on watched','Notify in app'],
+              ].map(([l,d],i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[13.5px] font-medium">{l}</div>
+                    <div className="text-[12px] text-stone-500">{d}</div>
+                  </div>
+                  <Toggle on={i!==2} onChange={()=>{}} />
+                </div>
+              ))}
+            </section>
+          )}
+          {tab === 'Members' && (
+            <section className="rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900">
+              <div className="flex items-center justify-between p-4 border-b border-stone-100 dark:border-stone-800">
+                <h3 className="text-[14px] font-medium">Workspace members <span className="text-stone-400 font-normal ml-1">{PEOPLE.length}</span></h3>
+                <button className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5">{I.plus} Invite</button>
+              </div>
+              {PEOPLE.map((p,i) => (
+                <div key={i} className="flex items-center gap-3 p-3 border-b border-stone-100 dark:border-stone-800 last:border-0">
+                  <Avatar p={p} size={32} />
+                  <div className="flex-1">
+                    <div className="text-[13.5px] font-medium">{p.name}</div>
+                    <div className="text-[11.5px] text-stone-500">{p.name.toLowerCase().replace(' ','.')}@sparrow.studio</div>
+                  </div>
+                  <span className="text-[11.5px] text-stone-500">{p.role==='manager'?'Manager':'Contributor'}</span>
+                  <button className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200">{I.more}</button>
+                </div>
+              ))}
+            </section>
+          )}
+          {tab === 'Billing' && (
+            <section className="rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-[14px] font-medium">Free plan</h3>
+                  <p className="text-[12.5px] text-stone-500">Up to 10 members · Unlimited tasks · 30 day history</p>
+                </div>
+                <button className="px-3 py-1.5 text-[12px] rounded-md accent-bg">Upgrade</button>
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+function Field({label,value}) {
+  return (
+    <div>
+      <label className="text-[11px] uppercase tracking-wider text-stone-400 font-medium">{label}</label>
+      <input defaultValue={value} className="mt-1 w-full px-2.5 py-1.5 rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 text-[13px] focus-ring"/>
+    </div>
+  );
+}
+
+/* ----- A: Invitations / Inbox ----- */
+function Invites_A() {
+  return (
+    <div className="flex-1 flex flex-col bg-stone-50 dark:bg-stone-950/40">
+      <div className="px-7 pt-6 pb-3 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
+        <h1 className="text-[22px] font-semibold tracking-tight">Inbox</h1>
+        <p className="text-[13px] text-stone-500 mt-0.5">Invitations and your activity.</p>
+      </div>
+      <div className="px-7 py-5 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
+        <div>
+          <h2 className="text-[12px] uppercase tracking-wider text-stone-400 mb-2 font-medium">Pending invitations</h2>
+          <div className="space-y-2">
+            {[
+              { proj:'Aurora Design Library', by:'Naomi Iwasaki', role:'Contributor', exp:'in 6 days' },
+              { proj:'Atlas Analytics',       by:'Sam Patel',     role:'Manager',     exp:'in 2 days' },
+            ].map((inv,i) => (
+              <div key={i} className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-4 flex items-center gap-4">
+                <span className="w-9 h-9 rounded-md accent-soft inline-flex items-center justify-center font-mono text-[11px] accent-text font-semibold">{inv.proj.split(' ').map(w=>w[0]).slice(0,2).join('')}</span>
+                <div className="flex-1">
+                  <div className="text-[13.5px] font-medium">{inv.proj}</div>
+                  <div className="text-[11.5px] text-stone-500">Invited by {inv.by} as <span className="text-stone-700 dark:text-stone-200">{inv.role}</span> · expires {inv.exp}</div>
+                </div>
+                <button className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-900">Decline</button>
+                <button className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg">Accept</button>
+              </div>
+            ))}
+          </div>
+          <h2 className="text-[12px] uppercase tracking-wider text-stone-400 mt-6 mb-2 font-medium">Recent activity</h2>
+          <ol className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 divide-y divide-stone-100 dark:divide-stone-800/80">
+            {ACTIVITY.map((a,i) => (
+              <li key={i} className="flex items-center gap-3 px-4 py-2.5 text-[13px]">
+                <Avatar p={a.who} size={22} />
+                <div className="flex-1">
+                  <span className="font-medium">{a.who.name}</span>
+                  <span className="text-stone-500"> {a.verb} </span>
+                  <span>{a.what}</span>
+                  {a.to && <> <span className="text-stone-500">to</span> <StatusPill id={ST_BY_ID[a.to.toLowerCase().replace(' ','_')]?.id || 'in_review'} /></>}
+                </div>
+                <span className="text-[11.5px] text-stone-400">{a.at}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+        <aside className="space-y-3">
+          <div className="rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-4">
+            <h3 className="text-[12.5px] font-medium">Your week</h3>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              {[['Open','7'],['Done','3'],['Overdue','1']].map(([l,v],i)=>(
+                <div key={i} className="rounded-lg bg-stone-50 dark:bg-stone-950 p-2.5">
+                  <div className="text-[18px] font-semibold tabular-nums">{v}</div>
+                  <div className="text-[11px] text-stone-500">{l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+/* ----- Login (shared between A & B) ----- */
+function Login() {
+  return (
+    <div className="flex-1 grid lg:grid-cols-2 min-h-screen">
+      {/* Left — form */}
+      <div className="flex items-center justify-center px-6 py-10 bg-white dark:bg-stone-950">
+        <div className="w-full max-w-sm">
+          <div className="flex items-center gap-2 mb-10">
+            <span className="w-7 h-7 rounded-md accent-bg flex items-center justify-center text-[12px] font-semibold">SP</span>
+            <span className="text-[15px] font-medium">Sparrow</span>
+          </div>
+          <h1 className="text-[26px] font-semibold tracking-tight font-serif">Welcome back.</h1>
+          <p className="text-[13px] text-stone-500 mt-1">Sign in to continue to your workspace.</p>
+          <div className="mt-7 space-y-3">
+            <button className="w-full py-2 rounded-md border border-stone-200 dark:border-stone-800 text-[13px] hover:bg-stone-50 dark:hover:bg-stone-900 inline-flex items-center justify-center gap-2">{I.globe} Continue with Google</button>
+            <button className="w-full py-2 rounded-md border border-stone-200 dark:border-stone-800 text-[13px] hover:bg-stone-50 dark:hover:bg-stone-900 inline-flex items-center justify-center gap-2">Continue with SSO</button>
+            <div className="relative my-3 text-center">
+              <span className="absolute inset-x-0 top-1/2 h-px bg-stone-200 dark:bg-stone-800"/>
+              <span className="relative bg-white dark:bg-stone-950 px-3 text-[10.5px] uppercase tracking-wider text-stone-400">or with email</span>
+            </div>
+            <div>
+              <label className="text-[11px] uppercase tracking-wider text-stone-400 font-medium">Email</label>
+              <input defaultValue="maya@sparrow.studio" className="mt-1 w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 text-[13.5px] focus-ring"/>
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] uppercase tracking-wider text-stone-400 font-medium">Password</label>
+                <a className="text-[11px] accent-text hover:underline">Forgot?</a>
+              </div>
+              <input type="password" defaultValue="********" className="mt-1 w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 text-[13.5px] focus-ring"/>
+            </div>
+            <button className="w-full py-2 rounded-md accent-bg text-[13.5px] font-medium">Sign in</button>
+          </div>
+          <p className="mt-6 text-[12.5px] text-stone-500">New here? <a className="accent-text hover:underline">Create an account</a></p>
+        </div>
+      </div>
+      {/* Right — atmospheric */}
+      <div className="hidden lg:flex relative items-center justify-center overflow-hidden bg-stone-50 dark:bg-stone-900 border-l border-stone-200 dark:border-stone-800">
+        <div className="absolute inset-0" style={{background:'radial-gradient(70% 50% at 70% 30%, color-mix(in oklab, var(--accent) 18%, transparent), transparent 70%)'}}/>
+        <div className="absolute inset-0 opacity-[0.06]" style={{backgroundImage:'linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)', backgroundSize:'40px 40px'}}/>
+        <div className="relative max-w-md w-full mx-auto p-10">
+          <div className="rounded-2xl bg-white dark:bg-stone-950 shadow-2xl border border-stone-200 dark:border-stone-800 overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-stone-200 dark:border-stone-800 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-rose-400"/><span className="w-2 h-2 rounded-full bg-amber-400"/><span className="w-2 h-2 rounded-full bg-emerald-400"/>
+              <span className="ml-3 text-[11px] text-stone-400">Orbit · Board</span>
+            </div>
+            <div className="p-4 space-y-2">
+              {ALL_TASKS.slice(0,4).map(t => (
+                <div key={t.id} className="rounded-md border border-stone-200 dark:border-stone-800 p-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[10px] text-stone-400">{t.code}</span>
+                    <PriorityBars id={t.priority} />
+                  </div>
+                  <div className="text-[12px] mt-1">{t.title}</div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <StatusPill id={t.status} />
+                    <span className="flex-1"/>
+                    <Avatar p={t.assignee} size={16} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="mt-6 text-center text-[13px] text-stone-500 font-serif italic">"Finally a tracker that gets out of the way."<br/><span className="not-italic text-[11px] text-stone-400">— Atlas team, 5 people</span></p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   VARIATION B — "Command" : top nav, dense, table-first, palette-driven
+========================================================================= */
+function VariationB({ tweaks, setTweaks, onCmdK }) {
+  const screen = tweaks.screen || 'board';
+  return (
+    <div className="min-h-screen flex flex-col bg-stone-50 dark:bg-black">
+      {/* Top bar */}
+      <header className="border-b border-stone-200 dark:border-stone-900 bg-white dark:bg-stone-950">
+        <div className="h-11 flex items-center px-4 gap-1">
+          <button className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-stone-100 dark:hover:bg-stone-900">
+            <span className="w-5 h-5 rounded-[4px] accent-bg flex items-center justify-center text-[10px] font-semibold">SP</span>
+            <span className="text-[12.5px] font-medium">Sparrow</span>
+            <span className="text-stone-400">{I.caret}</span>
+          </button>
+          <span className="text-stone-300 dark:text-stone-700 mx-1">/</span>
+          <button onClick={()=>setTweaks({screen:'board'})} className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-stone-100 dark:hover:bg-stone-900 text-[12.5px]">
+            <span className="font-mono text-[10px] text-stone-400">{ACTIVE.key}</span>
+            <span>{ACTIVE.name}</span>
+            <span className="text-stone-400">{I.caret}</span>
+          </button>
+          <span className="text-stone-300 dark:text-stone-700 mx-1">/</span>
+          <span className="px-2 py-1 text-[12.5px] text-stone-500">
+            {screen==='board' && 'Board'}
+            {screen==='list' && 'Projects'}
+            {screen==='story' && STORIES[0].title}
+            {screen==='task' && STORIES[0].tasks[1].title}
+            {screen==='settings' && 'Settings'}
+            {screen==='invites' && 'Inbox'}
+          </span>
+          <span className="flex-1"/>
+          <button onClick={onCmdK} className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-md border border-stone-200 dark:border-stone-800 text-stone-500 hover:border-stone-300 text-[12px] min-w-[260px]">
+            <span>{I.search}</span>
+            <span className="flex-1 text-left">Jump to anything…</span>
+            <span className="flex items-center gap-0.5"><kbd>⌘</kbd><kbd>K</kbd></span>
+          </button>
+          <button onClick={()=>setTweaks({screen:'invites'})} className="relative px-2 py-1 rounded-md hover:bg-stone-100 dark:hover:bg-stone-900 text-stone-500">
+            {I.bell}
+            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-rose-500"/>
+          </button>
+          <button onClick={()=>setTweaks({screen:'settings'})} className="px-2 py-1 rounded-md hover:bg-stone-100 dark:hover:bg-stone-900 text-stone-500">{I.cog}</button>
+          <Avatar p={ME} size={22} />
+        </div>
+        {/* Sub-nav */}
+        <div className="px-4 flex items-center gap-1 text-[12.5px]">
+          {[
+            ['Overview', 'list',   I.home],
+            ['Board',    'board',  I.board],
+            ['List',     'list',   I.list],
+            ['Stories',  'story',  I.hash],
+            ['Inbox',    'invites',I.inbox],
+          ].map(([l,t,ic],i) => {
+            const active = (l==='Board' && screen==='board') ||
+                           (l==='Stories' && screen==='story') ||
+                           (l==='Inbox'   && screen==='invites');
+            return (
+              <button key={i} onClick={()=>setTweaks({screen:t})}
+                className={`-mb-px px-2.5 pb-2 pt-1 border-b-2 inline-flex items-center gap-1.5 ${active ? 'border-stone-900 dark:border-stone-100 text-stone-900 dark:text-stone-100' : 'border-transparent text-stone-500 hover:text-stone-800 dark:hover:text-stone-200'}`}>
+                <span className="text-stone-400">{ic}</span>{l}
+              </button>
+            );
+          })}
+        </div>
+      </header>
+
+      <main className="flex-1 min-h-0">
+        {screen === 'board'    && <Board_B setTweaks={setTweaks} />}
+        {screen === 'list'     && <Projects_B setTweaks={setTweaks} />}
+        {screen === 'story'    && <Story_B setTweaks={setTweaks} />}
+        {screen === 'task'     && <Task_B setTweaks={setTweaks} />}
+        {screen === 'settings' && <Settings_A />}
+        {screen === 'invites'  && <Invites_A />}
+        {screen === 'login'    && <Login />}
+      </main>
+    </div>
+  );
+}
+
+/* ----- B: dense board with grid columns ----- */
+function Board_B({ setTweaks }) {
+  return (
+    <div className="flex flex-col h-full">
+      {/* Toolbar — single row, very dense */}
+      <div className="px-4 py-1.5 border-b border-stone-200 dark:border-stone-900 bg-white/80 dark:bg-stone-950/80 backdrop-blur flex items-center gap-1 text-[11.5px]">
+        <button className="px-2 py-1 rounded hover:bg-stone-100 dark:hover:bg-stone-900 inline-flex items-center gap-1.5 text-stone-600 dark:text-stone-300">{I.filter} Filter <span className="font-mono text-[10px] text-stone-400">2</span></button>
+        <button className="px-2 py-1 rounded hover:bg-stone-100 dark:hover:bg-stone-900 inline-flex items-center gap-1.5 text-stone-600 dark:text-stone-300">{I.sort} Group: Status</button>
+        <button className="px-2 py-1 rounded hover:bg-stone-100 dark:hover:bg-stone-900 inline-flex items-center gap-1.5 text-stone-600 dark:text-stone-300">Subgroup: None</button>
+        <button className="px-2 py-1 rounded hover:bg-stone-100 dark:hover:bg-stone-900 inline-flex items-center gap-1.5 text-stone-600 dark:text-stone-300">Show: Open</button>
+        <span className="w-px h-4 bg-stone-200 dark:bg-stone-800 mx-1" />
+        <span className="text-stone-400">42 tasks · 5 unassigned</span>
+        <span className="flex-1" />
+        <div className="flex items-center gap-1 mr-2">
+          <button className="px-2 py-1 rounded inline-flex items-center gap-1 bg-stone-100 dark:bg-stone-900 text-stone-800 dark:text-stone-200">{I.board} Board</button>
+          <button className="px-2 py-1 rounded inline-flex items-center gap-1 text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-900">{I.list} Table</button>
+          <button className="px-2 py-1 rounded inline-flex items-center gap-1 text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-900">{I.cal} Timeline</button>
+        </div>
+        <button className="px-2 py-1 rounded accent-bg inline-flex items-center gap-1.5 text-[11.5px]">{I.plus} New <kbd className="!bg-white/20 !border-white/30 !text-white">N</kbd></button>
+      </div>
+
+      <div className="flex-1 overflow-x-auto fine-grid">
+        <div className="grid grid-flow-col auto-cols-[280px] gap-0 py-3 min-h-full">
+          {STATUSES.map((s, ci) => {
+            const tasks = ALL_TASKS.filter(t => t.status === s.id);
+            return (
+              <div key={s.id} className={`px-3 ${ci<STATUSES.length-1 ? '' : ''}`}>
+                <div className="sticky top-0 bg-stone-50 dark:bg-black/50 backdrop-blur z-10 py-1 mb-1 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{background:`var(${s.cssVar})`}}/>
+                  <span className="text-[12px] font-medium">{s.label}</span>
+                  <span className="text-[11px] text-stone-400 tabular-nums">{tasks.length}</span>
+                  <span className="flex-1"/>
+                  <button className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200">{I.plus}</button>
+                  <button className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200">{I.more}</button>
+                </div>
+                <div className="space-y-1.5">
+                  {tasks.map(t => (
+                    <button key={t.id} onClick={()=>setTweaks({screen:'task'})}
+                      className="lift block w-full text-left bg-white dark:bg-stone-950 rounded-md border border-stone-200 dark:border-stone-900 p-2.5 hover:border-stone-300 dark:hover:border-stone-700">
+                      <div className="flex items-start gap-2">
+                        <span className="font-mono text-[10px] text-stone-400 mt-0.5">{t.code}</span>
+                        <span className="flex-1 text-[12.5px] leading-snug">{t.title}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2 text-[10.5px] text-stone-400">
+                        <PriorityBars id={t.priority}/>
+                        <span>{t.story.code}</span>
+                        <span className="flex-1"/>
+                        <span>{t.updated}</span>
+                        <Avatar p={t.assignee} size={16} />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ----- B: Projects (table-style) ----- */
+function Projects_B({ setTweaks }) {
+  return (
+    <div className="px-4 py-4">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h1 className="text-[18px] font-semibold tracking-tight">All projects</h1>
+          <p className="text-[12.5px] text-stone-500">{PROJECTS.length} total</p>
+        </div>
+        <div className="flex items-center gap-1">
+          <button className="px-2 py-1 text-[11.5px] rounded border border-stone-200 dark:border-stone-800 inline-flex items-center gap-1.5 text-stone-600 dark:text-stone-300">{I.filter} Filter</button>
+          <button className="px-2 py-1 text-[11.5px] rounded accent-bg inline-flex items-center gap-1.5">{I.plus} New project</button>
+        </div>
+      </div>
+      <div className="rounded-md border border-stone-200 dark:border-stone-900 bg-white dark:bg-stone-950 overflow-hidden">
+        <div className="grid grid-cols-[1.5fr_120px_120px_140px_140px_80px] px-3 py-2 text-[10.5px] uppercase tracking-wider text-stone-400 font-medium border-b border-stone-200 dark:border-stone-900 bg-stone-50/50 dark:bg-stone-900/30">
+          <span>Name</span><span>Status</span><span>Priority</span><span>Members</span><span>Open tasks</span><span className="text-right">Updated</span>
+        </div>
+        {PROJECTS.map(p => (
+          <button key={p.id} onClick={()=>setTweaks({screen:'board'})} className="w-full grid grid-cols-[1.5fr_120px_120px_140px_140px_80px] items-center px-3 py-2 text-[12.5px] border-b border-stone-100 dark:border-stone-900 last:border-0 hover:bg-stone-50 dark:hover:bg-stone-900/40 text-left">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="font-mono text-[10px] text-stone-400 w-9">{p.key}</span>
+              <span className="font-medium truncate">{p.name}</span>
+              <span className="text-stone-400 truncate hidden sm:inline">— {p.desc}</span>
+            </div>
+            <StatusPill id={p.status} />
+            <PriorityBars id={p.priority} withLabel/>
+            <AvatarStack people={p.members} size={18} max={4}/>
+            <div className="flex items-center gap-2">
+              <div className="h-1 w-16 rounded-full bg-stone-100 dark:bg-stone-800 overflow-hidden">
+                <div className="h-full accent-bg" style={{width: `${Math.min(100, p.openTasks*4)}%`}}/>
+              </div>
+              <span className="tabular-nums text-stone-500">{p.openTasks}</span>
+            </div>
+            <span className="text-[11.5px] text-stone-400 text-right">{p.updated}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ----- B: Story (compact table inside) ----- */
+function Story_B({ setTweaks }) {
+  const story = STORIES[0];
+  return (
+    <div className="px-4 py-4 max-w-6xl mx-auto">
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div>
+          <div className="flex items-center gap-2 text-[11.5px] text-stone-500"><span className="font-mono">{story.code}</span><Sep/><span>{ACTIVE.name}</span></div>
+          <h1 className="text-[20px] font-semibold tracking-tight mt-0.5">{story.title}</h1>
+          <p className="text-[13px] text-stone-500 mt-1 max-w-2xl">{story.desc}</p>
+        </div>
+        <div className="flex items-center gap-1">
+          <button className="px-2 py-1 text-[11.5px] rounded border border-stone-200 dark:border-stone-800 inline-flex items-center gap-1.5 text-stone-600 dark:text-stone-300">{I.copy} Copy link</button>
+          <button className="px-2 py-1 text-[11.5px] rounded border border-stone-200 dark:border-stone-800 inline-flex items-center gap-1.5 text-stone-600 dark:text-stone-300">{I.archive} Archive</button>
+        </div>
+      </div>
+      <div className="grid grid-cols-6 gap-3 mb-5">
+        <Stat label="Status" value={<StatusPill id={story.status}/>} />
+        <Stat label="Priority" value={<PriorityBars id={story.priority} withLabel/>} />
+        <Stat label="Assignees" value={<AvatarStack people={story.assignees} size={18}/>} />
+        <Stat label="Tasks" value={<span className="text-[14px] tabular-nums">{story.tasks.length}</span>} />
+        <Stat label="Open" value={<span className="text-[14px] tabular-nums">{story.tasks.filter(t=>t.status!=='done').length}</span>} />
+        <Stat label="Updated" value={<span className="text-[12.5px] text-stone-500">{story.updated} ago</span>} />
+      </div>
+
+      <h2 className="text-[12.5px] font-medium mb-2">Tasks</h2>
+      <div className="rounded-md border border-stone-200 dark:border-stone-900 bg-white dark:bg-stone-950 overflow-hidden mb-6">
+        <div className="grid grid-cols-[64px_1fr_120px_90px_90px_70px] px-3 py-1.5 text-[10.5px] uppercase tracking-wider text-stone-400 font-medium border-b border-stone-200 dark:border-stone-900 bg-stone-50/50 dark:bg-stone-900/30">
+          <span>ID</span><span>Title</span><span>Status</span><span>Priority</span><span>Assignee</span><span className="text-right">Updated</span>
+        </div>
+        {story.tasks.map(t => (
+          <button key={t.id} onClick={()=>setTweaks({screen:'task'})} className="w-full grid grid-cols-[64px_1fr_120px_90px_90px_70px] items-center px-3 py-1.5 text-[12.5px] border-b border-stone-100 dark:border-stone-900 last:border-0 hover:bg-stone-50 dark:hover:bg-stone-900/40 text-left">
+            <span className="font-mono text-[10.5px] text-stone-400">{t.code}</span>
+            <span className="truncate">{t.title}</span>
+            <StatusPill id={t.status} />
+            <PriorityBars id={t.priority} withLabel/>
+            <span className="inline-flex items-center gap-1.5 text-[11.5px]"><Avatar p={t.assignee} size={16}/>{t.assignee?.name.split(' ')[0] || '—'}</span>
+            <span className="text-right text-[11px] text-stone-400">{t.updated}</span>
+          </button>
+        ))}
+      </div>
+
+      <h2 className="text-[12.5px] font-medium mb-2">Discussion</h2>
+      <CommentsThread />
+    </div>
+  );
+}
+function Stat({ label, value }) {
+  return (
+    <div className="rounded-md border border-stone-200 dark:border-stone-900 bg-white dark:bg-stone-950 px-3 py-2">
+      <div className="text-[10px] uppercase tracking-wider text-stone-400 font-medium">{label}</div>
+      <div className="mt-1">{value}</div>
+    </div>
+  );
+}
+
+/* ----- B: Task (split, dense) ----- */
+function Task_B({ setTweaks }) {
+  const story = STORIES[0];
+  const task = story.tasks[1];
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] h-full">
+      <div className="px-5 py-4 max-w-3xl space-y-5">
+        <div>
+          <div className="flex items-center gap-2 text-[11.5px] text-stone-500"><span className="font-mono">{task.code}</span><Sep/><button onClick={()=>setTweaks({screen:'story'})} className="hover:underline">{story.title}</button></div>
+          <div className="flex items-start gap-3 mt-1">
+            <h1 className="text-[20px] font-semibold tracking-tight flex-1">{task.title}</h1>
+          </div>
+          <div className="flex items-center gap-2 mt-2 text-[12px]">
+            <button className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-stone-100 dark:hover:bg-stone-900"><StatusPill id={task.status}/> {I.caret}</button>
+            <button className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-stone-100 dark:hover:bg-stone-900"><PriorityBars id={task.priority} withLabel/> {I.caret}</button>
+            <button className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-stone-100 dark:hover:bg-stone-900"><Avatar p={task.assignee} size={16}/><span className="text-stone-700 dark:text-stone-200">{task.assignee?.name}</span> {I.caret}</button>
+          </div>
+        </div>
+        <div className="rounded-md border border-stone-200 dark:border-stone-900 bg-white dark:bg-stone-950 p-4 text-[13.5px] leading-relaxed text-stone-700 dark:text-stone-300 space-y-3">
+          <p>Final permissions copy for the onboarding sequence on iOS and Android.</p>
+          <ol className="list-decimal pl-5 space-y-1">
+            <li><strong>Notifications</strong> — explained on a rationale screen first.</li>
+            <li><strong>Contacts</strong> — optional; allow skip.</li>
+            <li><strong>Location</strong> — only if user enables nearby projects.</li>
+          </ol>
+        </div>
+        <div>
+          <div className="text-[12px] font-medium mb-2">Activity</div>
+          <CommentsThread />
+        </div>
+      </div>
+      <aside className="border-l border-stone-200 dark:border-stone-900 bg-stone-50/40 dark:bg-stone-950 px-4 py-4 space-y-4 text-[12px]">
+        <DetailField label="Story"><button onClick={()=>setTweaks({screen:'story'})} className="accent-text hover:underline">{story.title}</button></DetailField>
+        <DetailField label="Project"><span>{ACTIVE.name}</span></DetailField>
+        <DetailField label="Watchers"><AvatarStack people={[PEOPLE[0],PEOPLE[1],PEOPLE[3]]} size={18}/></DetailField>
+        <DetailField label="Created"><span className="text-stone-500">3 days ago</span></DetailField>
+        <DetailField label="Due"><span className="text-rose-600">Tomorrow</span></DetailField>
+        <div>
+          <div className="text-[10.5px] uppercase tracking-wider text-stone-400 mb-2 font-medium">Time in status</div>
+          <TimeInStatus />
+        </div>
+        <div>
+          <div className="text-[10.5px] uppercase tracking-wider text-stone-400 mb-2 font-medium">Linked</div>
+          <div className="space-y-1">
+            <a className="flex items-center gap-2 text-[12px] text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-stone-100">{I.link} <span className="font-mono text-[10.5px] text-stone-400">ORB-101</span> Welcome screen</a>
+            <a className="flex items-center gap-2 text-[12px] text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-stone-100">{I.link} <span className="font-mono text-[10.5px] text-stone-400">ORB-104</span> Push opt-in A/B</a>
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+/* =========================================================================
+   APP SHELL — switches based on tweak.variation
+========================================================================= */
+function App() {
+  const [tweaks, setTweaks] = useTweaks();
+  const [tweaksOpen, setTweaksOpen] = useState(false);
+  const [showCmdK, setShowCmdK] = useState(false);
+
+  // host edit-mode wiring
+  useEffect(() => {
+    const onMsg = (e) => {
+      if (e.data?.type === '__activate_edit_mode') setTweaksOpen(true);
+      if (e.data?.type === '__deactivate_edit_mode') setTweaksOpen(false);
+    };
+    window.addEventListener('message', onMsg);
+    try { window.parent?.postMessage({type:'__edit_mode_available'}, '*'); } catch {}
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  // global hotkeys
+  useEffect(() => {
+    const h = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setShowCmdK(o=>!o); }
+      if (e.key === 'Escape') setShowCmdK(false);
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, []);
+
+  const dark = tweaks.theme === 'dark';
+  const Variation = tweaks.variation === 'B' ? VariationB : VariationA;
+
+  return (
+    <div className={dark ? 'dark' : ''}>
+      <ThemeStyle tweaks={tweaks} />
+      <div className="frame min-h-screen bg-stone-100 dark:bg-black text-stone-900 dark:text-stone-100">
+        <Variation tweaks={tweaks} setTweaks={setTweaks} onCmdK={()=>setShowCmdK(true)} />
+        {showCmdK && <CommandPalette onClose={()=>setShowCmdK(false)} setTweaks={setTweaks} />}
+        <FloatingTweaksToggle open={tweaksOpen} setOpen={setTweaksOpen} />
+        <TweaksPanel open={tweaksOpen} t={tweaks} set={setTweaks} onClose={()=>setTweaksOpen(false)} />
+      </div>
+    </div>
+  );
+}
+
+function FloatingTweaksToggle({ open, setOpen }) {
+  if (open) return null;
+  return (
+    <button onClick={()=>setOpen(true)}
+      className="fixed bottom-4 right-4 z-40 px-3 py-1.5 rounded-full bg-stone-900 text-white text-[11px] shadow-lg hover:bg-stone-700 dark:bg-white dark:text-stone-900 dark:hover:bg-stone-200">
+      Tweaks
+    </button>
+  );
+}
+
+/* =========================================================================
+   COMMAND PALETTE (cmd-K) — mostly for variation B but available everywhere
+========================================================================= */
+function CommandPalette({ onClose, setTweaks }) {
+  const [q, setQ] = useState('');
+  const items = useMemo(() => [
+    { type:'screen',  label:'Go to Board',         hint:'Project · Orbit Mobile App', do:()=>setTweaks({screen:'board'}) },
+    { type:'screen',  label:'Go to Projects',      hint:'All projects',               do:()=>setTweaks({screen:'list'}) },
+    { type:'screen',  label:'Go to Inbox',         hint:'Invitations + activity',     do:()=>setTweaks({screen:'invites'}) },
+    { type:'screen',  label:'Open Story · ORB-12', hint:'Onboarding flow',            do:()=>setTweaks({screen:'story'}) },
+    { type:'screen',  label:'Open Task · ORB-102', hint:'Permissions copy',           do:()=>setTweaks({screen:'task'}) },
+    { type:'screen',  label:'Open Settings',                                        do:()=>setTweaks({screen:'settings'}) },
+    { type:'action',  label:'Create new task',     hint:'in Onboarding flow',        do:()=>{} },
+    { type:'action',  label:'Create new story',                                      do:()=>{} },
+    { type:'action',  label:'Invite teammate',                                       do:()=>{} },
+    { type:'theme',   label:'Toggle dark mode',                                      do:()=>setTweaks({ theme: document.documentElement.classList.contains('dark')?'light':'dark' }) },
+    { type:'theme',   label:'Switch layout · Focus (A)',                            do:()=>setTweaks({variation:'A'}) },
+    { type:'theme',   label:'Switch layout · Command (B)',                          do:()=>setTweaks({variation:'B'}) },
+  ], [setTweaks]);
+  const filtered = q ? items.filter(i => (i.label+' '+(i.hint||'')).toLowerCase().includes(q.toLowerCase())) : items;
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[18vh] bg-black/30 backdrop-blur-[2px]" onClick={onClose}>
+      <div className="w-[560px] max-w-[92vw] rounded-xl bg-white dark:bg-stone-950 shadow-2xl border border-stone-200 dark:border-stone-800 overflow-hidden" onClick={e=>e.stopPropagation()}>
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-200 dark:border-stone-800">
+          <span className="text-stone-400">{I.search}</span>
+          <input autoFocus value={q} onChange={e=>setQ(e.target.value)} placeholder="Type a command or search…" className="flex-1 bg-transparent outline-none text-sm placeholder:text-stone-400" />
+          <kbd>esc</kbd>
+        </div>
+        <div className="max-h-[360px] overflow-y-auto py-1">
+          {filtered.map((it,i) => (
+            <button key={i} onClick={()=>{ it.do(); onClose(); }}
+              className="w-full flex items-center gap-3 px-4 py-2 hover:bg-stone-50 dark:hover:bg-stone-900 text-left">
+              <span className="w-6 h-6 rounded-md flex items-center justify-center bg-stone-100 dark:bg-stone-900 text-stone-500">
+                {it.type==='screen' ? I.arrow : it.type==='action' ? I.plus : I.sparkle}
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="text-sm">{it.label}</span>
+                {it.hint && <span className="ml-2 text-xs text-stone-400">{it.hint}</span>}
+              </span>
+              <span className="text-[10px] text-stone-400 uppercase tracking-wide">{it.type}</span>
+            </button>
+          ))}
+          {filtered.length===0 && (
+            <div className="px-4 py-8 text-center text-sm text-stone-400">No matches</div>
+          )}
+        </div>
+        <div className="flex items-center justify-between px-4 py-2 border-t border-stone-200 dark:border-stone-800 text-[11px] text-stone-500">
+          <div className="flex items-center gap-2"><kbd>↑</kbd><kbd>↓</kbd> navigate · <kbd>↵</kbd> select</div>
+          <div className="flex items-center gap-1">{I.cmd}<kbd>K</kbd> to toggle</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

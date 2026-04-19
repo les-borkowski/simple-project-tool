@@ -1,198 +1,111 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working with this repository.
 
-## Project Scope
+## Quick Overview
 
-**Project name**: simple-project-tool
+**simple-project-tool** — Minimalist project management app (Projects → Stories → Tasks) with API-first architecture. Supports web UI, CLI, and AI agent integrations.
 
-**Purpose**: A minimalist project management application for organizing work across multiple projects with API-first architecture. Supports both web UI and CLI access, human users and AI agents as contributors.
+For detailed architecture, tech stack, data models, and API structure, see **[`docs/architecture.md`](../docs/architecture.md)**.
 
-**Key features**:
-- Three-level hierarchy: Projects → Stories → Tasks
-- Two user roles: Manager and Contributor with different permissions (global + per-project override)
-- Status tracking (to_do, in_progress, in_review, in_testing, done) and priority levels (low, medium, high)
-- Comments on any item
-- Project member management with invitations
-- API key support for AI agents and integrations
-- Full REST API with OpenAPI docs
-- CLI tool for terminal-based workflows
+## Key Facts
 
-See `requirements.md` for complete specification including data model, API routes, and CLI commands.
+- **Backend**: Python + FastAPI + PostgreSQL + Alembic
+- **Frontend**: React 19 + TypeScript + Vite + Tailwind
+- **Auth**: JWT (stateless) + bcrypt, Role-based access control (Manager/Contributor)
+- **Features**: Three-level hierarchy, status tracking, comments, member management, API keys for agents
+- **i18n**: en-GB, pl (via i18next)
 
-## Tech Stack
-
-**Backend**: Python + FastAPI, SQLAlchemy ORM, PostgreSQL, Alembic migrations
-**Frontend**: React + TypeScript + Vite, Tailwind CSS
-**CLI**: Typer (built on Click)
-**Auth**: PyJWT + bcrypt
-**Testing**: pytest + pytest-asyncio
-**Linting/Formatting**: ruff (check + format)
-**Package Manager**: uv
-
-## Development Setup
-
-### Prerequisites
-- Python 3.11+
-- PostgreSQL 13+
-- Node.js 18+ (for frontend)
-- uv (Python package manager)
-
-### Backend Setup
-```bash
-cd backend
-uv sync                    # Install Python dependencies
-cp .env.example .env       # Create env config (update DB_URL, SECRET_KEY)
-uv run alembic upgrade head  # Run migrations
-uv run python -m app.main  # Start server (localhost:8000)
-```
-
-### Frontend Setup
-```bash
-cd frontend
-npm install
-npm run dev                # Start dev server (localhost:5173)
-```
-
-### CLI Setup
-```bash
-cd backend
-uv pip install -e .       # Install CLI in editable mode
-spt --help               # Verify installation
-```
-
-## Commands
+## Essential Commands
 
 ### Backend (Python)
 ```bash
-uv run pytest                    # Run all tests
-uv run pytest tests/test_auth.py -v  # Run single test file
-uv run pytest -k "test_login"    # Run tests matching pattern
-uv run ruff check .              # Lint code
-uv run ruff format .             # Format code
-uv run alembic revision --autogenerate -m "message"  # Create migration
-uv run alembic upgrade head      # Apply migrations
+cd backend
+uv sync                           # Install
+cp .env.example .env              # Create env config
+uv run alembic upgrade head       # Migrate DB
+uv run python -m app.main         # Start server (localhost:8000)
+
+uv run pytest                     # Tests
+uv run ruff check . && ruff format .  # Lint + format
+uv run alembic revision --autogenerate -m "message"  # New migration
 ```
 
 ### Frontend (React)
 ```bash
-npm run dev       # Dev server
-npm run build     # Production build
-npm run lint      # Lint with ESLint
+cd frontend
+npm install
+npm run dev                       # Dev server (localhost:5173)
+npm run build                     # Prod build
+npm run lint                      # Lint
 ```
 
-### CLI
-```bash
-spt auth login
-spt projects list
-spt projects create --name "My Project"
-```
+### API Docs
+- **Swagger**: `http://localhost:8000/docs`
+- **ReDoc**: `http://localhost:8000/redoc`
 
-## Modular Architecture
+## Architecture (Quick Reference)
 
-The project is **organized into four clearly separated layers**, each with distinct responsibilities:
+**Four layers:**
+1. **Database** (`app/db/`) — ORM models, migrations
+2. **Auth** (`app/auth/`) — JWT, RBAC (decoupled from routes)
+3. **API** (`app/api/`) — Routes → Services (business logic) → Database
+4. **Frontend** (`frontend/src/`) — React pages, hooks, context
 
-### 1. Database Layer (`backend/app/db/`)
-Models, migrations, schema, and data access. No business logic.
-- `models/`: SQLAlchemy ORM definitions (`user.py`, `project.py`, `task.py`, `status_history.py`, `invitation.py`, `user_config.py`, etc.)
-- `migrations/`: Alembic version control (one per schema change, reversible)
-- `database.py`: Connection pooling, session management
+**Critical pattern**: Routes call services. Services enforce permissions and query DB. No direct DB queries in routes.
 
-### 2. Authentication Layer (`backend/app/auth/`)
-User auth, permissions, credential management. Not tied to any specific API.
-- `security.py`: JWT generation/validation (PyJWT), password hashing (bcrypt)
-- `permissions.py`: RBAC logic, permission checking, role precedence (global vs per-project)
-- `dependencies.py`: FastAPI Depends() for token extraction, validation, and API key auth
+**Data model**:
+- Project → Story (optional) → Task
+- Task can exist without a story (directly under project)
+- Each level has: status, priority, comments, status history
+- Status history is immutable (audit trail + time tracking)
 
-### 3. API Layer (`backend/app/api/`)
-HTTP request/response handling, orchestration, business logic.
-- `schemas/`: Pydantic request/response models
-- `services/`: Business logic (create, update, delete); calls DB and auth
-- `routes/`: FastAPI endpoints; calls services
+## Working with the Code
 
-**Key principle**: Routes only handle HTTP. Services enforce permissions via the auth layer and contain business logic. No route should query the DB directly.
+### Adding an API Endpoint
 
-### 4. UI Layer (`frontend/`)
-React frontend, separate deployment. Communicates only via REST API.
-- `src/components/`, `src/pages/`: React components
-- `src/services/api.ts`: HTTP client wrapper
-- `src/context/`: Global state (auth, user)
+1. Create schema in `backend/app/api/schemas/`
+2. Create service function in `backend/app/api/services/`
+3. Add route in `backend/app/api/routes/`
+4. Update `frontend/src/services/api.ts` with client method
+5. Use in React component via `useEffect` hook or mutation
 
-### Data Flow
-```
-UI → [API routes] → [Services + Auth] → [DB models] → [Auth] → [API response] → UI
-```
+### Modifying Database
 
-**Critical Design Pattern**: Routes should not query DB directly; they call services. Services check permissions and query the DB. This keeps auth logic centralized.
+1. Edit `backend/app/db/models/*.py`
+2. Run `uv run alembic revision --autogenerate -m "description"`
+3. Review migration file
+4. Run `uv run alembic upgrade head`
 
-### Three-Level Work Hierarchy
-**Project** → **Story** → **Task**
+### Adding New Feature
 
-Each level has: status (to_do, in_progress, in_review, in_testing, done), priority (low, medium, high), comments, timestamps.
+- **Auth-dependent logic**: Service function checks `require_project_access()`, `resolve_role()`, etc.
+- **Frontend**: Use `useRole()` hook to check if user is manager (for UI visibility)
+- **RBAC**: Enforced at service layer, not in routes
 
-**Status History Tracking**: Every status change is recorded in `StatusHistory` table with timestamp and who changed it. Enables time tracking (elapsed time per status, total item lifetime).
+## Key Decisions
 
-### Module Organization (Backend)
-```
-backend/
-├── app/
-│   ├── db/
-│   │   ├── models/          # SQLAlchemy ORM (user, project, task, etc.)
-│   │   ├── database.py      # Session management
-│   │   └── base.py          # Base model
-│   ├── auth/
-│   │   ├── security.py      # JWT, bcrypt
-│   │   ├── permissions.py   # RBAC
-│   │   └── dependencies.py  # FastAPI Depends
-│   ├── api/
-│   │   ├── schemas/         # Pydantic models
-│   │   ├── services/        # Business logic
-│   │   ├── routes/          # API endpoints
-│   │   └── main.py          # App init, route registration
-│   └── cli/                 # Typer CLI (mirrors API routes)
-├── migrations/              # Alembic
-└── tests/                   # Per-layer tests
-```
-
-### Frontend Organization
-```
-frontend/
-├── src/
-│   ├── components/          # Reusable UI components
-│   ├── pages/               # Full-page views
-│   ├── services/api.ts      # HTTP client (fetch/axios wrapper)
-│   ├── context/             # Global state (auth, user, theme)
-│   ├── hooks/               # Custom React hooks
-│   └── App.tsx              # Root
-└── tailwind.config.js       # Styling config
-```
-
-## Key Design Patterns
-
-- **JWT Authentication**: Stateless, token-based. Tokens expire; refresh endpoint provided.
-- **Role-Based Access Control (RBAC)**: Enforced at service layer; FastAPI dependencies check permissions.
-- **Role Precedence**: Per-project role overrides global role. Project owner always has Manager access.
-- **Status History Tracking**: Every status change is recorded in `StatusHistory` (immutable append-only). Uses separate nullable FKs with CHECK constraint for referential integrity.
-- **Comment/StatusHistory FK Pattern**: Both use `(project_id, story_id, task_id)` with `CHECK (num_nonnulls(...) = 1)` instead of polymorphic `item_type + item_id`. Allows DB-level foreign key enforcement.
-- **API Versioning**: All routes prefixed with `/api/v1/`.
-- **PATCH for partial updates**: Use PATCH (not PUT) when updating individual fields.
-- **Cursor-based Pagination**: List endpoints use `?cursor=<id>&limit=25` (max 100).
-- **Error Responses**: Standard JSON format: `{"error": {"code": "...", "message": "...", "details": [...]}}`.
-- **API Key Scopes**: `read:projects`, `write:projects`, `read:stories`, `write:stories`, `read:tasks`, `write:tasks`, `read:comments`, `write:comments`, `admin`.
-
-## Testing Strategy
-
-- **Unit Tests**: Service layer logic (auth, permissions, business rules)
-- **Integration Tests**: Full request/response cycles via FastAPI TestClient
-- **Database Tests**: Use transactions and rollback to keep tests isolated
-- **Fixtures**: Shared test users, projects, and data in `tests/conftest.py`
-
-Run coverage: `uv run pytest --cov=app --cov-report=html`
+| Decision | Rationale |
+|----------|-----------|
+| PATCH not PUT | Partial updates only; simpler clients |
+| Cursor pagination | Stable offsets; efficient for large datasets |
+| Service layer | Centralized permission + business logic checking |
+| Status history | Immutable append-only audit trail + time tracking |
+| `(project_id, story_id, task_id)` FK pattern | DB-level referential integrity; no polymorphic mess |
+| Tasks without stories | Board view can show project-level tasks + story-level tasks |
 
 ## Important Notes
 
-- **Database Migrations**: Always use Alembic for schema changes; never modify models without a migration.
-- **Security**: API keys and JWT secrets must be in environment variables (`.env`), never committed.
-- **CORS**: Configure for frontend origin during development/production.
-- **Async**: FastAPI uses async; database calls should use `async with` or sync_to_async wrappers.
-- **API Documentation**: Auto-generated at `/docs` (Swagger UI) and `/redoc` (ReDoc); keep docstrings updated.
+- **Migrations**: Always use Alembic; never modify models without a migration file
+- **Security**: `.env` file with secrets (DB_URL, SECRET_KEY); never commit
+- **Async**: FastAPI is async; database calls use async driver (asyncpg)
+- **i18n**: Add keys to both `en-GB.json` and `pl.json`
+- **Roles**: Manager (create/delete/manage), Contributor (view/update status/comment). Per-project role overrides global role.
+- **Type safety**: Use TypeScript frontend types, Pydantic schemas backend (enforce at boundaries)
+
+## References
+
+- **Full Architecture**: [`docs/architecture.md`](../docs/architecture.md)
+- **API Spec**: See `requirements.md` or auto-generated Swagger UI at `/docs`
+- **Tests**: `backend/tests/` — conftest.py has fixtures
+- **Coverage**: `uv run pytest --cov=app --cov-report=html`

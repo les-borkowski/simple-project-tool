@@ -50,12 +50,19 @@ export function TaskDetailPage() {
       setTask(res.data)
       setDesc(res.data.description ?? '')
       try {
-        const storyRes = await storiesApi.get(res.data.story_id)
-        setStory(storyRes.data)
-        const mRes = await projectsApi.listMembers(storyRes.data.project_id)
-        setMembers(mRes.data)
-        const pRes = await projectsApi.get(storyRes.data.project_id)
-        setProjectName(pRes.data.name)
+        if (res.data.story_id) {
+          const storyRes = await storiesApi.get(res.data.story_id)
+          setStory(storyRes.data)
+          const mRes = await projectsApi.listMembers(storyRes.data.project_id)
+          setMembers(mRes.data)
+          const pRes = await projectsApi.get(storyRes.data.project_id)
+          setProjectName(pRes.data.name)
+        } else {
+          const mRes = await projectsApi.listMembers(res.data.project_id)
+          setMembers(mRes.data)
+          const pRes = await projectsApi.get(res.data.project_id)
+          setProjectName(pRes.data.name)
+        }
       } catch {
         // non-critical
       }

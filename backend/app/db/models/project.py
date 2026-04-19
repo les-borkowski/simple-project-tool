@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.db.models.invitation import Invitation
     from app.db.models.project_member import ProjectMember
     from app.db.models.story import Story
+    from app.db.models.task import Task
     from app.db.models.user import User
 
 
@@ -43,4 +44,7 @@ class Project(TimestampMixin, Base):
     )
     invitations: Mapped[list["Invitation"]] = relationship(
         "Invitation", back_populates="project", cascade="all, delete-orphan"
+    )
+    tasks: Mapped[list["Task"]] = relationship(
+        "Task", back_populates="project", cascade="all, delete-orphan"
     )

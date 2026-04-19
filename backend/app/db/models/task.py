@@ -9,6 +9,7 @@ from app.db.base import Base, PriorityEnum, StatusEnum, TimestampMixin
 
 if TYPE_CHECKING:
     from app.db.models.story import Story
+    from app.db.models.project import Project
     from app.db.models.user import User
 
 
@@ -16,12 +17,15 @@ class Task(TimestampMixin, Base):
     __tablename__ = "tasks"
     __table_args__ = (
         Index("ix_task_assignee_id", "assignee_id"),
-        Index("ix_task_story_status", "story_id", "status"),
+        Index("ix_task_project_status", "project_id", "status"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    story_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=False
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    story_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=True
     )
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -37,5 +41,6 @@ class Task(TimestampMixin, Base):
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
 
-    story: Mapped["Story"] = relationship("Story", back_populates="tasks")
+    project: Mapped["Project"] = relationship("Project", back_populates="tasks")
+    story: Mapped["Story | None"] = relationship("Story", back_populates="tasks")
     assignee: Mapped["User | None"] = relationship("User", foreign_keys=[assignee_id])

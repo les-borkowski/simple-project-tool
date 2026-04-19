@@ -22,7 +22,8 @@ class TaskUpdate(BaseModel):
 
 class TaskResponse(BaseModel):
     id: UUID
-    story_id: UUID
+    project_id: UUID
+    story_id: UUID | None
     title: str
     description: str | None
     status: StatusEnum
