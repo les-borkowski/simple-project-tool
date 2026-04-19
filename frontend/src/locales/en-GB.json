@@ -2,6 +2,8 @@
   "nav.projects": "Projects",
   "nav.invitations": "Invitations",
   "nav.settings": "Settings",
+  "nav.recent_work": "Recent work",
+  "nav.all_projects": "All projects",
   "nav.logout": "Log out",
 
   "projects.title": "Projects",
