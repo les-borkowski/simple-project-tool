@@ -640,7 +640,7 @@ export function ProjectDetailPage() {
               </div>
 
               {/* Stories table */}
-              {filteredStories.length === 0 ? (
+              {filteredStories.length === 0 && projectTasks.length === 0 ? (
                 <p className="text-[13px] text-stone-400 py-8 text-center">{t('filter.no_results')}</p>
               ) : (
                 <div className="rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 overflow-hidden">
@@ -705,6 +705,33 @@ export function ProjectDetailPage() {
                       )}
                     </div>
                   ))}
+                  {/* Backlog — unassigned tasks (no story) */}
+                  {projectTasks.length > 0 && (
+                    <div className="border-t border-dashed border-stone-200 dark:border-stone-700">
+                      <div className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-2.5 bg-stone-50/40 dark:bg-stone-900/20">
+                        <span className="text-[13px] font-medium text-stone-400 dark:text-stone-500 italic">{t('stories.backlog')}</span>
+                        <span />
+                        <span />
+                        <span className="text-[12px] text-stone-500">{projectTasks.length}</span>
+                        <span />
+                      </div>
+                      <div className="border-t border-stone-50 dark:border-stone-800/60">
+                        {projectTasks.map((task) => (
+                          <Link
+                            key={task.id}
+                            to={`/projects/${id}/tasks/${task.id}`}
+                            className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-1.5 pl-8 bg-stone-50/60 dark:bg-stone-900/20 hover:bg-stone-100/60 dark:hover:bg-stone-900/40 border-t border-stone-100/60 dark:border-stone-800/40 first:border-t-0"
+                          >
+                            <span className="text-[12px] text-stone-600 dark:text-stone-400 truncate">{task.title}</span>
+                            <StatusPill status={task.status} />
+                            <PriorityBars priority={task.priority} withLabel />
+                            <span />
+                            <span className="text-[11px] text-stone-400 text-right">{formatRelative(task.created_at)}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               {storiesHook.nextCursor && (
