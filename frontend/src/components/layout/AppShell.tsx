@@ -75,7 +75,7 @@ const recentLink = (item: RecentItemResponse): string => {
   if (item.type === 'project') return `/projects/${item.id}`
   if (item.type === 'story') return `/projects/${item.project_id}/stories/${item.id}`
   if (item.story_id) return `/stories/${item.story_id}/tasks/${item.id}`
-  return `/projects/${item.project_id}`
+  return `/projects/${item.project_id}/tasks/${item.id}`
 }
 
 const SUB_ITEM = 'flex items-center gap-2 pl-8 pr-2 py-1 text-[12.5px] rounded-md truncate text-stone-500 dark:text-stone-400 hover:bg-stone-50 dark:hover:bg-stone-900 hover:text-stone-800 dark:hover:text-stone-200'

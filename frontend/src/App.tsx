@@ -46,6 +46,10 @@ function ThemedApp() {
               path="/stories/:storyId/tasks/:taskId"
               element={<TaskDetailPage />}
             />
+            <Route
+              path="/projects/:projectId/tasks/:taskId"
+              element={<TaskDetailPage />}
+            />
             <Route path="/invitations" element={<InvitationsPage />} />
             <Route path="/config" element={<ConfigPage />} />
           </Route>

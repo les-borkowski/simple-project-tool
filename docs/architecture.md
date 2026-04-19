@@ -169,8 +169,10 @@ tasks:
 ```
 
 Tasks can exist **with or without a story**:
-- **With story**: `story_id` set, task is nested under story, shown in story detail view
-- **Without story** (project-level): `story_id` IS NULL, task is directly under project, shown on board
+- **With story**: `story_id` set, task is nested under story, shown in story detail view → URL `/stories/:storyId/tasks/:taskId`
+- **Without story** (project-level): `story_id` IS NULL, task is directly under project, shown on board → URL `/projects/:projectId/tasks/:taskId`
+
+> **Decision:** project-level tasks get their own frontend route rather than being assigned to a phantom "backlog" story. The backend `GET /tasks/{id}` already requires no `story_id`; `TaskDetailPage` already handles the null case. A default-story approach was rejected because it pollutes story lists and obscures the data model.
 
 ### Key Patterns
 

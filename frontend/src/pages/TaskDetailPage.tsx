@@ -121,14 +121,19 @@ export function TaskDetailPage() {
         <div className="flex items-center gap-2 text-[11.5px] text-stone-500 mb-2">
           <Link to="/projects" className="hover:text-stone-800 dark:hover:text-stone-200">{t('projects.title')}</Link>
           <span>/</span>
-          {story && (
+          {story ? (
             <>
               <Link to={`/projects/${story.project_id}`} className="hover:text-stone-800 dark:hover:text-stone-200">{projectName || '…'}</Link>
               <span>/</span>
               <Link to={`/projects/${story.project_id}/stories/${storyId}`} className="hover:text-stone-800 dark:hover:text-stone-200">{story.title}</Link>
               <span>/</span>
             </>
-          )}
+          ) : task.project_id ? (
+            <>
+              <Link to={`/projects/${task.project_id}`} className="hover:text-stone-800 dark:hover:text-stone-200">{projectName || '…'}</Link>
+              <span>/</span>
+            </>
+          ) : null}
           <span>{task.title}</span>
         </div>
         <div className="flex items-start justify-between gap-4">

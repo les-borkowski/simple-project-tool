@@ -93,6 +93,7 @@ npm run lint                      # Lint
 | Status history | Immutable append-only audit trail + time tracking |
 | `(project_id, story_id, task_id)` FK pattern | DB-level referential integrity; no polymorphic mess |
 | Tasks without stories | Board view can show project-level tasks + story-level tasks |
+| Project-level task URL | `/projects/:projectId/tasks/:taskId` — no default/phantom story; backend `GET /tasks/{id}` needs no story_id; frontend route added alongside `/stories/:storyId/tasks/:taskId` |
 
 ## Important Notes
 
