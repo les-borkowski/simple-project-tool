@@ -20,6 +20,7 @@ from app.api.routes import (
     invitations,
     time_tracking,
     config,
+    recent,
 )
 
 # Global locales dict
@@ -178,3 +179,4 @@ app.include_router(comments.router, prefix="/api/v1")
 app.include_router(invitations.router, prefix="/api/v1")
 app.include_router(time_tracking.router, prefix="/api/v1")
 app.include_router(config.router, prefix="/api/v1")
+app.include_router(recent.router, prefix="/api/v1")
