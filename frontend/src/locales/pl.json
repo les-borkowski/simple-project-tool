@@ -24,6 +24,9 @@
   "tasks.count_other": "{{count}} zadań",
   "tasks.assignee": "Przypisany",
   "tasks.unassigned": "Nieprzypisane",
+  "tasks.description": "Opis",
+  "tasks.story": "Historyjka",
+  "tasks.no_story": "Bez historyjki (poziom projektu)",
 
   "comments.title": "Komentarze",
   "comments.empty": "Brak komentarzy",
@@ -85,6 +88,13 @@
   "filter.priority": "Priorytet",
   "filter.search": "Szukaj…",
   "filter.all": "Wszystkie",
+  "filter.assignee": "Przypisany",
+  "filter.story": "Historyjka",
+  "filter.no_story": "Bez historyjki",
+
+  "toolbar.tasks_count": "{{count}} zadań",
+  "toolbar.stories_count": "{{count}} historyjek",
+  "toolbar.done_count": "{{count}} ukończonych",
 
   "actions.save": "Zapisz",
   "actions.cancel": "Anuluj",
