@@ -369,8 +369,7 @@ export function ProjectDetailPage() {
     })
 
   void [
-    filteredStories, filteredBoardTasks, totalTaskCount, totalDoneCount,
-    setStorySearch, setStoryFilterStatus, setStoryFilterPriority, setStorySortField, setStorySortDir,
+    filteredBoardTasks, totalDoneCount,
     setBoardSearch, setBoardFilterPriority, setBoardFilterAssignee, setBoardFilterStory,
   ]
 
@@ -539,79 +538,129 @@ export function ProjectDetailPage() {
             />
           ) : (
             <>
-              {isManager && (
-                <div className="flex justify-end mb-4">
+              {/* Toolbar */}
+              <div className="flex items-center gap-2 mb-4">
+                <input
+                  type="text"
+                  placeholder={t('filter.search')}
+                  value={storySearch}
+                  onChange={e => setStorySearch(e.target.value)}
+                  className="w-40 px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                />
+                <select
+                  value={storyFilterStatus}
+                  onChange={e => setStoryFilterStatus(e.target.value as Status | 'all')}
+                  className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                >
+                  <option value="all">{t('filter.all')} {t('filter.status')}</option>
+                  {statuses.map(s => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
+                </select>
+                <select
+                  value={storyFilterPriority}
+                  onChange={e => setStoryFilterPriority(e.target.value as Priority | 'all')}
+                  className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                >
+                  <option value="all">{t('filter.all')} {t('filter.priority')}</option>
+                  {priorities.map(p => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
+                </select>
+                <select
+                  value={storySortField}
+                  onChange={e => setStorySortField(e.target.value as StorySortField)}
+                  className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                >
+                  <option value="created_at">{t('sort.created')}</option>
+                  <option value="status">{t('sort.status')}</option>
+                  <option value="priority">{t('sort.priority')}</option>
+                  <option value="title">{t('sort.title')}</option>
+                </select>
+                <button
+                  onClick={() => setStorySortDir(d => d === 'asc' ? 'desc' : 'asc')}
+                  className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                >
+                  {storySortDir === 'asc' ? '↑' : '↓'}
+                </button>
+                <span className="flex-1" />
+                <span className="text-[11.5px] text-stone-400 tabular-nums">
+                  {t('toolbar.tasks_count', { count: totalTaskCount })} · {t('toolbar.stories_count', { count: storiesHook.items.length })}
+                </span>
+                {isManager && (
                   <button
                     onClick={() => setShowCreateStory(true)}
                     className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5"
                   >
                     <IPlus /> {t('stories.create')}
                   </button>
+                )}
+              </div>
+
+              {/* Stories table */}
+              {filteredStories.length === 0 ? (
+                <p className="text-[13px] text-stone-400 py-8 text-center">{t('stories.empty')}</p>
+              ) : (
+                <div className="rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 overflow-hidden">
+                  <div className="grid grid-cols-[1fr_120px_100px_100px_80px] px-4 py-2 text-[10.5px] uppercase tracking-wider text-stone-400 font-medium border-b border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/30">
+                    <span>{t('board.col_title')}</span>
+                    <span>{t('board.col_status')}</span>
+                    <span>{t('board.col_priority')}</span>
+                    <span>{t('board.col_tasks')}</span>
+                    <span className="text-right">{t('board.col_updated')}</span>
+                  </div>
+                  {filteredStories.map((story) => (
+                    <div key={story.id} className="border-b border-stone-100 dark:border-stone-800 last:border-0">
+                      <div className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-2.5 hover:bg-stone-50 dark:hover:bg-stone-900/40">
+                        <div className="min-w-0">
+                          <Link
+                            to={`/projects/${id}/stories/${story.id}`}
+                            className="text-[13px] font-medium hover:accent-text"
+                          >
+                            {story.title}
+                          </Link>
+                        </div>
+                        <StatusPill status={story.status} />
+                        <PriorityBars priority={story.priority} withLabel />
+                        <span className="text-[12px] text-stone-500">{tasksByStory[story.id]?.length ?? '…'}</span>
+                        <div className="flex items-center justify-end gap-2">
+                          <span className="text-[11px] text-stone-400">{formatRelative(story.created_at)}</span>
+                          {isManager && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setEditStory({ id: story.id, title: story.title, description: story.description ?? '' })}
+                                className="text-[11px] text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
+                              >
+                                {t('actions.edit')}
+                              </button>
+                              <button
+                                onClick={() => setDeleteStoryId(story.id)}
+                                className="text-[11px] text-rose-400 hover:text-rose-600"
+                              >
+                                {t('actions.delete')}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {/* Tasks inline */}
+                      {tasksByStory[story.id] && tasksByStory[story.id].length > 0 && (
+                        <div className="border-t border-stone-50 dark:border-stone-800/60">
+                          {tasksByStory[story.id].map((task) => (
+                            <Link
+                              key={task.id}
+                              to={`/stories/${story.id}/tasks/${task.id}`}
+                              className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-1.5 pl-8 bg-stone-50/60 dark:bg-stone-900/20 hover:bg-stone-100/60 dark:hover:bg-stone-900/40 border-t border-stone-100/60 dark:border-stone-800/40 first:border-t-0"
+                            >
+                              <span className="text-[12px] text-stone-600 dark:text-stone-400 truncate">{task.title}</span>
+                              <StatusPill status={task.status} />
+                              <PriorityBars priority={task.priority} withLabel />
+                              <span />
+                              <span className="text-[11px] text-stone-400 text-right">{formatRelative(task.created_at)}</span>
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
-              <div className="rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 overflow-hidden">
-                <div className="grid grid-cols-[1fr_120px_100px_100px_80px] px-4 py-2 text-[10.5px] uppercase tracking-wider text-stone-400 font-medium border-b border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/30">
-                  <span>{t('board.col_title')}</span>
-                  <span>{t('board.col_status')}</span>
-                  <span>{t('board.col_priority')}</span>
-                  <span>{t('board.col_tasks')}</span>
-                  <span className="text-right">{t('board.col_updated')}</span>
-                </div>
-                {storiesHook.items.map((story) => (
-                  <div key={story.id} className="border-b border-stone-100 dark:border-stone-800 last:border-0">
-                    <div className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-2.5 hover:bg-stone-50 dark:hover:bg-stone-900/40">
-                      <div className="min-w-0">
-                        <Link
-                          to={`/projects/${id}/stories/${story.id}`}
-                          className="text-[13px] font-medium hover:accent-text"
-                        >
-                          {story.title}
-                        </Link>
-                      </div>
-                      <StatusPill status={story.status} />
-                      <PriorityBars priority={story.priority} withLabel />
-                      <span className="text-[12px] text-stone-500">{tasksByStory[story.id]?.length ?? '…'}</span>
-                      <div className="flex items-center justify-end gap-2">
-                        <span className="text-[11px] text-stone-400">{formatRelative(story.created_at)}</span>
-                        {isManager && (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setEditStory({ id: story.id, title: story.title, description: story.description ?? '' })}
-                              className="text-[11px] text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
-                            >
-                              {t('actions.edit')}
-                            </button>
-                            <button
-                              onClick={() => setDeleteStoryId(story.id)}
-                              className="text-[11px] text-rose-400 hover:text-rose-600"
-                            >
-                              {t('actions.delete')}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {/* Tasks inline */}
-                    {tasksByStory[story.id] && tasksByStory[story.id].length > 0 && (
-                      <div className="border-t border-stone-50 dark:border-stone-800/60">
-                        {tasksByStory[story.id].map((task) => (
-                          <Link
-                            key={task.id}
-                            to={`/stories/${story.id}/tasks/${task.id}`}
-                            className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-1.5 pl-8 bg-stone-50/60 dark:bg-stone-900/20 hover:bg-stone-100/60 dark:hover:bg-stone-900/40 border-t border-stone-100/60 dark:border-stone-800/40 first:border-t-0"
-                          >
-                            <span className="text-[12px] text-stone-600 dark:text-stone-400 truncate">{task.title}</span>
-                            <StatusPill status={task.status} />
-                            <PriorityBars priority={task.priority} withLabel />
-                            <span />
-                            <span className="text-[11px] text-stone-400 text-right">{formatRelative(task.created_at)}</span>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
               {storiesHook.nextCursor && (
                 <LoadMoreButton onLoadMore={storiesHook.loadMore} isLoading={storiesHook.isLoading} />
               )}
