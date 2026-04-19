@@ -1,16 +1,24 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
 interface Props {
   value: string
   onChange: (value: string) => void
   rows?: number
   placeholder?: string
+  autoExpand?: boolean
 }
 
 type WrapConfig = { before: string; after: string; placeholder: string }
 
-export function MarkdownEditor({ value, onChange, rows = 4, placeholder = 'Add description…' }: Props) {
+export function MarkdownEditor({ value, onChange, rows = 4, placeholder = 'Add description…', autoExpand = false }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (!autoExpand || !ref.current) return
+    const ta = ref.current
+    ta.style.height = 'auto'
+    ta.style.height = `${ta.scrollHeight}px`
+  }, [value, autoExpand])
 
   const wrap = ({ before, after, placeholder: ph }: WrapConfig) => {
     const ta = ref.current
@@ -74,7 +82,8 @@ export function MarkdownEditor({ value, onChange, rows = 4, placeholder = 'Add d
         onChange={(e) => onChange(e.target.value)}
         rows={rows}
         placeholder={placeholder}
-        className="w-full px-3 py-2 rounded-b border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+        style={autoExpand ? { overflow: 'hidden', maxHeight: 'calc(100vh - 240px)' } : undefined}
+        className="w-full px-3 py-2 rounded-b border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
       />
     </div>
   )

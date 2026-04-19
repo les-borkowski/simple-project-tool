@@ -39,6 +39,8 @@ export function TaskDetailPage() {
   const [projectName, setProjectName] = useState('')
   const [members, setMembers] = useState<MemberResponse[]>([])
   const [loading, setLoading] = useState(true)
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [titleDraft, setTitleDraft] = useState('')
   const [editingStatus, setEditingStatus] = useState(false)
   const [editingPriority, setEditingPriority] = useState(false)
   const [editingDesc, setEditingDesc] = useState(false)
@@ -49,6 +51,7 @@ export function TaskDetailPage() {
     tasksApi.get(taskId).then(async (res) => {
       setTask(res.data)
       setDesc(res.data.description ?? '')
+      setTitleDraft(res.data.title)
       try {
         if (res.data.story_id) {
           const storyRes = await storiesApi.get(res.data.story_id)
@@ -90,6 +93,17 @@ export function TaskDetailPage() {
     const res = await tasksApi.update(taskId, { assignee_id: assignee_id || null })
     setTask(res.data)
     addToast('Assignee updated')
+  }
+
+  const handleSaveTitle = async () => {
+    if (!taskId || !titleDraft.trim() || titleDraft === task?.title) {
+      setEditingTitle(false)
+      return
+    }
+    const res = await tasksApi.update(taskId, { title: titleDraft.trim() })
+    setTask(res.data)
+    setEditingTitle(false)
+    addToast('Title updated')
   }
 
   const handleSaveDesc = async () => {
@@ -138,7 +152,25 @@ export function TaskDetailPage() {
         </div>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-[22px] font-semibold tracking-tight leading-tight">{task.title}</h1>
+            {editingTitle ? (
+              <input
+                autoFocus
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onBlur={handleSaveTitle}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveTitle()
+                  if (e.key === 'Escape') { setTitleDraft(task.title); setEditingTitle(false) }
+                }}
+                className="text-[22px] font-semibold tracking-tight leading-tight w-full bg-transparent border-b border-stone-300 dark:border-stone-600 outline-none py-0.5"
+              />
+            ) : (
+              <h1
+                className="text-[22px] font-semibold tracking-tight leading-tight cursor-text hover:text-stone-600 dark:hover:text-stone-300"
+                onClick={() => { setTitleDraft(task.title); setEditingTitle(true) }}
+                title="Click to edit"
+              >{task.title}</h1>
+            )}
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               {editingStatus ? (
                 <select
@@ -194,7 +226,7 @@ export function TaskDetailPage() {
             <div className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-4">
               {editingDesc ? (
                 <div className="space-y-2">
-                  <MarkdownEditor value={desc} onChange={setDesc} rows={5} />
+                  <MarkdownEditor value={desc} onChange={setDesc} rows={10} autoExpand />
                   <div className="flex gap-2">
                     <button onClick={handleSaveDesc} className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md">{t('actions.save')}</button>
                     <button onClick={() => { setEditingDesc(false); setDesc(task.description ?? '') }} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300">{t('actions.cancel')}</button>

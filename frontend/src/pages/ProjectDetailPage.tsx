@@ -709,7 +709,7 @@ export function ProjectDetailPage() {
                   {projectTasks.length > 0 && (
                     <div className="border-t border-dashed border-stone-200 dark:border-stone-700">
                       <div className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-2.5 bg-stone-50/40 dark:bg-stone-900/20">
-                        <span className="text-[13px] font-medium text-stone-400 dark:text-stone-500 italic">{t('stories.backlog')}</span>
+                        <Link to={`/projects/${id}/backlog`} className="text-[13px] font-medium text-stone-400 dark:text-stone-500 italic hover:accent-text">{t('stories.backlog')}</Link>
                         <span />
                         <span />
                         <span className="text-[12px] text-stone-500">{projectTasks.length}</span>
