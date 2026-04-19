@@ -96,10 +96,11 @@ function AvatarStack({ members, max = 4, size = 20 }: { members: MemberResponse[
   )
 }
 
-function BoardCard({ task, storyTitle }: { task: TaskResponse; storyTitle: string }) {
+function BoardCard({ task, storyTitle }: { task: TaskResponse; storyTitle?: string }) {
+  const href = task.story_id ? `/stories/${task.story_id}/tasks/${task.id}` : `/tasks/${task.id}`
   return (
     <Link
-      to={`/stories/${task.story_id}/tasks/${task.id}`}
+      to={href}
       className="lift block bg-white dark:bg-stone-900 rounded-lg border border-stone-200 dark:border-stone-800 p-3 hover:border-stone-300 dark:hover:border-stone-700"
     >
       <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -107,11 +108,25 @@ function BoardCard({ task, storyTitle }: { task: TaskResponse; storyTitle: strin
         <span className="text-[10.5px] text-stone-400">{formatRelative(task.created_at)}</span>
       </div>
       <div className="text-[13px] leading-snug">{task.title}</div>
-      <div className="flex items-center gap-2 mt-2.5">
-        <span className="text-[10.5px] text-stone-400 truncate flex-1">{storyTitle}</span>
-      </div>
+      {storyTitle && (
+        <div className="flex items-center gap-2 mt-2.5">
+          <span className="text-[10.5px] text-stone-400 truncate flex-1">{storyTitle}</span>
+        </div>
+      )}
     </Link>
   )
+}
+
+type StorySortField = 'created_at' | 'status' | 'priority' | 'title'
+
+const STORY_STATUS_ORDER: Record<string, number> = { to_do: 0, in_progress: 1, in_review: 2, in_testing: 3, done: 4 }
+const STORY_PRIORITY_ORDER: Record<string, number> = { low: 0, medium: 1, high: 2 }
+
+function applySortField(a: StoryResponse, b: StoryResponse, field: StorySortField): number {
+  if (field === 'status') return STORY_STATUS_ORDER[a.status] - STORY_STATUS_ORDER[b.status]
+  if (field === 'priority') return STORY_PRIORITY_ORDER[a.priority] - STORY_PRIORITY_ORDER[b.priority]
+  if (field === 'title') return a.title.localeCompare(b.title)
+  return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
 }
 
 export function ProjectDetailPage() {
@@ -144,6 +159,35 @@ export function ProjectDetailPage() {
   const [editStory, setEditStory] = useState<{ id: string; title: string; description: string } | null>(null)
   const [savingStory, setSavingStory] = useState(false)
   const [tasksByStory, setTasksByStory] = useState<Record<string, TaskResponse[]>>({})
+  const [projectTasks, setProjectTasks] = useState<TaskResponse[]>([])
+
+  const [showCreateTask, setShowCreateTask] = useState(false)
+  const [createTaskStatus, setCreateTaskStatus] = useState<Status>('to_do')
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [newTaskDescription, setNewTaskDescription] = useState('')
+  const [newTaskPriority, setNewTaskPriority] = useState<Priority>('medium')
+  const [newTaskStoryId, setNewTaskStoryId] = useState('')
+  const [newTaskAssigneeId, setNewTaskAssigneeId] = useState('')
+  const [creatingTask, setCreatingTask] = useState(false)
+
+  const [storySearch, setStorySearch] = useState('')
+  const [storyFilterStatus, setStoryFilterStatus] = useState<Status | 'all'>('all')
+  const [storyFilterPriority, setStoryFilterPriority] = useState<Priority | 'all'>('all')
+  const [storySortField, setStorySortField] = useState<StorySortField>('created_at')
+  const [storySortDir, setStorySortDir] = useState<'asc' | 'desc'>('desc')
+
+  const [boardSearch, setBoardSearch] = useState('')
+  const [boardFilterPriority, setBoardFilterPriority] = useState<Priority | 'all'>('all')
+  const [boardFilterAssignee, setBoardFilterAssignee] = useState('')
+  const [boardFilterStory, setBoardFilterStory] = useState('')
+  // TODO(task-3): wire filter/sort state — remove void refs below when used
+  void [
+    applySortField, storySearch, setStorySearch, storyFilterStatus, setStoryFilterStatus,
+    storyFilterPriority, setStoryFilterPriority, storySortField, setStorySortField,
+    storySortDir, setStorySortDir, boardSearch, setBoardSearch, boardFilterPriority,
+    setBoardFilterPriority, boardFilterAssignee, setBoardFilterAssignee,
+    boardFilterStory, setBoardFilterStory,
+  ]
 
   useEffect(() => {
     if (!id) return
@@ -158,7 +202,6 @@ export function ProjectDetailPage() {
 
   useEffect(() => {
     const stories = storiesHook.items
-    if (stories.length === 0) return
     stories.forEach((story) => {
       if (tasksByStory[story.id] !== undefined) return
       tasksApi.list(story.id, { limit: 25 }).then((res) => {
@@ -168,6 +211,13 @@ export function ProjectDetailPage() {
       })
     })
   }, [storiesHook.items, tasksByStory])
+
+  useEffect(() => {
+    if (!id) return
+    tasksApi.listForProject(id, { unassigned: true, limit: 100 }).then((res) => {
+      setProjectTasks(res.data.items)
+    }).catch(() => setProjectTasks([]))
+  }, [id])
 
   const handleStatusChange = async (status: Status) => {
     if (!id) return
@@ -221,6 +271,40 @@ export function ProjectDetailPage() {
     }
   }
 
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!id) return
+    setCreatingTask(true)
+    try {
+      const data = {
+        title: newTaskTitle,
+        description: newTaskDescription || undefined,
+        status: createTaskStatus,
+        priority: newTaskPriority,
+        assignee_id: newTaskAssigneeId || undefined,
+      }
+      if (newTaskStoryId) {
+        const task = await tasksApi.create(newTaskStoryId, data)
+        setTasksByStory((prev) => ({
+          ...prev,
+          [newTaskStoryId]: [task.data, ...(prev[newTaskStoryId] ?? [])],
+        }))
+      } else {
+        const task = await tasksApi.createForProject(id, data)
+        setProjectTasks((prev) => [task.data, ...prev])
+      }
+      setShowCreateTask(false)
+      setNewTaskTitle('')
+      setNewTaskDescription('')
+      setNewTaskPriority('medium')
+      setNewTaskStoryId('')
+      setNewTaskAssigneeId('')
+      addToast('Task created')
+    } finally {
+      setCreatingTask(false)
+    }
+  }
+
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!id) return
@@ -260,9 +344,12 @@ export function ProjectDetailPage() {
   const priorities: Priority[] = ['low', 'medium', 'high']
 
   // Build flat task list for board
-  const allTasks: Array<{ task: TaskResponse; story: StoryResponse }> = storiesHook.items.flatMap((story) =>
-    (tasksByStory[story.id] ?? []).map((task) => ({ task, story }))
-  )
+  const allTasks: Array<{ task: TaskResponse; story: StoryResponse | null }> = [
+    ...storiesHook.items.flatMap((story) =>
+      (tasksByStory[story.id] ?? []).map((task) => ({ task, story }))
+    ),
+    ...projectTasks.map((task) => ({ task, story: null })),
+  ]
 
   if (loading) {
     return (
@@ -339,10 +426,10 @@ export function ProjectDetailPage() {
                   <IUser /> {t('board.invite')}
                 </button>
                 <button
-                  onClick={() => setShowCreateStory(true)}
+                  onClick={() => { setCreateTaskStatus('to_do'); setShowCreateTask(true) }}
                   className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5"
                 >
-                  <IPlus /> {t('stories.create')}
+                  <IPlus /> {t('tasks.create')}
                 </button>
                 <div className="relative group">
                   <button className="px-1.5 py-1.5 rounded-md hover:bg-stone-50 dark:hover:bg-stone-900 text-stone-500"><IMore /></button>
@@ -398,7 +485,7 @@ export function ProjectDetailPage() {
                     <span className="text-[11px] text-stone-400 tabular-nums">{columnTasks.length}</span>
                     <span className="flex-1" />
                     <button
-                      onClick={() => setShowCreateStory(true)}
+                      onClick={() => { setCreateTaskStatus(statusId); setShowCreateTask(true) }}
                       className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
                     >
                       <IPlus />
@@ -406,7 +493,7 @@ export function ProjectDetailPage() {
                   </div>
                   <div className="space-y-1.5">
                     {columnTasks.map(({ task, story }) => (
-                      <BoardCard key={task.id} task={task} storyTitle={story.title} />
+                      <BoardCard key={task.id} task={task} storyTitle={story?.title} />
                     ))}
                     {columnTasks.length === 0 && (
                       <div className="h-16 rounded-lg border border-dashed border-stone-200 dark:border-stone-800" />
@@ -429,6 +516,16 @@ export function ProjectDetailPage() {
             />
           ) : (
             <>
+              {isManager && (
+                <div className="flex justify-end mb-4">
+                  <button
+                    onClick={() => setShowCreateStory(true)}
+                    className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5"
+                  >
+                    <IPlus /> {t('stories.create')}
+                  </button>
+                </div>
+              )}
               <div className="rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 overflow-hidden">
                 <div className="grid grid-cols-[1fr_120px_100px_100px_80px] px-4 py-2 text-[10.5px] uppercase tracking-wider text-stone-400 font-medium border-b border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/30">
                   <span>{t('board.col_title')}</span>
@@ -544,6 +641,91 @@ export function ProjectDetailPage() {
       )}
 
       {/* Modals */}
+      {showCreateTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 w-[min(90vw,_900px)] min-w-[67vw] mx-4">
+            <h3 className="text-[15px] font-semibold mb-5">{t('tasks.create')}</h3>
+            <form onSubmit={handleCreateTask} className="space-y-4">
+              <input
+                type="text"
+                placeholder={t('board.col_title')}
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+                required
+                autoFocus
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
+              />
+              <MarkdownEditor
+                value={newTaskDescription}
+                onChange={setNewTaskDescription}
+                rows={4}
+                placeholder={t('tasks.description')}
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[11.5px] font-medium text-stone-500">{t('filter.status')}</label>
+                  <select
+                    value={createTaskStatus}
+                    onChange={(e) => setCreateTaskStatus(e.target.value as Status)}
+                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
+                  >
+                    {statuses.map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11.5px] font-medium text-stone-500">{t('filter.priority')}</label>
+                  <select
+                    value={newTaskPriority}
+                    onChange={(e) => setNewTaskPriority(e.target.value as Priority)}
+                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
+                  >
+                    {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11.5px] font-medium text-stone-500">{t('tasks.story')}</label>
+                  <select
+                    value={newTaskStoryId}
+                    onChange={(e) => setNewTaskStoryId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
+                  >
+                    <option value="">{t('tasks.no_story')}</option>
+                    {storiesHook.items.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11.5px] font-medium text-stone-500">{t('tasks.assignee')}</label>
+                  <select
+                    value={newTaskAssigneeId}
+                    onChange={(e) => setNewTaskAssigneeId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
+                  >
+                    <option value="">{t('tasks.unassigned')}</option>
+                    {members.map((m) => <option key={m.user_id} value={m.user_id}>{m.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateTask(false)}
+                  className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
+                >
+                  {t('actions.cancel')}
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingTask}
+                  className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md disabled:opacity-50"
+                >
+                  {t('actions.create')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showCreateStory && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 max-w-md w-full mx-4">
