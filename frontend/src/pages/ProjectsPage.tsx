@@ -72,7 +72,7 @@ export function ProjectsPage() {
       setShowCreate(true)
       window.history.replaceState({}, '')
     }
-  }, [])
+  }, [location.state])
 
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')

@@ -192,7 +192,7 @@ export function ProjectDetailPage() {
       setShowCreateTask(true)
       window.history.replaceState({}, '')
     }
-  }, [])
+  }, [location.state])
 
   useEffect(() => {
     if (!id) return
@@ -372,6 +372,7 @@ export function ProjectDetailPage() {
   const totalDoneCount = allTasks.filter(({ task }) => task.status === 'done').length
 
   const filteredBoardTasks = allTasks
+    .filter(({ story }) => story === null || story.status !== 'done')
     .filter(({ task }) => !boardSearch || task.title.toLowerCase().includes(boardSearch.toLowerCase()))
     .filter(({ task }) => boardFilterPriority === 'all' || task.priority === boardFilterPriority)
     .filter(({ task }) => !boardFilterAssignee || task.assignee_id === boardFilterAssignee)

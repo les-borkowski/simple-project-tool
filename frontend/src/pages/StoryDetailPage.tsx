@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { storiesApi, tasksApi, projectsApi } from '../services/api'
 import type { StoryResponse, Status, Priority, MemberResponse } from '../services/api'
 import { useRole } from '../hooks/useRole'
@@ -60,6 +62,8 @@ export function StoryDetailPage() {
   const [loading, setLoading] = useState(true)
   const [editingStatus, setEditingStatus] = useState(false)
   const [editingPriority, setEditingPriority] = useState(false)
+  const [editingDesc, setEditingDesc] = useState(false)
+  const [desc, setDesc] = useState('')
 
   const tasksHook = useTasks(storyId ?? '')
   const [showCreateTask, setShowCreateTask] = useState(false)
@@ -69,7 +73,7 @@ export function StoryDetailPage() {
       setShowCreateTask(true)
       window.history.replaceState({}, '')
     }
-  }, [])
+  }, [location.state])
 
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [creatingTask, setCreatingTask] = useState(false)
@@ -84,6 +88,7 @@ export function StoryDetailPage() {
     if (!storyId) return
     storiesApi.get(storyId).then((res) => {
       setStory(res.data)
+      setDesc(res.data.description ?? '')
       if (projectId) {
         projectsApi.get(projectId).then((p) => setProjectName(p.data.name))
         projectsApi.listMembers(projectId).then((m) => setMembers(m.data))
@@ -105,6 +110,14 @@ export function StoryDetailPage() {
     setStory(res.data)
     setEditingPriority(false)
     addToast('Priority updated')
+  }
+
+  const handleSaveDesc = async () => {
+    if (!storyId) return
+    const res = await storiesApi.update(storyId, { description: desc })
+    setStory(res.data)
+    setEditingDesc(false)
+    addToast('Description saved')
   }
 
   const handleTaskFieldChange = async (taskId: string, field: 'status' | 'priority', value: string) => {
@@ -174,9 +187,6 @@ export function StoryDetailPage() {
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <h1 className="text-[22px] font-semibold tracking-tight">{story.title}</h1>
-            {story.description && (
-              <p className="text-[13px] text-stone-500 mt-1 max-w-2xl">{story.description}</p>
-            )}
             <div className="flex items-center gap-3 mt-3">
               {editingStatus ? (
                 <select
@@ -222,6 +232,28 @@ export function StoryDetailPage() {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_280px] min-h-0">
         {/* Main column */}
         <div className="px-7 py-5 space-y-8 overflow-y-auto">
+          {/* Description */}
+          <section>
+            <h2 className="text-[13px] font-medium text-stone-700 dark:text-stone-200 mb-2">{t('detail.description')}</h2>
+            <div className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-4">
+              {editingDesc ? (
+                <div className="space-y-2">
+                  <MarkdownEditor value={desc} onChange={setDesc} rows={10} autoExpand maxHeight="calc(100vh - 240px)" />
+                  <div className="flex gap-2">
+                    <button onClick={handleSaveDesc} className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md">{t('actions.save')}</button>
+                    <button onClick={() => { setEditingDesc(false); setDesc(story.description ?? '') }} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300">{t('actions.cancel')}</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setEditingDesc(true)} className="w-full text-left">
+                  {story.description
+                    ? <div className="prose prose-sm dark:prose-invert max-w-none text-[13.5px] leading-relaxed"><ReactMarkdown remarkPlugins={[remarkGfm]}>{story.description}</ReactMarkdown></div>
+                    : <p className="text-[13px] text-stone-400 italic">{t('detail.add_description')}</p>}
+                </button>
+              )}
+            </div>
+          </section>
+
           {/* Tasks */}
           <section>
             <div className="flex items-center justify-between mb-3">
