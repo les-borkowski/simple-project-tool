@@ -180,14 +180,6 @@ export function ProjectDetailPage() {
   const [boardFilterPriority, setBoardFilterPriority] = useState<Priority | 'all'>('all')
   const [boardFilterAssignee, setBoardFilterAssignee] = useState('')
   const [boardFilterStory, setBoardFilterStory] = useState('')
-  // TODO(task-3): wire filter/sort state — remove void refs below when used
-  void [
-    applySortField, storySearch, setStorySearch, storyFilterStatus, setStoryFilterStatus,
-    storyFilterPriority, setStoryFilterPriority, storySortField, setStorySortField,
-    storySortDir, setStorySortDir, boardSearch, setBoardSearch, boardFilterPriority,
-    setBoardFilterPriority, boardFilterAssignee, setBoardFilterAssignee,
-    boardFilterStory, setBoardFilterStory,
-  ]
 
   useEffect(() => {
     if (!id) return
@@ -349,6 +341,37 @@ export function ProjectDetailPage() {
       (tasksByStory[story.id] ?? []).map((task) => ({ task, story }))
     ),
     ...projectTasks.map((task) => ({ task, story: null })),
+  ]
+
+  // Stories tab derived values
+  const totalTaskCount = Object.values(tasksByStory).reduce((sum, arr) => sum + arr.length, 0)
+
+  const filteredStories = storiesHook.items
+    .filter(s => !storySearch || s.title.toLowerCase().includes(storySearch.toLowerCase()))
+    .filter(s => storyFilterStatus === 'all' || s.status === storyFilterStatus)
+    .filter(s => storyFilterPriority === 'all' || s.priority === storyFilterPriority)
+    .sort((a, b) => {
+      const c = applySortField(a, b, storySortField)
+      return storySortDir === 'asc' ? c : -c
+    })
+
+  // Board tab derived values
+  const totalDoneCount = allTasks.filter(({ task }) => task.status === 'done').length
+
+  const filteredBoardTasks = allTasks
+    .filter(({ task }) => !boardSearch || task.title.toLowerCase().includes(boardSearch.toLowerCase()))
+    .filter(({ task }) => boardFilterPriority === 'all' || task.priority === boardFilterPriority)
+    .filter(({ task }) => !boardFilterAssignee || task.assignee_id === boardFilterAssignee)
+    .filter(({ story }) => {
+      if (!boardFilterStory) return true
+      if (boardFilterStory === 'none') return story === null
+      return story?.id === boardFilterStory
+    })
+
+  void [
+    filteredStories, filteredBoardTasks, totalTaskCount, totalDoneCount,
+    setStorySearch, setStoryFilterStatus, setStoryFilterPriority, setStorySortField, setStorySortDir,
+    setBoardSearch, setBoardFilterPriority, setBoardFilterAssignee, setBoardFilterStory,
   ]
 
   if (loading) {
