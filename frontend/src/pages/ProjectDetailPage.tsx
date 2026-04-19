@@ -368,11 +368,6 @@ export function ProjectDetailPage() {
       return story?.id === boardFilterStory
     })
 
-  void [
-    filteredBoardTasks, totalDoneCount,
-    setBoardSearch, setBoardFilterPriority, setBoardFilterAssignee, setBoardFilterStory,
-  ]
-
   if (loading) {
     return (
       <div className="flex-1 flex flex-col">
@@ -495,37 +490,80 @@ export function ProjectDetailPage() {
 
       {/* Board tab */}
       {tab === 'board' && (
-        <div className="flex-1 overflow-x-auto scroll-hidden bg-stone-50 dark:bg-stone-950/50 fine-grid">
-          <div className="flex gap-3 px-7 py-5 min-w-min min-h-full">
-            {STATUS_IDS.map((statusId) => {
-              const columnTasks = allTasks.filter(({ task }) => task.status === statusId)
-              return (
-                <div key={statusId} className="w-[272px] shrink-0">
-                  <div className="flex items-center gap-2 px-1 mb-2">
-                    <span className="w-2 h-2 rounded-full" style={{ background: `var(${STATUS_VARS[statusId]})` }} />
-                    <span className="text-[12px] font-medium">{t(`status.${statusId}`)}</span>
-                    <span className="text-[11px] text-stone-400 tabular-nums">{columnTasks.length}</span>
-                    <span className="flex-1" />
-                    <button
-                      onClick={() => { setCreateTaskStatus(statusId); setShowCreateTask(true) }}
-                      className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
-                    >
-                      <IPlus />
-                    </button>
-                  </div>
-                  <div className="space-y-1.5">
-                    {columnTasks.map(({ task, story }) => (
-                      <BoardCard key={task.id} task={task} storyTitle={story?.title} />
-                    ))}
-                    {columnTasks.length === 0 && (
-                      <div className="h-16 rounded-lg border border-dashed border-stone-200 dark:border-stone-800" />
-                    )}
-                  </div>
-                </div>
-              )
-            })}
+        <>
+          {/* Board toolbar */}
+          <div className="flex items-center gap-2 px-7 py-2.5 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
+            <input
+              type="text"
+              placeholder={t('filter.search')}
+              value={boardSearch}
+              onChange={e => setBoardSearch(e.target.value)}
+              className="w-40 px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+            />
+            <select
+              value={boardFilterPriority}
+              onChange={e => setBoardFilterPriority(e.target.value as Priority | 'all')}
+              className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+            >
+              <option value="all">{t('filter.all')} {t('filter.priority')}</option>
+              {priorities.map(p => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
+            </select>
+            <select
+              value={boardFilterAssignee}
+              onChange={e => setBoardFilterAssignee(e.target.value)}
+              className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+            >
+              <option value="">{t('filter.all')} {t('filter.assignee')}</option>
+              {members.map(m => <option key={m.user_id} value={m.user_id}>{m.name}</option>)}
+            </select>
+            <select
+              value={boardFilterStory}
+              onChange={e => setBoardFilterStory(e.target.value)}
+              className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+            >
+              <option value="">{t('filter.all')} {t('filter.story')}</option>
+              <option value="none">{t('filter.no_story')}</option>
+              {storiesHook.items.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+            </select>
+            <span className="flex-1" />
+            <span className="text-[11.5px] text-stone-400 tabular-nums">
+              {t('toolbar.tasks_count', { count: allTasks.length })} · {t('toolbar.done_count', { count: totalDoneCount })}
+            </span>
+            {isManager && (
+              <button
+                onClick={() => { setCreateTaskStatus('to_do'); setShowCreateTask(true) }}
+                className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5"
+              >
+                <IPlus /> {t('tasks.create')}
+              </button>
+            )}
           </div>
-        </div>
+          <div className="flex-1 overflow-x-auto scroll-hidden bg-stone-50 dark:bg-stone-950/50 fine-grid">
+            <div className="flex gap-3 px-7 py-5 min-w-min min-h-full">
+              {STATUS_IDS.map((statusId) => {
+                const columnTasks = filteredBoardTasks.filter(({ task }) => task.status === statusId)
+                return (
+                  <div key={statusId} className="w-[272px] shrink-0">
+                    <div className="flex items-center gap-2 px-1 mb-2">
+                      <span className="w-2 h-2 rounded-full" style={{ background: `var(${STATUS_VARS[statusId]})` }} />
+                      <span className="text-[12px] font-medium">{t(`status.${statusId}`)}</span>
+                      <span className="text-[11px] text-stone-400 tabular-nums">{columnTasks.length}</span>
+                      <span className="flex-1" />
+                    </div>
+                    <div className="space-y-1.5">
+                      {columnTasks.map(({ task, story }) => (
+                        <BoardCard key={task.id} task={task} storyTitle={story?.title} />
+                      ))}
+                      {columnTasks.length === 0 && (
+                        <div className="h-16 rounded-lg border border-dashed border-stone-200 dark:border-stone-800" />
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </>
       )}
 
       {/* Stories tab */}
