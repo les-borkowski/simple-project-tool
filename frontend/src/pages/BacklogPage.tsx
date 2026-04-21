@@ -85,12 +85,7 @@ export function BacklogPage() {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         setShowCreateTask(false)
-        setNewTaskTitle('')
-        setNewTaskDescription('')
-        setNewTaskStatus('to_do')
-        setNewTaskPriority('medium')
-        setNewTaskAssigneeId('')
-        setNewTaskStoryId('')
+        resetCreateTaskForm()
       }
     }
     document.addEventListener('keydown', handleKeyDown)
@@ -102,7 +97,7 @@ export function BacklogPage() {
     Promise.all([
       projectsApi.get(projectId).then((r) => setProjectName(r.data.name)),
       projectsApi.listMembers(projectId).then((r) => setMembers(r.data)),
-      storiesApi.list(projectId).then((r) => setStories(r.data.items)),
+      storiesApi.list(projectId, { limit: 100 }).then((r) => setStories(r.data.items)),
       fetchTasks(),
     ]).finally(() => setLoading(false))
   }, [projectId, fetchTasks])
@@ -140,6 +135,15 @@ export function BacklogPage() {
     }
   }
 
+  const resetCreateTaskForm = () => {
+    setNewTaskTitle('')
+    setNewTaskDescription('')
+    setNewTaskStatus('to_do')
+    setNewTaskPriority('medium')
+    setNewTaskAssigneeId('')
+    setNewTaskStoryId('')
+  }
+
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!projectId) return
@@ -158,12 +162,7 @@ export function BacklogPage() {
         await tasksApi.createForProject(projectId, data)
       }
       setShowCreateTask(false)
-      setNewTaskTitle('')
-      setNewTaskDescription('')
-      setNewTaskStatus('to_do')
-      setNewTaskPriority('medium')
-      setNewTaskAssigneeId('')
-      setNewTaskStoryId('')
+      resetCreateTaskForm()
       await fetchTasks()
       addToast('Task created')
     } finally {
@@ -407,7 +406,7 @@ export function BacklogPage() {
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-1">
-                <button type="button" onClick={() => { setShowCreateTask(false); setNewTaskTitle(''); setNewTaskDescription(''); setNewTaskStatus('to_do'); setNewTaskPriority('medium'); setNewTaskAssigneeId(''); setNewTaskStoryId('') }} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
+                <button type="button" onClick={() => { setShowCreateTask(false); resetCreateTaskForm() }} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
                   {t('actions.cancel')}
                 </button>
                 <button type="submit" disabled={creatingTask} className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md disabled:opacity-50">
