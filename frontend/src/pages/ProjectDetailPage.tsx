@@ -55,7 +55,7 @@ const IArchive = () => (
   </svg>
 )
 const IChevron = () => (
-  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
     <path d="M6 9l6 6 6-6"/>
   </svg>
 )
@@ -205,12 +205,19 @@ export function ProjectDetailPage() {
   useEffect(() => {
     if (!showNewDropdown) return
     function handleClick(e: MouseEvent) {
-      if (newDropdownRef.current && !newDropdownRef.current.contains(e.target as Node)) {
+      if (newDropdownRef.current && e.target instanceof Node && !newDropdownRef.current.contains(e.target)) {
         setShowNewDropdown(false)
       }
     }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setShowNewDropdown(false)
+    }
     document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
   }, [showNewDropdown])
 
   useEffect(() => {
@@ -478,6 +485,8 @@ export function ProjectDetailPage() {
                 <div className="relative" ref={newDropdownRef}>
                   <button
                     onClick={() => setShowNewDropdown(v => !v)}
+                    aria-haspopup="true"
+                    aria-expanded={showNewDropdown}
                     className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5"
                   >
                     <IPlus /> New <IChevron />
