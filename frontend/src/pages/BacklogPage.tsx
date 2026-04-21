@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { tasksApi, projectsApi } from '../services/api'
-import type { TaskResponse, MemberResponse, Status, Priority } from '../services/api'
+import { tasksApi, projectsApi, storiesApi } from '../services/api'
+import type { TaskResponse, StoryResponse, MemberResponse, Status, Priority } from '../services/api'
 import { useRole } from '../hooks/useRole'
 import { StatusPill } from '../components/common/StatusPill'
 import { PriorityBars } from '../components/common/PriorityBars'
@@ -66,6 +66,12 @@ export function BacklogPage() {
   const [editingTaskField, setEditingTaskField] = useState<{ id: string; field: 'status' | 'priority' } | null>(null)
   const [sortField, setSortField] = useState<SortField>('created_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [stories, setStories] = useState<StoryResponse[]>([])
+  const [newTaskDescription, setNewTaskDescription] = useState('')
+  const [newTaskStatus, setNewTaskStatus] = useState<Status>('to_do')
+  const [newTaskPriority, setNewTaskPriority] = useState<Priority>('medium')
+  const [newTaskAssigneeId, setNewTaskAssigneeId] = useState('')
+  const [newTaskStoryId, setNewTaskStoryId] = useState('')
 
   const fetchTasks = useCallback(async () => {
     if (!projectId) return
@@ -75,10 +81,28 @@ export function BacklogPage() {
   }, [projectId])
 
   useEffect(() => {
+    if (!showCreateTask) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setShowCreateTask(false)
+        setNewTaskTitle('')
+        setNewTaskDescription('')
+        setNewTaskStatus('to_do')
+        setNewTaskPriority('medium')
+        setNewTaskAssigneeId('')
+        setNewTaskStoryId('')
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [showCreateTask])
+
+  useEffect(() => {
     if (!projectId) return
     Promise.all([
       projectsApi.get(projectId).then((r) => setProjectName(r.data.name)),
       projectsApi.listMembers(projectId).then((r) => setMembers(r.data)),
+      storiesApi.list(projectId).then((r) => setStories(r.data.items)),
       fetchTasks(),
     ]).finally(() => setLoading(false))
   }, [projectId, fetchTasks])
@@ -121,9 +145,25 @@ export function BacklogPage() {
     if (!projectId) return
     setCreatingTask(true)
     try {
-      await tasksApi.createForProject(projectId, { title: newTaskTitle })
+      const data = {
+        title: newTaskTitle,
+        description: newTaskDescription || undefined,
+        status: newTaskStatus,
+        priority: newTaskPriority,
+        assignee_id: newTaskAssigneeId || undefined,
+      }
+      if (newTaskStoryId) {
+        await tasksApi.create(newTaskStoryId, data)
+      } else {
+        await tasksApi.createForProject(projectId, data)
+      }
       setShowCreateTask(false)
       setNewTaskTitle('')
+      setNewTaskDescription('')
+      setNewTaskStatus('to_do')
+      setNewTaskPriority('medium')
+      setNewTaskAssigneeId('')
+      setNewTaskStoryId('')
       await fetchTasks()
       addToast('Task created')
     } finally {
@@ -299,20 +339,75 @@ export function BacklogPage() {
       {/* Modals */}
       {showCreateTask && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 max-w-md w-full mx-4">
-            <h3 className="text-[15px] font-semibold mb-4">{t('tasks.create')}</h3>
+          <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 w-[min(90vw,_900px)] min-w-[67vw] mx-4">
+            <h3 className="text-[15px] font-semibold mb-5">{t('tasks.create')}</h3>
             <form onSubmit={handleCreateTask} className="space-y-4">
               <input
                 type="text"
-                placeholder={t('tasks.title')}
+                placeholder={t('board.col_title')}
                 value={newTaskTitle}
                 onChange={(e) => setNewTaskTitle(e.target.value)}
                 required
                 autoFocus
                 className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
               />
-              <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setShowCreateTask(false)} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
+              <MarkdownEditor
+                value={newTaskDescription}
+                onChange={setNewTaskDescription}
+                rows={4}
+                placeholder={t('tasks.description')}
+                autoExpand
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label htmlFor="backlog-create-task-status" className="text-[11.5px] font-medium text-stone-500">{t('filter.status')}</label>
+                  <select
+                    id="backlog-create-task-status"
+                    value={newTaskStatus}
+                    onChange={(e) => setNewTaskStatus(e.target.value as Status)}
+                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
+                  >
+                    {statuses.map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="backlog-create-task-priority" className="text-[11.5px] font-medium text-stone-500">{t('filter.priority')}</label>
+                  <select
+                    id="backlog-create-task-priority"
+                    value={newTaskPriority}
+                    onChange={(e) => setNewTaskPriority(e.target.value as Priority)}
+                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
+                  >
+                    {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="backlog-create-task-story" className="text-[11.5px] font-medium text-stone-500">{t('tasks.story')}</label>
+                  <select
+                    id="backlog-create-task-story"
+                    value={newTaskStoryId}
+                    onChange={(e) => setNewTaskStoryId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
+                  >
+                    <option value="">{t('tasks.no_story')}</option>
+                    {stories.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="backlog-create-task-assignee" className="text-[11.5px] font-medium text-stone-500">{t('tasks.assignee')}</label>
+                  <select
+                    id="backlog-create-task-assignee"
+                    value={newTaskAssigneeId}
+                    onChange={(e) => setNewTaskAssigneeId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
+                  >
+                    <option value="">{t('tasks.unassigned')}</option>
+                    {members.map((m) => <option key={m.user_id} value={m.user_id}>{m.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <button type="button" onClick={() => { setShowCreateTask(false); setNewTaskTitle(''); setNewTaskDescription(''); setNewTaskStatus('to_do'); setNewTaskPriority('medium'); setNewTaskAssigneeId(''); setNewTaskStoryId('') }} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
                   {t('actions.cancel')}
                 </button>
                 <button type="submit" disabled={creatingTask} className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md disabled:opacity-50">
