@@ -67,6 +67,11 @@ export function StoryDetailPage() {
 
   const tasksHook = useTasks(storyId ?? '')
   const [showCreateTask, setShowCreateTask] = useState(false)
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [newTaskDescription, setNewTaskDescription] = useState('')
+  const [newTaskStatus, setNewTaskStatus] = useState<Status>('to_do')
+  const [newTaskPriority, setNewTaskPriority] = useState<Priority>('medium')
+  const [newTaskAssigneeId, setNewTaskAssigneeId] = useState('')
 
   useEffect(() => {
     if ((location.state as { modal?: string } | null)?.modal === 'create-task') {
@@ -91,11 +96,6 @@ export function StoryDetailPage() {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [showCreateTask])
 
-  const [newTaskTitle, setNewTaskTitle] = useState('')
-  const [newTaskDescription, setNewTaskDescription] = useState('')
-  const [newTaskStatus, setNewTaskStatus] = useState<Status>('to_do')
-  const [newTaskPriority, setNewTaskPriority] = useState<Priority>('medium')
-  const [newTaskAssigneeId, setNewTaskAssigneeId] = useState('')
   const [creatingTask, setCreatingTask] = useState(false)
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null)
   const [editTask, setEditTask] = useState<{ id: string; title: string; description: string } | null>(null)

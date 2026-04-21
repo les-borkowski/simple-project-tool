@@ -224,6 +224,38 @@ export function ProjectDetailPage() {
   }, [showNewDropdown])
 
   useEffect(() => {
+    if (!showCreateStory) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setShowCreateStory(false)
+        setNewStoryTitle('')
+        setNewStoryDescription('')
+        setNewStoryStatus('to_do')
+        setNewStoryPriority('medium')
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [showCreateStory])
+
+  useEffect(() => {
+    if (!showCreateTask) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setShowCreateTask(false)
+        setNewTaskTitle('')
+        setNewTaskDescription('')
+        setCreateTaskStatus('to_do')
+        setNewTaskPriority('medium')
+        setNewTaskStoryId('')
+        setNewTaskAssigneeId('')
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [showCreateTask])
+
+  useEffect(() => {
     if (!id) return
     Promise.all([
       projectsApi.get(id),
@@ -864,8 +896,9 @@ export function ProjectDetailPage() {
               />
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[11.5px] font-medium text-stone-500">{t('filter.status')}</label>
+                  <label htmlFor="pdp-create-task-status" className="text-[11.5px] font-medium text-stone-500">{t('filter.status')}</label>
                   <select
+                    id="pdp-create-task-status"
                     value={createTaskStatus}
                     onChange={(e) => setCreateTaskStatus(e.target.value as Status)}
                     className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
@@ -874,8 +907,9 @@ export function ProjectDetailPage() {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11.5px] font-medium text-stone-500">{t('filter.priority')}</label>
+                  <label htmlFor="pdp-create-task-priority" className="text-[11.5px] font-medium text-stone-500">{t('filter.priority')}</label>
                   <select
+                    id="pdp-create-task-priority"
                     value={newTaskPriority}
                     onChange={(e) => setNewTaskPriority(e.target.value as Priority)}
                     className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
@@ -884,8 +918,9 @@ export function ProjectDetailPage() {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11.5px] font-medium text-stone-500">{t('tasks.story')}</label>
+                  <label htmlFor="pdp-create-task-story" className="text-[11.5px] font-medium text-stone-500">{t('tasks.story')}</label>
                   <select
+                    id="pdp-create-task-story"
                     value={newTaskStoryId}
                     onChange={(e) => setNewTaskStoryId(e.target.value)}
                     className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
@@ -895,8 +930,9 @@ export function ProjectDetailPage() {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11.5px] font-medium text-stone-500">{t('tasks.assignee')}</label>
+                  <label htmlFor="pdp-create-task-assignee" className="text-[11.5px] font-medium text-stone-500">{t('tasks.assignee')}</label>
                   <select
+                    id="pdp-create-task-assignee"
                     value={newTaskAssigneeId}
                     onChange={(e) => setNewTaskAssigneeId(e.target.value)}
                     className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
@@ -909,7 +945,7 @@ export function ProjectDetailPage() {
               <div className="flex justify-end gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={() => setShowCreateTask(false)}
+                  onClick={() => { setShowCreateTask(false); setNewTaskTitle(''); setNewTaskDescription(''); setCreateTaskStatus('to_do'); setNewTaskPriority('medium'); setNewTaskStoryId(''); setNewTaskAssigneeId('') }}
                   className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
                 >
                   {t('actions.cancel')}
@@ -950,8 +986,9 @@ export function ProjectDetailPage() {
               />
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[11.5px] font-medium text-stone-500">{t('filter.status')}</label>
+                  <label htmlFor="pdp-create-story-status" className="text-[11.5px] font-medium text-stone-500">{t('filter.status')}</label>
                   <select
+                    id="pdp-create-story-status"
                     value={newStoryStatus}
                     onChange={(e) => setNewStoryStatus(e.target.value as Status)}
                     className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
@@ -960,8 +997,9 @@ export function ProjectDetailPage() {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11.5px] font-medium text-stone-500">{t('filter.priority')}</label>
+                  <label htmlFor="pdp-create-story-priority" className="text-[11.5px] font-medium text-stone-500">{t('filter.priority')}</label>
                   <select
+                    id="pdp-create-story-priority"
                     value={newStoryPriority}
                     onChange={(e) => setNewStoryPriority(e.target.value as Priority)}
                     className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
@@ -971,7 +1009,7 @@ export function ProjectDetailPage() {
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-1">
-                <button type="button" onClick={() => setShowCreateStory(false)} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
+                <button type="button" onClick={() => { setShowCreateStory(false); setNewStoryTitle(''); setNewStoryDescription(''); setNewStoryStatus('to_do'); setNewStoryPriority('medium') }} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
                   {t('actions.cancel')}
                 </button>
                 <button type="submit" disabled={creatingStory} className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md disabled:opacity-50">
