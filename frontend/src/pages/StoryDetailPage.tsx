@@ -76,6 +76,10 @@ export function StoryDetailPage() {
   }, [location.state])
 
   const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [newTaskDescription, setNewTaskDescription] = useState('')
+  const [newTaskStatus, setNewTaskStatus] = useState<Status>('to_do')
+  const [newTaskPriority, setNewTaskPriority] = useState<Priority>('medium')
+  const [newTaskAssigneeId, setNewTaskAssigneeId] = useState('')
   const [creatingTask, setCreatingTask] = useState(false)
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null)
   const [editTask, setEditTask] = useState<{ id: string; title: string; description: string } | null>(null)
@@ -146,9 +150,19 @@ export function StoryDetailPage() {
     if (!storyId) return
     setCreatingTask(true)
     try {
-      await tasksApi.create(storyId, { title: newTaskTitle })
+      await tasksApi.create(storyId, {
+        title: newTaskTitle,
+        description: newTaskDescription || undefined,
+        status: newTaskStatus,
+        priority: newTaskPriority,
+        assignee_id: newTaskAssigneeId || undefined,
+      })
       setShowCreateTask(false)
       setNewTaskTitle('')
+      setNewTaskDescription('')
+      setNewTaskStatus('to_do')
+      setNewTaskPriority('medium')
+      setNewTaskAssigneeId('')
       tasksHook.refresh()
       addToast('Task created')
     } finally {
@@ -381,18 +395,59 @@ export function StoryDetailPage() {
       {/* Modals */}
       {showCreateTask && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 max-w-md w-full mx-4">
-            <h3 className="text-[15px] font-semibold mb-4">{t('tasks.create')}</h3>
+          <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 w-[min(90vw,_900px)] min-w-[67vw] mx-4">
+            <h3 className="text-[15px] font-semibold mb-5">{t('tasks.create')}</h3>
             <form onSubmit={handleCreateTask} className="space-y-4">
               <input
                 type="text"
-                placeholder={t('tasks.title')}
+                placeholder={t('board.col_title')}
                 value={newTaskTitle}
                 onChange={(e) => setNewTaskTitle(e.target.value)}
                 required
+                autoFocus
                 className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
               />
-              <div className="flex justify-end gap-2">
+              <MarkdownEditor
+                value={newTaskDescription}
+                onChange={setNewTaskDescription}
+                rows={4}
+                placeholder={t('tasks.description')}
+                autoExpand
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[11.5px] font-medium text-stone-500">{t('filter.status')}</label>
+                  <select
+                    value={newTaskStatus}
+                    onChange={(e) => setNewTaskStatus(e.target.value as Status)}
+                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
+                  >
+                    {statuses.map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11.5px] font-medium text-stone-500">{t('filter.priority')}</label>
+                  <select
+                    value={newTaskPriority}
+                    onChange={(e) => setNewTaskPriority(e.target.value as Priority)}
+                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
+                  >
+                    {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <label className="text-[11.5px] font-medium text-stone-500">{t('tasks.assignee')}</label>
+                  <select
+                    value={newTaskAssigneeId}
+                    onChange={(e) => setNewTaskAssigneeId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
+                  >
+                    <option value="">{t('tasks.unassigned')}</option>
+                    {members.map((m) => <option key={m.user_id} value={m.user_id}>{m.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
                 <button type="button" onClick={() => setShowCreateTask(false)} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
                   {t('actions.cancel')}
                 </button>
