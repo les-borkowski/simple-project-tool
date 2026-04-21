@@ -75,6 +75,22 @@ export function StoryDetailPage() {
     }
   }, [location.state])
 
+  useEffect(() => {
+    if (!showCreateTask) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setShowCreateTask(false)
+        setNewTaskTitle('')
+        setNewTaskDescription('')
+        setNewTaskStatus('to_do')
+        setNewTaskPriority('medium')
+        setNewTaskAssigneeId('')
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [showCreateTask])
+
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskDescription, setNewTaskDescription] = useState('')
   const [newTaskStatus, setNewTaskStatus] = useState<Status>('to_do')
@@ -416,8 +432,9 @@ export function StoryDetailPage() {
               />
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[11.5px] font-medium text-stone-500">{t('filter.status')}</label>
+                  <label htmlFor="create-task-status" className="text-[11.5px] font-medium text-stone-500">{t('filter.status')}</label>
                   <select
+                    id="create-task-status"
                     value={newTaskStatus}
                     onChange={(e) => setNewTaskStatus(e.target.value as Status)}
                     className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
@@ -426,8 +443,9 @@ export function StoryDetailPage() {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11.5px] font-medium text-stone-500">{t('filter.priority')}</label>
+                  <label htmlFor="create-task-priority" className="text-[11.5px] font-medium text-stone-500">{t('filter.priority')}</label>
                   <select
+                    id="create-task-priority"
                     value={newTaskPriority}
                     onChange={(e) => setNewTaskPriority(e.target.value as Priority)}
                     className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
@@ -436,8 +454,9 @@ export function StoryDetailPage() {
                   </select>
                 </div>
                 <div className="space-y-1 col-span-2">
-                  <label className="text-[11.5px] font-medium text-stone-500">{t('tasks.assignee')}</label>
+                  <label htmlFor="create-task-assignee" className="text-[11.5px] font-medium text-stone-500">{t('tasks.assignee')}</label>
                   <select
+                    id="create-task-assignee"
                     value={newTaskAssigneeId}
                     onChange={(e) => setNewTaskAssigneeId(e.target.value)}
                     className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
@@ -448,7 +467,7 @@ export function StoryDetailPage() {
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-1">
-                <button type="button" onClick={() => setShowCreateTask(false)} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
+                <button type="button" onClick={() => { setShowCreateTask(false); setNewTaskTitle(''); setNewTaskDescription(''); setNewTaskStatus('to_do'); setNewTaskPriority('medium'); setNewTaskAssigneeId('') }} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
                   {t('actions.cancel')}
                 </button>
                 <button type="submit" disabled={creatingTask} className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md disabled:opacity-50">
