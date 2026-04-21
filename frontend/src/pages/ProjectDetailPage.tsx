@@ -155,6 +155,9 @@ export function ProjectDetailPage() {
   const [showCreateStory, setShowCreateStory] = useState(false)
   const [newStoryTitle, setNewStoryTitle] = useState('')
   const [creatingStory, setCreatingStory] = useState(false)
+  const [newStoryDescription, setNewStoryDescription] = useState('')
+  const [newStoryStatus, setNewStoryStatus] = useState<Status>('to_do')
+  const [newStoryPriority, setNewStoryPriority] = useState<Priority>('medium')
 
   const [showNewDropdown, setShowNewDropdown] = useState(false)
   const newDropdownRef = useRef<HTMLDivElement>(null)
@@ -291,9 +294,17 @@ export function ProjectDetailPage() {
     if (!id) return
     setCreatingStory(true)
     try {
-      await storiesApi.create(id, { title: newStoryTitle })
+      await storiesApi.create(id, {
+        title: newStoryTitle,
+        description: newStoryDescription || undefined,
+        status: newStoryStatus,
+        priority: newStoryPriority,
+      })
       setShowCreateStory(false)
       setNewStoryTitle('')
+      setNewStoryDescription('')
+      setNewStoryStatus('to_do')
+      setNewStoryPriority('medium')
       setTasksByStory({})
       storiesHook.refresh()
       addToast('Story created')
@@ -918,18 +929,48 @@ export function ProjectDetailPage() {
 
       {showCreateStory && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 max-w-md w-full mx-4">
-            <h3 className="text-[15px] font-semibold mb-4">{t('stories.create')}</h3>
+          <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 w-[min(90vw,_900px)] min-w-[67vw] mx-4">
+            <h3 className="text-[15px] font-semibold mb-5">{t('stories.create')}</h3>
             <form onSubmit={handleCreateStory} className="space-y-4">
               <input
                 type="text"
-                placeholder={t('tasks.title')}
+                placeholder={t('board.col_title')}
                 value={newStoryTitle}
                 onChange={(e) => setNewStoryTitle(e.target.value)}
                 required
+                autoFocus
                 className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
               />
-              <div className="flex justify-end gap-2">
+              <MarkdownEditor
+                value={newStoryDescription}
+                onChange={setNewStoryDescription}
+                rows={4}
+                placeholder={t('tasks.description')}
+                autoExpand
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[11.5px] font-medium text-stone-500">{t('filter.status')}</label>
+                  <select
+                    value={newStoryStatus}
+                    onChange={(e) => setNewStoryStatus(e.target.value as Status)}
+                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
+                  >
+                    {statuses.map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11.5px] font-medium text-stone-500">{t('filter.priority')}</label>
+                  <select
+                    value={newStoryPriority}
+                    onChange={(e) => setNewStoryPriority(e.target.value as Priority)}
+                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
+                  >
+                    {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
                 <button type="button" onClick={() => setShowCreateStory(false)} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
                   {t('actions.cancel')}
                 </button>
