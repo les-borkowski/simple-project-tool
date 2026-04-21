@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { projectsApi, invitationsApi, storiesApi, tasksApi } from '../services/api'
@@ -52,6 +52,11 @@ const IMore = () => (
 const IArchive = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
     <rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v12h14V8M10 12h4"/>
+  </svg>
+)
+const IChevron = () => (
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <path d="M6 9l6 6 6-6"/>
   </svg>
 )
 
@@ -151,6 +156,9 @@ export function ProjectDetailPage() {
   const [newStoryTitle, setNewStoryTitle] = useState('')
   const [creatingStory, setCreatingStory] = useState(false)
 
+  const [showNewDropdown, setShowNewDropdown] = useState(false)
+  const newDropdownRef = useRef<HTMLDivElement>(null)
+
   const [showInvite, setShowInvite] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<Role>('contributor')
@@ -193,6 +201,17 @@ export function ProjectDetailPage() {
       window.history.replaceState({}, '')
     }
   }, [location.state])
+
+  useEffect(() => {
+    if (!showNewDropdown) return
+    function handleClick(e: MouseEvent) {
+      if (newDropdownRef.current && !newDropdownRef.current.contains(e.target as Node)) {
+        setShowNewDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showNewDropdown])
 
   useEffect(() => {
     if (!id) return
@@ -456,12 +475,30 @@ export function ProjectDetailPage() {
                 >
                   <IUser /> {t('board.invite')}
                 </button>
-                <button
-                  onClick={() => { setCreateTaskStatus('to_do'); setShowCreateTask(true) }}
-                  className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5"
-                >
-                  <IPlus /> {t('tasks.create')}
-                </button>
+                <div className="relative" ref={newDropdownRef}>
+                  <button
+                    onClick={() => setShowNewDropdown(v => !v)}
+                    className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5"
+                  >
+                    <IPlus /> New <IChevron />
+                  </button>
+                  {showNewDropdown && (
+                    <div className="absolute right-0 top-full mt-1 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-md shadow-lg z-20 min-w-[120px]">
+                      <button
+                        onClick={() => { setShowNewDropdown(false); setShowCreateStory(true) }}
+                        className="w-full flex items-center px-3 py-2 text-[12.5px] text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 rounded-t-md"
+                      >
+                        Story
+                      </button>
+                      <button
+                        onClick={() => { setShowNewDropdown(false); setCreateTaskStatus('to_do'); setShowCreateTask(true) }}
+                        className="w-full flex items-center px-3 py-2 text-[12.5px] text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 rounded-b-md"
+                      >
+                        Task
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <div className="relative group">
                   <button className="px-1.5 py-1.5 rounded-md hover:bg-stone-50 dark:hover:bg-stone-900 text-stone-500"><IMore /></button>
                   <div className="hidden group-hover:block absolute right-0 top-full mt-1 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-md shadow-lg z-20 min-w-[140px]">
@@ -547,14 +584,6 @@ export function ProjectDetailPage() {
             <span className="text-[11.5px] text-stone-400 tabular-nums">
               {t('toolbar.tasks_count', { count: allTasks.length })} · {t('toolbar.done_count', { count: totalDoneCount })}
             </span>
-            {isManager && (
-              <button
-                onClick={() => { setCreateTaskStatus('to_do'); setShowCreateTask(true) }}
-                className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5"
-              >
-                <IPlus /> {t('tasks.create')}
-              </button>
-            )}
           </div>
           <div className="flex-1 overflow-x-auto scroll-hidden bg-stone-50 dark:bg-stone-950/50 fine-grid">
             <div className="flex gap-3 px-7 py-5 min-w-min min-h-full">
@@ -643,14 +672,6 @@ export function ProjectDetailPage() {
                 <span className="text-[11.5px] text-stone-400 tabular-nums">
                   {t('toolbar.tasks_count', { count: totalTaskCount })} · {t('toolbar.stories_count', { count: storiesHook.items.length })}
                 </span>
-                {isManager && (
-                  <button
-                    onClick={() => setShowCreateStory(true)}
-                    className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5"
-                  >
-                    <IPlus /> {t('stories.create')}
-                  </button>
-                )}
               </div>
 
               {/* Stories table */}
