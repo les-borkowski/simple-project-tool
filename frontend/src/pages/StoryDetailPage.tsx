@@ -16,6 +16,7 @@ import { MarkdownEditor } from '../components/common/MarkdownEditor'
 import { SkeletonCard } from '../components/common/Skeleton'
 import { useToast } from '../context/ToastContext'
 import { formatRelative } from '../utils/time'
+import { useAuth } from '../context/AuthContext'
 import { CommentList } from '../components/comments/CommentList'
 import { StatusHistoryTimeline } from '../components/status-history/StatusHistoryTimeline'
 
@@ -54,6 +55,7 @@ export function StoryDetailPage() {
   const { t } = useTranslation()
   const { isManager } = useRole(projectId)
   const { addToast } = useToast()
+  const { user } = useAuth()
   const location = useLocation()
 
   const [story, setStory] = useState<StoryResponse | null>(null)
@@ -71,7 +73,7 @@ export function StoryDetailPage() {
   const [newTaskDescription, setNewTaskDescription] = useState('')
   const [newTaskStatus, setNewTaskStatus] = useState<Status>('to_do')
   const [newTaskPriority, setNewTaskPriority] = useState<Priority>('medium')
-  const [newTaskAssigneeId, setNewTaskAssigneeId] = useState('')
+  const [newTaskAssigneeId, setNewTaskAssigneeId] = useState(user?.id ?? '')
 
   useEffect(() => {
     if ((location.state as { modal?: string } | null)?.modal === 'create-task') {
@@ -89,7 +91,7 @@ export function StoryDetailPage() {
         setNewTaskDescription('')
         setNewTaskStatus('to_do')
         setNewTaskPriority('medium')
-        setNewTaskAssigneeId('')
+        setNewTaskAssigneeId(user?.id ?? '')
       }
     }
     document.addEventListener('keydown', handleKeyDown)
@@ -178,7 +180,7 @@ export function StoryDetailPage() {
       setNewTaskDescription('')
       setNewTaskStatus('to_do')
       setNewTaskPriority('medium')
-      setNewTaskAssigneeId('')
+      setNewTaskAssigneeId(user?.id ?? '')
       tasksHook.refresh()
       addToast('Task created')
     } finally {
@@ -467,7 +469,7 @@ export function StoryDetailPage() {
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-1">
-                <button type="button" onClick={() => { setShowCreateTask(false); setNewTaskTitle(''); setNewTaskDescription(''); setNewTaskStatus('to_do'); setNewTaskPriority('medium'); setNewTaskAssigneeId('') }} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
+                <button type="button" onClick={() => { setShowCreateTask(false); setNewTaskTitle(''); setNewTaskDescription(''); setNewTaskStatus('to_do'); setNewTaskPriority('medium'); setNewTaskAssigneeId(user?.id ?? '') }} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
                   {t('actions.cancel')}
                 </button>
                 <button type="submit" disabled={creatingTask} className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md disabled:opacity-50">
