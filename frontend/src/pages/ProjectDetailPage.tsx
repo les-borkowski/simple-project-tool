@@ -14,6 +14,7 @@ import { MarkdownEditor } from '../components/common/MarkdownEditor'
 import { SkeletonCard } from '../components/common/Skeleton'
 import { useToast } from '../context/ToastContext'
 import { formatRelative } from '../utils/time'
+import { useAuth } from '../context/AuthContext'
 
 type Tab = 'board' | 'stories' | 'members'
 
@@ -141,6 +142,7 @@ export function ProjectDetailPage() {
   const location = useLocation()
   const { isManager } = useRole(id)
   const { addToast } = useToast()
+  const { user } = useAuth()
 
   const [project, setProject] = useState<ProjectResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -180,7 +182,7 @@ export function ProjectDetailPage() {
   const [newTaskDescription, setNewTaskDescription] = useState('')
   const [newTaskPriority, setNewTaskPriority] = useState<Priority>('medium')
   const [newTaskStoryId, setNewTaskStoryId] = useState('')
-  const [newTaskAssigneeId, setNewTaskAssigneeId] = useState('')
+  const [newTaskAssigneeId, setNewTaskAssigneeId] = useState(user?.id ?? '')
   const [creatingTask, setCreatingTask] = useState(false)
 
   const [storySearch, setStorySearch] = useState('')
@@ -372,7 +374,7 @@ export function ProjectDetailPage() {
       setNewTaskDescription('')
       setNewTaskPriority('medium')
       setNewTaskStoryId('')
-      setNewTaskAssigneeId('')
+      setNewTaskAssigneeId(user?.id ?? '')
       addToast('Task created')
     } finally {
       setCreatingTask(false)
