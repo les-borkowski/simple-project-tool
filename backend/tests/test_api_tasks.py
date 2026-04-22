@@ -15,7 +15,35 @@ async def test_create_task(api_client: AsyncClient, manager_headers: dict, test_
     assert data["title"] == "My Task"
     assert data["story_id"] == sid
     assert "id" in data
-    assert data["assignee_id"] is None
+    assert data["assignee_id"] is not None  # defaults to creator
+
+
+@pytest.mark.asyncio
+async def test_create_task_explicit_null_assignee(
+    api_client: AsyncClient, manager_headers: dict, test_story: dict
+):
+    sid = test_story["id"]
+    resp = await api_client.post(
+        f"/api/v1/stories/{sid}/tasks",
+        json={"title": "Unassigned Task", "assignee_id": None},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["assignee_id"] is not None  # null treated same as omit — defaults to creator
+
+
+@pytest.mark.asyncio
+async def test_create_project_task_defaults_to_creator(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict
+):
+    pid = test_project["id"]
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks",
+        json={"title": "Project Task"},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["assignee_id"] is not None  # defaults to creator
 
 
 @pytest.mark.asyncio

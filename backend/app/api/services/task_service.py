@@ -77,7 +77,7 @@ async def create_task(
         description=data.description,
         status=data.status or StatusEnum.to_do,
         priority=data.priority or PriorityEnum.medium,
-        assignee_id=data.assignee_id,
+        assignee_id=data.assignee_id if data.assignee_id is not None else user.id,
         created_by=user.id,
     )
     db.add(task)
@@ -112,7 +112,7 @@ async def create_task_for_project(
         description=data.description,
         status=data.status or StatusEnum.to_do,
         priority=data.priority or PriorityEnum.medium,
-        assignee_id=data.assignee_id,
+        assignee_id=data.assignee_id if data.assignee_id is not None else user.id,
         created_by=user.id,
     )
     db.add(task)
