@@ -250,7 +250,7 @@ export function ProjectDetailPage() {
         setCreateTaskStatus('to_do')
         setNewTaskPriority('medium')
         setNewTaskStoryId('')
-        setNewTaskAssigneeId('')
+        setNewTaskAssigneeId(user?.id ?? '')
       }
     }
     document.addEventListener('keydown', handleKeyDown)
@@ -947,7 +947,7 @@ export function ProjectDetailPage() {
               <div className="flex justify-end gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={() => { setShowCreateTask(false); setNewTaskTitle(''); setNewTaskDescription(''); setCreateTaskStatus('to_do'); setNewTaskPriority('medium'); setNewTaskStoryId(''); setNewTaskAssigneeId('') }}
+                  onClick={() => { setShowCreateTask(false); setNewTaskTitle(''); setNewTaskDescription(''); setCreateTaskStatus('to_do'); setNewTaskPriority('medium'); setNewTaskStoryId(''); setNewTaskAssigneeId(user?.id ?? '') }}
                   className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
                 >
                   {t('actions.cancel')}
