@@ -76,6 +76,10 @@ export function StoryDetailPage() {
   const [newTaskAssigneeId, setNewTaskAssigneeId] = useState(user?.id ?? '')
 
   useEffect(() => {
+    if (user?.id && !newTaskAssigneeId) setNewTaskAssigneeId(user.id)
+  }, [user?.id])
+
+  useEffect(() => {
     if ((location.state as { modal?: string } | null)?.modal === 'create-task') {
       setShowCreateTask(true)
       window.history.replaceState({}, '')

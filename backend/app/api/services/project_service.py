@@ -95,6 +95,10 @@ async def create_project(
     db.add(project)
     await db.flush()
 
+    # Seed creator as manager member
+    member = ProjectMember(project_id=project.id, user_id=user.id, role=RoleEnum.manager)
+    db.add(member)
+
     # Record initial status in history
     history = StatusHistory(
         project_id=project.id,

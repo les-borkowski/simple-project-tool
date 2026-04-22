@@ -75,6 +75,10 @@ export function BacklogPage() {
   const [newTaskAssigneeId, setNewTaskAssigneeId] = useState(user?.id ?? '')
   const [newTaskStoryId, setNewTaskStoryId] = useState('')
 
+  useEffect(() => {
+    if (user?.id && !newTaskAssigneeId) setNewTaskAssigneeId(user.id)
+  }, [user?.id])
+
   const fetchTasks = useCallback(async () => {
     if (!projectId) return
     const res = await tasksApi.listForProject(projectId, { unassigned: true, limit: 25 })

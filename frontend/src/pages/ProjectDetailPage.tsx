@@ -185,6 +185,10 @@ export function ProjectDetailPage() {
   const [newTaskAssigneeId, setNewTaskAssigneeId] = useState(user?.id ?? '')
   const [creatingTask, setCreatingTask] = useState(false)
 
+  useEffect(() => {
+    if (user?.id && !newTaskAssigneeId) setNewTaskAssigneeId(user.id)
+  }, [user?.id])
+
   const [storySearch, setStorySearch] = useState('')
   const [storyFilterStatus, setStoryFilterStatus] = useState<Status | 'all'>('all')
   const [storyFilterPriority, setStoryFilterPriority] = useState<Priority | 'all'>('all')
