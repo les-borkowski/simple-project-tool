@@ -12,6 +12,7 @@ import { ConfirmDialog } from '../components/common/ConfirmDialog'
 import { MarkdownEditor } from '../components/common/MarkdownEditor'
 import { SkeletonCard } from '../components/common/Skeleton'
 import { useToast } from '../context/ToastContext'
+import { useAuth } from '../context/AuthContext'
 import { formatRelative } from '../utils/time'
 
 const IPlus = () => (
@@ -49,6 +50,7 @@ export function BacklogPage() {
   const { t } = useTranslation()
   const { isManager } = useRole(projectId)
   const { addToast } = useToast()
+  const { user } = useAuth()
 
   const [projectName, setProjectName] = useState('')
   const [members, setMembers] = useState<MemberResponse[]>([])
@@ -70,7 +72,7 @@ export function BacklogPage() {
   const [newTaskDescription, setNewTaskDescription] = useState('')
   const [newTaskStatus, setNewTaskStatus] = useState<Status>('to_do')
   const [newTaskPriority, setNewTaskPriority] = useState<Priority>('medium')
-  const [newTaskAssigneeId, setNewTaskAssigneeId] = useState('')
+  const [newTaskAssigneeId, setNewTaskAssigneeId] = useState(user?.id ?? '')
   const [newTaskStoryId, setNewTaskStoryId] = useState('')
 
   const fetchTasks = useCallback(async () => {
@@ -140,7 +142,7 @@ export function BacklogPage() {
     setNewTaskDescription('')
     setNewTaskStatus('to_do')
     setNewTaskPriority('medium')
-    setNewTaskAssigneeId('')
+    setNewTaskAssigneeId(user?.id ?? '')
     setNewTaskStoryId('')
   }
 
