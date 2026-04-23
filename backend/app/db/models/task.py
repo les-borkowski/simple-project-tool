@@ -1,15 +1,17 @@
 import uuid
+from datetime import date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Index, String, Text
+from sqlalchemy import Date, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, PriorityEnum, TimestampMixin
 
 if TYPE_CHECKING:
-    from app.db.models.story import Story
     from app.db.models.project import Project
+    from app.db.models.sprint import Sprint
+    from app.db.models.story import Story
     from app.db.models.user import User
 
 
@@ -40,7 +42,13 @@ class Task(TimestampMixin, Base):
     updated_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
+    effort: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    sprint_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sprints.id", ondelete="SET NULL"), nullable=True
+    )
 
     project: Mapped["Project"] = relationship("Project", back_populates="tasks")
     story: Mapped["Story | None"] = relationship("Story", back_populates="tasks")
     assignee: Mapped["User | None"] = relationship("User", foreign_keys=[assignee_id])
+    sprint: Mapped["Sprint | None"] = relationship("Sprint", foreign_keys=[sprint_id])

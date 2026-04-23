@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.db.models.invitation import Invitation
     from app.db.models.project_member import ProjectMember
     from app.db.models.project_status import ProjectStatus
+    from app.db.models.sprint import Sprint
     from app.db.models.story import Story
     from app.db.models.task import Task
     from app.db.models.user import User
@@ -29,6 +30,7 @@ class Project(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(100), default="to_do", nullable=False)
     priority: Mapped[PriorityEnum] = mapped_column(default=PriorityEnum.medium, nullable=False)
     archived_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    effort_unit: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )
@@ -51,4 +53,7 @@ class Project(TimestampMixin, Base):
     )
     tasks: Mapped[list["Task"]] = relationship(
         "Task", back_populates="project", cascade="all, delete-orphan"
+    )
+    sprints: Mapped[list["Sprint"]] = relationship(
+        "Sprint", back_populates="project", cascade="all, delete-orphan"
     )

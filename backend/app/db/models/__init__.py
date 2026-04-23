@@ -4,6 +4,7 @@ from app.db.models.invitation import Invitation
 from app.db.models.project import Project
 from app.db.models.project_member import ProjectMember
 from app.db.models.project_status import ProjectStatus
+from app.db.models.sprint import Sprint
 from app.db.models.status_history import StatusHistory
 from app.db.models.story import Story
 from app.db.models.task import Task
@@ -16,6 +17,7 @@ __all__ = [
     "Project",
     "ProjectMember",
     "ProjectStatus",
+    "Sprint",
     "Story",
     "Task",
     "Comment",
