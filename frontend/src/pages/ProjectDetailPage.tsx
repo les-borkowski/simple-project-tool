@@ -5,6 +5,7 @@ import { projectsApi, invitationsApi, storiesApi, tasksApi } from '../services/a
 import type { ProjectResponse, MemberResponse, StoryResponse, TaskResponse, Status, Priority, Role } from '../services/api'
 import { useRole } from '../hooks/useRole'
 import { useStories } from '../hooks/useStories'
+import { useProjectStatuses } from '../hooks/useProjectStatuses'
 import { StatusPill } from '../components/common/StatusPill'
 import { PriorityBars } from '../components/common/PriorityBars'
 import { LoadMoreButton } from '../components/common/LoadMoreButton'
@@ -18,12 +19,6 @@ import { useAuth } from '../context/AuthContext'
 
 type Tab = 'board' | 'stories' | 'members'
 
-const STATUS_IDS: Status[] = ['to_do', 'in_progress', 'in_review', 'in_testing', 'done']
-
-const STATUS_VARS: Record<Status, string> = {
-  to_do: '--st-todo', in_progress: '--st-prog', in_review: '--st-rev',
-  in_testing: '--st-test', done: '--st-done',
-}
 
 const IPlus = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -153,6 +148,7 @@ export function ProjectDetailPage() {
   const [editingPriority, setEditingPriority] = useState(false)
 
   const storiesHook = useStories(id ?? '')
+  const { statuses: projectStatuses } = useProjectStatuses(id)
 
   const [showCreateStory, setShowCreateStory] = useState(false)
   const [newStoryTitle, setNewStoryTitle] = useState('')
@@ -188,6 +184,12 @@ export function ProjectDetailPage() {
   useEffect(() => {
     if (user?.id && !newTaskAssigneeId) setNewTaskAssigneeId(user.id)
   }, [user?.id])
+
+  useEffect(() => {
+    if (showCreateTask && projectStatuses.length > 0) {
+      setCreateTaskStatus(projectStatuses[0].slug)
+    }
+  }, [showCreateTask, projectStatuses])
 
   const [storySearch, setStorySearch] = useState('')
   const [storyFilterStatus, setStoryFilterStatus] = useState<Status | 'all'>('all')
@@ -495,7 +497,7 @@ export function ProjectDetailPage() {
                 </select>
               ) : (
                 <button onClick={() => setEditingStatus(true)}>
-                  <StatusPill status={project.status} />
+                  <StatusPill status={project.status} statuses={projectStatuses} />
                 </button>
               )}
               {editingPriority ? (
@@ -645,13 +647,13 @@ export function ProjectDetailPage() {
           </div>
           <div className="flex-1 overflow-x-auto scroll-hidden bg-stone-50 dark:bg-stone-950/50 fine-grid">
             <div className="flex gap-3 px-7 py-5 min-w-min min-h-full">
-              {STATUS_IDS.map((statusId) => {
-                const columnTasks = filteredBoardTasks.filter(({ task }) => task.status === statusId)
+              {projectStatuses.map((ps) => {
+                const columnTasks = filteredBoardTasks.filter(({ task }) => task.status === ps.slug)
                 return (
-                  <div key={statusId} className="w-[272px] shrink-0">
+                  <div key={ps.slug} className="w-[272px] shrink-0">
                     <div className="flex items-center gap-2 px-1 mb-2">
-                      <span className="w-2 h-2 rounded-full" style={{ background: `var(${STATUS_VARS[statusId]})` }} />
-                      <span className="text-[12px] font-medium">{t(`status.${statusId}`)}</span>
+                      <span className="w-2 h-2 rounded-full" style={{ background: ps.colour }} />
+                      <span className="text-[12px] font-medium">{ps.name}</span>
                       <span className="text-[11px] text-stone-400 tabular-nums">{columnTasks.length}</span>
                     </div>
                     <div className="space-y-1.5">
@@ -665,6 +667,47 @@ export function ProjectDetailPage() {
                   </div>
                 )
               })}
+
+              {/* Unlisted statuses section */}
+              {(() => {
+                const knownSlugs = new Set(projectStatuses.map((s) => s.slug))
+                const unlistedSlugs = [
+                  ...new Set(
+                    filteredBoardTasks
+                      .filter(({ task }) => !knownSlugs.has(task.status))
+                      .map(({ task }) => task.status)
+                  ),
+                ]
+                if (unlistedSlugs.length === 0) return null
+                return (
+                  <>
+                    <div className="shrink-0 flex items-center gap-3 self-stretch">
+                      <div className="w-px bg-stone-200 dark:bg-stone-700 self-stretch" />
+                      <span className="text-[11px] text-stone-400 whitespace-nowrap">
+                        {t('project_statuses.unlisted')}
+                      </span>
+                      <div className="w-px bg-stone-200 dark:bg-stone-700 self-stretch" />
+                    </div>
+                    {unlistedSlugs.map((slug) => {
+                      const columnTasks = filteredBoardTasks.filter(({ task }) => task.status === slug)
+                      return (
+                        <div key={slug} className="w-[272px] shrink-0">
+                          <div className="flex items-center gap-2 px-1 mb-2">
+                            <span className="w-2 h-2 rounded-full bg-stone-300 dark:bg-stone-600" />
+                            <span className="text-[12px] font-medium text-stone-400 font-mono">{slug}</span>
+                            <span className="text-[11px] text-stone-400 tabular-nums">{columnTasks.length}</span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {columnTasks.map(({ task, story }) => (
+                              <BoardCard key={task.id} task={task} storyTitle={story?.title} />
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </>
+                )
+              })()}
             </div>
           </div>
         </>
@@ -755,7 +798,7 @@ export function ProjectDetailPage() {
                             {story.title}
                           </Link>
                         </div>
-                        <StatusPill status={story.status} />
+                        <StatusPill status={story.status} statuses={projectStatuses} />
                         <PriorityBars priority={story.priority} withLabel />
                         <span className="text-[12px] text-stone-500">{tasksByStory[story.id]?.length ?? '…'}</span>
                         <div className="flex items-center justify-end gap-2">
@@ -788,7 +831,7 @@ export function ProjectDetailPage() {
                               className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-1.5 pl-8 bg-stone-50/60 dark:bg-stone-900/20 hover:bg-stone-100/60 dark:hover:bg-stone-900/40 border-t border-stone-100/60 dark:border-stone-800/40 first:border-t-0"
                             >
                               <span className="text-[12px] text-stone-600 dark:text-stone-400 truncate">{task.title}</span>
-                              <StatusPill status={task.status} />
+                              <StatusPill status={task.status} statuses={projectStatuses} />
                               <PriorityBars priority={task.priority} withLabel />
                               <span />
                               <span className="text-[11px] text-stone-400 text-right">{formatRelative(task.created_at)}</span>
@@ -816,7 +859,7 @@ export function ProjectDetailPage() {
                             className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-1.5 pl-8 bg-stone-50/60 dark:bg-stone-900/20 hover:bg-stone-100/60 dark:hover:bg-stone-900/40 border-t border-stone-100/60 dark:border-stone-800/40 first:border-t-0"
                           >
                             <span className="text-[12px] text-stone-600 dark:text-stone-400 truncate">{task.title}</span>
-                            <StatusPill status={task.status} />
+                            <StatusPill status={task.status} statuses={projectStatuses} />
                             <PriorityBars priority={task.priority} withLabel />
                             <span />
                             <span className="text-[11px] text-stone-400 text-right">{formatRelative(task.created_at)}</span>
@@ -909,7 +952,9 @@ export function ProjectDetailPage() {
                     onChange={(e) => setCreateTaskStatus(e.target.value as Status)}
                     className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
                   >
-                    {statuses.map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
+                    {projectStatuses.map((ps) => (
+                      <option key={ps.slug} value={ps.slug}>{ps.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-1">
