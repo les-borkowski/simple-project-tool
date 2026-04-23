@@ -5,7 +5,7 @@ import i18n from '../i18n'
 // Types
 // ---------------------------------------------------------------------------
 
-export type Status = 'to_do' | 'in_progress' | 'in_review' | 'in_testing' | 'done'
+export type Status = string
 export type Priority = 'low' | 'medium' | 'high'
 export type Role = 'manager' | 'contributor'
 export type Theme = 'light' | 'dark' | 'system'
@@ -103,6 +103,15 @@ export interface StatusHistoryEntry {
   changed_by_name: string
   changed_at: string
   elapsed_seconds: number | null
+}
+
+export interface ProjectStatusResponse {
+  id: string
+  project_id: string
+  slug: string
+  name: string
+  colour: string
+  order: number
 }
 
 export interface TimeMetrics {
@@ -228,6 +237,26 @@ export const projectsApi = {
     api.patch(`/projects/${id}/members/${userId}`, data),
   removeMember: (id: string, userId: string) =>
     api.delete(`/projects/${id}/members/${userId}`),
+}
+
+// ---------------------------------------------------------------------------
+// Project Statuses API
+// ---------------------------------------------------------------------------
+
+export const statusesApi = {
+  list: (projectId: string) =>
+    api.get<ProjectStatusResponse[]>(`/projects/${projectId}/statuses`),
+  create: (
+    projectId: string,
+    data: { slug: string; name: string; colour: string; order: number }
+  ) => api.post<ProjectStatusResponse>(`/projects/${projectId}/statuses`, data),
+  update: (
+    projectId: string,
+    statusId: string,
+    data: { name?: string; colour?: string; order?: number }
+  ) => api.patch<ProjectStatusResponse>(`/projects/${projectId}/statuses/${statusId}`, data),
+  delete: (projectId: string, statusId: string) =>
+    api.delete(`/projects/${projectId}/statuses/${statusId}`),
 }
 
 // ---------------------------------------------------------------------------
