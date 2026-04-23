@@ -6,7 +6,7 @@ from fastapi import HTTPException
 
 from app.auth.permissions import require_project_access, require_manager
 from app.db.models import Project, ProjectMember, User, StatusHistory
-from app.db.base import PriorityEnum, RoleEnum, StatusEnum
+from app.db.base import PriorityEnum, RoleEnum
 from app.api.schemas.project import (
     ProjectCreate,
     ProjectUpdate,
@@ -17,7 +17,6 @@ from app.api.schemas.project import (
 )
 from app.api.schemas.common import PaginatedResponse
 from app.api.pagination import encode_cursor, decode_cursor
-from app.api.services import project_status_service
 
 
 async def list_projects(
@@ -85,10 +84,16 @@ async def create_project(
     """Create a new project. Only managers can create projects."""
     require_manager(user.role)
 
+    from app.api.services.project_status_service import (
+        seed_default_statuses,
+        get_default_status_slug,
+        validate_status_slug,
+    )
+
     project = Project(
         name=data.name,
         description=data.description,
-        status=data.status or StatusEnum.to_do,
+        status="to_do",  # placeholder — overwritten after seeding
         priority=data.priority or PriorityEnum.medium,
         owner_id=user.id,
         created_by=user.id,
@@ -96,11 +101,21 @@ async def create_project(
     db.add(project)
     await db.flush()
 
-    # Seed creator as manager member
-    member = ProjectMember(project_id=project.id, user_id=user.id, role=RoleEnum.manager)
+    member = ProjectMember(
+        project_id=project.id,
+        user_id=user.id,
+        role=user.role,
+    )
     db.add(member)
 
-    # Record initial status in history
+    await seed_default_statuses(project.id, db)
+    await db.flush()
+
+    if data.status:
+        project.status = await validate_status_slug(project.id, data.status, db)
+    else:
+        project.status = await get_default_status_slug(project.id, db)
+
     history = StatusHistory(
         project_id=project.id,
         from_status=None,
@@ -108,10 +123,6 @@ async def create_project(
         changed_by=user.id,
     )
     db.add(history)
-
-    # Seed default custom statuses
-    await project_status_service.seed_default_statuses(project.id, db)
-
     await db.commit()
 
     return ProjectResponse.model_validate(project)
@@ -146,7 +157,8 @@ async def update_project(
     if data.description is not None:
         project.description = data.description
     if data.status is not None:
-        project.status = data.status
+        from app.api.services.project_status_service import validate_status_slug
+        project.status = await validate_status_slug(project_id, data.status, db)
     if data.priority is not None:
         project.priority = data.priority
 

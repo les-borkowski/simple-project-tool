@@ -80,3 +80,33 @@ async def test_archive_and_restore(api_client: AsyncClient, manager_headers: dic
     restore = await api_client.post(f"/api/v1/projects/{pid}/restore", headers=manager_headers)
     assert restore.status_code == 200
     assert restore.json()["archived_at"] is None
+
+
+@pytest.mark.asyncio
+async def test_create_project_seeds_default_statuses(
+    api_client: AsyncClient, manager_headers: dict
+):
+    resp = await api_client.post(
+        "/api/v1/projects",
+        json={"name": "Status Test Project"},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 201
+    pid = resp.json()["id"]
+
+    statuses = await api_client.get(f"/api/v1/projects/{pid}/statuses", headers=manager_headers)
+    assert statuses.status_code == 200
+    slugs = [s["slug"] for s in statuses.json()]
+    assert slugs == ["to_do", "in_progress", "in_review", "done"]
+
+
+@pytest.mark.asyncio
+async def test_create_project_with_invalid_status_rejected(
+    api_client: AsyncClient, manager_headers: dict
+):
+    resp = await api_client.post(
+        "/api/v1/projects",
+        json={"name": "Bad Status", "status": "nonexistent_status"},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 422
