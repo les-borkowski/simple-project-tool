@@ -6,11 +6,12 @@ from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, PriorityEnum, StatusEnum, TimestampMixin
+from app.db.base import Base, PriorityEnum, TimestampMixin
 
 if TYPE_CHECKING:
     from app.db.models.invitation import Invitation
     from app.db.models.project_member import ProjectMember
+    from app.db.models.project_status import ProjectStatus
     from app.db.models.story import Story
     from app.db.models.task import Task
     from app.db.models.user import User
@@ -25,7 +26,7 @@ class Project(TimestampMixin, Base):
     owner_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )
-    status: Mapped[StatusEnum] = mapped_column(default=StatusEnum.to_do, nullable=False)
+    status: Mapped[str] = mapped_column(String(100), default="to_do", nullable=False)
     priority: Mapped[PriorityEnum] = mapped_column(default=PriorityEnum.medium, nullable=False)
     archived_at: Mapped[datetime | None] = mapped_column(nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(
@@ -38,6 +39,9 @@ class Project(TimestampMixin, Base):
     owner: Mapped["User"] = relationship("User", foreign_keys=[owner_id])
     members: Mapped[list["ProjectMember"]] = relationship(
         "ProjectMember", back_populates="project", cascade="all, delete-orphan"
+    )
+    statuses: Mapped[list["ProjectStatus"]] = relationship(
+        "ProjectStatus", cascade="all, delete-orphan", order_by="ProjectStatus.order"
     )
     stories: Mapped[list["Story"]] = relationship(
         "Story", back_populates="project", cascade="all, delete-orphan"

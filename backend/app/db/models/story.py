@@ -5,7 +5,7 @@ from sqlalchemy import ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, PriorityEnum, StatusEnum, TimestampMixin
+from app.db.base import Base, PriorityEnum, TimestampMixin
 
 if TYPE_CHECKING:
     from app.db.models.project import Project
@@ -22,7 +22,7 @@ class Story(TimestampMixin, Base):
     )
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[StatusEnum] = mapped_column(default=StatusEnum.to_do, nullable=False)
+    status: Mapped[str] = mapped_column(String(100), default="to_do", nullable=False)
     priority: Mapped[PriorityEnum] = mapped_column(default=PriorityEnum.medium, nullable=False)
     created_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False

@@ -2,11 +2,11 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, func
+from sqlalchemy import CheckConstraint, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, StatusEnum
+from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.db.models.user import User
@@ -34,8 +34,8 @@ class StatusHistory(Base):
     task_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True
     )
-    from_status: Mapped[StatusEnum | None] = mapped_column(nullable=True)
-    to_status: Mapped[StatusEnum] = mapped_column(nullable=False)
+    from_status: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    to_status: Mapped[str] = mapped_column(String(100), nullable=False)
     changed_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )
