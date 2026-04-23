@@ -17,7 +17,36 @@ async def list_sprints(
     await require_project_access(user, project_id, db)
     stmt = select(Sprint).where(Sprint.project_id == project_id).order_by(Sprint.start_date)
     sprints = list((await db.scalars(stmt)).all())
-    return [await _build_response(s, db) for s in sprints]
+    if not sprints:
+        return []
+    sprint_ids = [s.id for s in sprints]
+    agg_stmt = (
+        select(
+            Task.sprint_id,
+            func.count(Task.id).label("task_count"),
+            func.coalesce(func.sum(Task.effort), 0).label("total_effort"),
+        )
+        .where(Task.sprint_id.in_(sprint_ids))
+        .group_by(Task.sprint_id)
+    )
+    rows = (await db.execute(agg_stmt)).all()
+    agg: dict[uuid.UUID, tuple[int, int]] = {
+        r.sprint_id: (r.task_count, r.total_effort) for r in rows
+    }
+    return [
+        SprintResponse(
+            id=s.id,
+            project_id=s.project_id,
+            name=s.name,
+            start_date=s.start_date,
+            end_date=s.end_date,
+            capacity=s.capacity,
+            created_by=s.created_by,
+            task_count=agg.get(s.id, (0, 0))[0],
+            total_effort=agg.get(s.id, (0, 0))[1],
+        )
+        for s in sprints
+    ]
 
 
 async def create_sprint(
@@ -35,6 +64,7 @@ async def create_sprint(
     )
     db.add(sprint)
     await db.commit()
+    await db.refresh(sprint)
     return await _build_response(sprint, db)
 
 
@@ -55,6 +85,7 @@ async def update_sprint(
     if 'capacity' in data.model_fields_set:
         sprint.capacity = data.capacity
     await db.commit()
+    await db.refresh(sprint)
     return await _build_response(sprint, db)
 
 

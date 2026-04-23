@@ -1,6 +1,7 @@
 from datetime import date
 from uuid import UUID
-from pydantic import BaseModel
+
+from pydantic import BaseModel, model_validator
 
 
 class SprintCreate(BaseModel):
@@ -8,6 +9,12 @@ class SprintCreate(BaseModel):
     start_date: date
     end_date: date
     capacity: int | None = None
+
+    @model_validator(mode='after')
+    def end_after_start(self) -> 'SprintCreate':
+        if self.end_date < self.start_date:
+            raise ValueError('end_date must be on or after start_date')
+        return self
 
 
 class SprintUpdate(BaseModel):

@@ -109,3 +109,37 @@ async def test_update_sprint_clears_capacity(
     )
     assert resp.status_code == 200
     assert resp.json()["capacity"] is None
+
+
+@pytest.mark.asyncio
+async def test_update_sprint_requires_manager(
+    api_client: AsyncClient, manager_headers: dict, auth_headers: dict, test_project: dict
+):
+    pid = test_project["id"]
+    r = await api_client.post(
+        f"/api/v1/projects/{pid}/sprints",
+        json={"name": "Sprint 1", "start_date": "2026-05-01", "end_date": "2026-05-14"},
+        headers=manager_headers,
+    )
+    sid = r.json()["id"]
+    resp = await api_client.patch(
+        f"/api/v1/sprints/{sid}",
+        json={"name": "Changed"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_delete_sprint_requires_manager(
+    api_client: AsyncClient, manager_headers: dict, auth_headers: dict, test_project: dict
+):
+    pid = test_project["id"]
+    r = await api_client.post(
+        f"/api/v1/projects/{pid}/sprints",
+        json={"name": "Sprint 1", "start_date": "2026-05-01", "end_date": "2026-05-14"},
+        headers=manager_headers,
+    )
+    sid = r.json()["id"]
+    resp = await api_client.delete(f"/api/v1/sprints/{sid}", headers=auth_headers)
+    assert resp.status_code == 403
