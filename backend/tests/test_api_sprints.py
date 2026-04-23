@@ -89,3 +89,23 @@ async def test_create_sprint_requires_manager(
         headers=auth_headers,
     )
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_update_sprint_clears_capacity(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict
+):
+    pid = test_project["id"]
+    r = await api_client.post(
+        f"/api/v1/projects/{pid}/sprints",
+        json={"name": "Sprint 1", "start_date": "2026-05-01", "end_date": "2026-05-14", "capacity": 20},
+        headers=manager_headers,
+    )
+    sid = r.json()["id"]
+    resp = await api_client.patch(
+        f"/api/v1/sprints/{sid}",
+        json={"capacity": None},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["capacity"] is None

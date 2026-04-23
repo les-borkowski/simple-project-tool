@@ -52,7 +52,7 @@ async def update_sprint(
         sprint.start_date = data.start_date
     if data.end_date is not None:
         sprint.end_date = data.end_date
-    if data.capacity is not None:
+    if 'capacity' in data.model_fields_set:
         sprint.capacity = data.capacity
     await db.commit()
     return await _build_response(sprint, db)
