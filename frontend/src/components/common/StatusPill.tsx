@@ -1,26 +1,26 @@
-import type { Status } from '../../services/api'
+import type { ProjectStatusResponse } from '../../services/api'
 
-const STATUS_CLS: Record<Status, string> = {
-  to_do: 'st-todo',
-  in_progress: 'st-prog',
-  in_review: 'st-rev',
-  in_testing: 'st-test',
-  done: 'st-done',
+interface StatusPillProps {
+  status: string
+  statuses?: ProjectStatusResponse[]
+  size?: 'sm' | 'lg'
 }
 
-const STATUS_LABEL: Record<Status, string> = {
-  to_do: 'To do',
-  in_progress: 'In progress',
-  in_review: 'In review',
-  in_testing: 'In testing',
-  done: 'Done',
-}
+export function StatusPill({ status, statuses, size = 'sm' }: StatusPillProps) {
+  const found = statuses?.find((s) => s.slug === status)
+  const colour = found?.colour ?? '#a8a29e'
+  const label = found?.name ?? status
 
-export function StatusPill({ status, size = 'sm' }: { status: Status; size?: 'sm' | 'lg' }) {
   return (
-    <span className={`st-pill ${STATUS_CLS[status]}`} style={{ fontSize: size === 'lg' ? 12 : 11 }}>
-      <span className="dot" />
-      {STATUS_LABEL[status]}
+    <span
+      className="st-pill"
+      style={{
+        fontSize: size === 'lg' ? 12 : 11,
+        '--pill-colour': colour,
+      } as React.CSSProperties}
+    >
+      <span className="dot" style={{ background: colour }} />
+      {label}
     </span>
   )
 }
