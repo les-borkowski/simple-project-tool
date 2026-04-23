@@ -104,7 +104,7 @@ async def create_project(
     member = ProjectMember(
         project_id=project.id,
         user_id=user.id,
-        role=user.role,
+        role=RoleEnum.manager,
     )
     db.add(member)
 
