@@ -1,20 +1,20 @@
 from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel
-from app.db.base import StatusEnum, PriorityEnum
+from app.db.base import PriorityEnum
 
 
 class StoryCreate(BaseModel):
     title: str
     description: str | None = None
-    status: StatusEnum | None = None
+    status: str | None = None
     priority: PriorityEnum | None = None
 
 
 class StoryUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
-    status: StatusEnum | None = None
+    status: str | None = None
     priority: PriorityEnum | None = None
 
 
@@ -23,7 +23,7 @@ class StoryResponse(BaseModel):
     project_id: UUID
     title: str
     description: str | None
-    status: StatusEnum
+    status: str
     priority: PriorityEnum
     created_by: UUID
     created_at: datetime
