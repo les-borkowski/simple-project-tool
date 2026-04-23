@@ -4,8 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
 from app.auth.permissions import require_project_access, require_manager
-from app.db.base import PriorityEnum, StatusEnum
+from app.db.base import PriorityEnum
 from app.db.models import Story, Project, StatusHistory, User
+from app.api.services.project_status_service import validate_status_slug, get_default_status_slug
 from app.api.schemas.story import StoryCreate, StoryUpdate, StoryResponse
 from app.api.schemas.common import PaginatedResponse
 from app.api.pagination import encode_cursor, decode_cursor
@@ -59,11 +60,16 @@ async def create_story(
     """Create a story in a project."""
     await require_project_access(user, project_id, db)
 
+    if data.status is not None:
+        status_val = await validate_status_slug(project_id, data.status, db)
+    else:
+        status_val = await get_default_status_slug(project_id, db)
+
     story = Story(
         project_id=project_id,
         title=data.title,
         description=data.description,
-        status=data.status or StatusEnum.to_do,
+        status=status_val,
         priority=data.priority or PriorityEnum.medium,
         created_by=user.id,
     )
@@ -110,17 +116,17 @@ async def update_story(
     if data.description is not None:
         story.description = data.description
     if data.status is not None:
-        story.status = data.status
+        story.status = await validate_status_slug(story.project_id, data.status, db)
     if data.priority is not None:
         story.priority = data.priority
 
     story.updated_by = user.id
 
-    if data.status is not None and old_status != data.status:
+    if data.status is not None and old_status != story.status:
         history = StatusHistory(
             story_id=story.id,
             from_status=old_status,
-            to_status=data.status,
+            to_status=story.status,
             changed_by=user.id,
         )
         db.add(history)

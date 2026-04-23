@@ -113,3 +113,37 @@ async def test_delete_task(api_client: AsyncClient, manager_headers: dict, test_
 
     get = await api_client.get(f"/api/v1/tasks/{tid}", headers=manager_headers)
     assert get.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_create_task_with_invalid_status_rejected(
+    api_client: AsyncClient, manager_headers: dict, test_story: dict
+):
+    sid = test_story["id"]
+    resp = await api_client.post(
+        f"/api/v1/stories/{sid}/tasks",
+        json={"title": "Bad Status Task", "status": "nonexistent"},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_task_with_valid_custom_status(
+    api_client: AsyncClient, manager_headers: dict, test_story: dict, test_project: dict
+):
+    pid = test_project["id"]
+    # Create a custom status on the project
+    await api_client.post(
+        f"/api/v1/projects/{pid}/statuses",
+        json={"slug": "deployed", "name": "Deployed", "colour": "#7c3aed", "order": 10},
+        headers=manager_headers,
+    )
+    sid = test_story["id"]
+    resp = await api_client.post(
+        f"/api/v1/stories/{sid}/tasks",
+        json={"title": "Deployed Task", "status": "deployed"},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["status"] == "deployed"

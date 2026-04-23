@@ -4,8 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
 from app.auth.permissions import require_project_access, resolve_role, require_manager
-from app.db.base import PriorityEnum, StatusEnum
+from app.db.base import PriorityEnum
 from app.db.models import Task, Story, Project, StatusHistory, User
+from app.api.services.project_status_service import validate_status_slug, get_default_status_slug
 from app.api.schemas.task import TaskCreate, TaskUpdate, TaskResponse
 from app.api.schemas.common import PaginatedResponse
 from app.api.pagination import encode_cursor, decode_cursor
@@ -70,12 +71,17 @@ async def create_task(
 
     await require_project_access(user, story.project_id, db)
 
+    if data.status is not None:
+        status_val = await validate_status_slug(story.project_id, data.status, db)
+    else:
+        status_val = await get_default_status_slug(story.project_id, db)
+
     task = Task(
         project_id=story.project_id,
         story_id=story_id,
         title=data.title,
         description=data.description,
-        status=data.status or StatusEnum.to_do,
+        status=status_val,
         priority=data.priority or PriorityEnum.medium,
         assignee_id=data.assignee_id if data.assignee_id is not None else user.id,
         created_by=user.id,
@@ -105,12 +111,17 @@ async def create_task_for_project(
 
     await require_project_access(user, project_id, db)
 
+    if data.status is not None:
+        status_val = await validate_status_slug(project_id, data.status, db)
+    else:
+        status_val = await get_default_status_slug(project_id, db)
+
     task = Task(
         project_id=project_id,
         story_id=None,
         title=data.title,
         description=data.description,
-        status=data.status or StatusEnum.to_do,
+        status=status_val,
         priority=data.priority or PriorityEnum.medium,
         assignee_id=data.assignee_id if data.assignee_id is not None else user.id,
         created_by=user.id,
@@ -210,7 +221,7 @@ async def update_task(
     if data.description is not None:
         task.description = data.description
     if data.status is not None:
-        task.status = data.status
+        task.status = await validate_status_slug(task.project_id, data.status, db)
     if data.priority is not None:
         task.priority = data.priority
     if data.assignee_id is not None:
@@ -218,11 +229,11 @@ async def update_task(
 
     task.updated_by = user.id
 
-    if data.status is not None and old_status != data.status:
+    if data.status is not None and old_status != task.status:
         history = StatusHistory(
             task_id=task.id,
             from_status=old_status,
-            to_status=data.status,
+            to_status=task.status,
             changed_by=user.id,
         )
         db.add(history)
