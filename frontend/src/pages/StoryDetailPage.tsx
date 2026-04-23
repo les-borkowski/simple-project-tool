@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm'
 import { storiesApi, tasksApi, projectsApi } from '../services/api'
 import type { StoryResponse, Status, Priority, MemberResponse } from '../services/api'
 import { useRole } from '../hooks/useRole'
+import { useProjectStatuses } from '../hooks/useProjectStatuses'
 import { useTasks } from '../hooks/useTasks'
 import { StatusPill } from '../components/common/StatusPill'
 import { PriorityBars } from '../components/common/PriorityBars'
@@ -54,6 +55,7 @@ export function StoryDetailPage() {
   const { projectId, storyId } = useParams<{ projectId: string; storyId: string }>()
   const { t } = useTranslation()
   const { isManager } = useRole(projectId)
+  const { statuses: projectStatuses } = useProjectStatuses(projectId)
   const { addToast } = useToast()
   const { user } = useAuth()
   const location = useLocation()
@@ -192,7 +194,6 @@ export function StoryDetailPage() {
     }
   }
 
-  const statuses: Status[] = ['to_do', 'in_progress', 'in_review', 'in_testing', 'done']
   const priorities: Priority[] = ['low', 'medium', 'high']
 
   if (loading) return (
@@ -232,10 +233,12 @@ export function StoryDetailPage() {
                   onBlur={() => setEditingStatus(false)}
                   className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
                 >
-                  {statuses.map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
+                  {projectStatuses.map((ps) => (
+                    <option key={ps.slug} value={ps.slug}>{ps.name}</option>
+                  ))}
                 </select>
               ) : (
-                <button onClick={() => setEditingStatus(true)}><StatusPill status={story.status} /></button>
+                <button onClick={() => setEditingStatus(true)}><StatusPill status={story.status} statuses={projectStatuses} /></button>
               )}
               {editingPriority ? (
                 <select
@@ -357,11 +360,13 @@ export function StoryDetailPage() {
                           onBlur={() => setEditingTaskField(null)}
                           className="text-[11px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
                         >
-                          {statuses.map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
+                          {projectStatuses.map((ps) => (
+                            <option key={ps.slug} value={ps.slug}>{ps.name}</option>
+                          ))}
                         </select>
                       ) : (
                         <button onClick={() => setEditingTaskField({ id: task.id, field: 'status' })}>
-                          <StatusPill status={task.status} />
+                          <StatusPill status={task.status} statuses={projectStatuses} />
                         </button>
                       )}
                       {task.assignee_id && (() => {
@@ -403,7 +408,7 @@ export function StoryDetailPage() {
 
         {/* Right rail */}
         <aside className="border-l border-stone-200 dark:border-stone-800 bg-stone-50/40 dark:bg-stone-950/30 px-5 py-5 space-y-5 text-[12.5px]">
-          <DetailField label={t('detail.status')}><StatusPill status={story.status} /></DetailField>
+          <DetailField label={t('detail.status')}><StatusPill status={story.status} statuses={projectStatuses} /></DetailField>
           <DetailField label={t('detail.priority')}><PriorityBars priority={story.priority} withLabel /></DetailField>
           <DetailField label={t('detail.project')}><span className="text-stone-700 dark:text-stone-200">{projectName}</span></DetailField>
           <DetailField label={t('detail.created')}><span className="text-stone-500">{formatRelative(story.created_at)}</span></DetailField>
@@ -445,7 +450,9 @@ export function StoryDetailPage() {
                     onChange={(e) => setNewTaskStatus(e.target.value as Status)}
                     className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
                   >
-                    {statuses.map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
+                    {projectStatuses.map((ps) => (
+                      <option key={ps.slug} value={ps.slug}>{ps.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-1">

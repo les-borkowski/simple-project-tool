@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { tasksApi, projectsApi, storiesApi } from '../services/api'
 import type { TaskResponse, MemberResponse, Status, Priority, StoryResponse } from '../services/api'
+import { useProjectStatuses } from '../hooks/useProjectStatuses'
 import { StatusPill } from '../components/common/StatusPill'
 import { PriorityBars } from '../components/common/PriorityBars'
 import { MarkdownEditor } from '../components/common/MarkdownEditor'
@@ -35,6 +36,7 @@ export function TaskDetailPage() {
   const { addToast } = useToast()
 
   const [task, setTask] = useState<TaskResponse | null>(null)
+  const { statuses: projectStatuses } = useProjectStatuses(task?.project_id)
   const [story, setStory] = useState<StoryResponse | null>(null)
   const [projectName, setProjectName] = useState('')
   const [members, setMembers] = useState<MemberResponse[]>([])
@@ -114,7 +116,6 @@ export function TaskDetailPage() {
     addToast('Description saved')
   }
 
-  const statuses: Status[] = ['to_do', 'in_progress', 'in_review', 'in_testing', 'done']
   const priorities: Priority[] = ['low', 'medium', 'high']
 
   if (loading) return (
@@ -180,14 +181,16 @@ export function TaskDetailPage() {
                   onBlur={() => setEditingStatus(false)}
                   className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
                 >
-                  {statuses.map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
+                  {projectStatuses.map((ps) => (
+                    <option key={ps.slug} value={ps.slug}>{ps.name}</option>
+                  ))}
                 </select>
               ) : (
                 <button
                   onClick={() => setEditingStatus(true)}
                   className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-stone-100 dark:hover:bg-stone-900"
                 >
-                  <StatusPill status={task.status} /> <ICaret />
+                  <StatusPill status={task.status} statuses={projectStatuses} /> <ICaret />
                 </button>
               )}
               {editingPriority ? (
@@ -251,7 +254,7 @@ export function TaskDetailPage() {
 
         {/* Right rail */}
         <aside className="border-l border-stone-200 dark:border-stone-800 bg-stone-50/40 dark:bg-stone-950/30 px-5 py-5 space-y-5 text-[12.5px]">
-          <DetailField label={t('detail.status')}><StatusPill status={task.status} /></DetailField>
+          <DetailField label={t('detail.status')}><StatusPill status={task.status} statuses={projectStatuses} /></DetailField>
           <DetailField label={t('detail.priority')}><PriorityBars priority={task.priority} withLabel /></DetailField>
           <DetailField label={t('detail.assignee')}>
             <select

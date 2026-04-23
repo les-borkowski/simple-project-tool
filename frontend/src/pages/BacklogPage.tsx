@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { tasksApi, projectsApi, storiesApi } from '../services/api'
 import type { TaskResponse, StoryResponse, MemberResponse, Status, Priority } from '../services/api'
 import { useRole } from '../hooks/useRole'
+import { useProjectStatuses } from '../hooks/useProjectStatuses'
 import { StatusPill } from '../components/common/StatusPill'
 import { PriorityBars } from '../components/common/PriorityBars'
 import { LoadMoreButton } from '../components/common/LoadMoreButton'
@@ -49,6 +50,7 @@ export function BacklogPage() {
   const { projectId } = useParams<{ projectId: string }>()
   const { t } = useTranslation()
   const { isManager } = useRole(projectId)
+  const { statuses: projectStatuses } = useProjectStatuses(projectId)
   const { addToast } = useToast()
   const { user } = useAuth()
 
@@ -176,7 +178,6 @@ export function BacklogPage() {
     }
   }
 
-  const statuses: Status[] = ['to_do', 'in_progress', 'in_review', 'in_testing', 'done']
   const priorities: Priority[] = ['low', 'medium', 'high']
 
   if (loading) return (
@@ -290,11 +291,13 @@ export function BacklogPage() {
                           onBlur={() => setEditingTaskField(null)}
                           className="text-[11px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
                         >
-                          {statuses.map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
+                          {projectStatuses.map((ps) => (
+                            <option key={ps.slug} value={ps.slug}>{ps.name}</option>
+                          ))}
                         </select>
                       ) : (
                         <button onClick={() => setEditingTaskField({ id: task.id, field: 'status' })}>
-                          <StatusPill status={task.status} />
+                          <StatusPill status={task.status} statuses={projectStatuses} />
                         </button>
                       )}
                       {task.assignee_id && (() => {
@@ -372,7 +375,9 @@ export function BacklogPage() {
                     onChange={(e) => setNewTaskStatus(e.target.value as Status)}
                     className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
                   >
-                    {statuses.map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
+                    {projectStatuses.map((ps) => (
+                      <option key={ps.slug} value={ps.slug}>{ps.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-1">
