@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import get_current_user
 from app.db.database import get_db
 from app.db.models import User
-from app.db.base import StatusEnum, PriorityEnum
+from app.db.base import PriorityEnum
 from app.api.schemas.project import (
     ProjectCreate,
     ProjectUpdate,
@@ -26,16 +26,15 @@ async def list_projects(
     db: AsyncSession = Depends(get_db),
     cursor: str | None = Query(None),
     limit: int = Query(25, ge=1, le=100),
-    status: StatusEnum | None = Query(None),
+    status: str | None = Query(None),
     priority: PriorityEnum | None = Query(None),
     archived: bool = Query(False),
     q: str | None = Query(None),
 ):
     """List accessible projects."""
-    status_val = str(status.value) if status else None
     priority_val = str(priority.value) if priority else None
     return await project_service.list_projects(
-        user, db, cursor, limit, status_val, priority_val, archived, q
+        user, db, cursor, limit, status, priority_val, archived, q
     )
 
 

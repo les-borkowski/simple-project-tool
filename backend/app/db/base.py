@@ -23,16 +23,6 @@ class TimestampMixin:
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=_utcnow)
 
 
-class StatusEnum(enum.StrEnum):
-    """Work item status values."""
-
-    to_do = "to_do"
-    in_progress = "in_progress"
-    in_review = "in_review"
-    in_testing = "in_testing"
-    done = "done"
-
-
 class PriorityEnum(enum.StrEnum):
     """Work item priority levels."""
 

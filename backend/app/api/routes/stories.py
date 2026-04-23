@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import get_current_user
 from app.db.database import get_db
 from app.db.models import User
-from app.db.base import StatusEnum, PriorityEnum
+from app.db.base import PriorityEnum
 from app.api.schemas.story import (
     StoryCreate,
     StoryUpdate,
@@ -25,15 +25,14 @@ async def list_stories(
     db: AsyncSession = Depends(get_db),
     cursor: str | None = Query(None),
     limit: int = Query(25, ge=1, le=100),
-    status: StatusEnum | None = Query(None),
+    status: str | None = Query(None),
     priority: PriorityEnum | None = Query(None),
     q: str | None = Query(None),
 ):
     """List stories in a project."""
-    status_val = str(status.value) if status else None
     priority_val = str(priority.value) if priority else None
     return await story_service.list_stories(
-        project_id, user, db, cursor, limit, status_val, priority_val, q
+        project_id, user, db, cursor, limit, status, priority_val, q
     )
 
 
