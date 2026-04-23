@@ -20,6 +20,7 @@ class Task(TimestampMixin, Base):
     __table_args__ = (
         Index("ix_task_assignee_id", "assignee_id"),
         Index("ix_task_project_status", "project_id", "status"),
+        Index("ix_task_sprint_id", "sprint_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
