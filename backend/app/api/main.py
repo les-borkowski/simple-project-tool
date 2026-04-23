@@ -3,27 +3,28 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from sqlalchemy import text
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.core.config import settings
-from app.db.database import engine
 from app.api.routes import (
     auth,
-    projects,
-    stories,
-    tasks,
     comments,
-    invitations,
-    time_tracking,
     config,
+    invitations,
+    projects,
     recent,
     search,
+    stories,
+    tasks,
+    time_tracking,
 )
 from app.api.routes.project_statuses import router as project_statuses_router
+from app.api.routes.sprints import router as sprints_router
+from app.core.config import settings
+from app.db.database import engine
 
 # Global locales dict
 LOCALES: dict[str, dict] = {}
@@ -147,8 +148,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     """Catch-all for unexpected errors."""
-    from fastapi.responses import JSONResponse
     import traceback
+
+    from fastapi.responses import JSONResponse
 
     print(f"Unexpected error: {exc}")
     traceback.print_exc()
@@ -184,3 +186,4 @@ app.include_router(config.router, prefix="/api/v1")
 app.include_router(recent.router, prefix="/api/v1")
 app.include_router(search.router, prefix="/api/v1")
 app.include_router(project_statuses_router, prefix="/api/v1")
+app.include_router(sprints_router, prefix="/api/v1")
