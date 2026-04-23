@@ -205,5 +205,18 @@
   "search.empty": "Brak wyników dla \"{{q}}\"",
   "search.group_projects": "Projekty",
   "search.group_stories": "Historyjki",
-  "search.group_tasks": "Zadania"
+  "search.group_tasks": "Zadania",
+
+  "config.app_settings": "Ustawienia aplikacji",
+  "config.project_settings": "Ustawienia projektu",
+  "config.select_project": "Wybierz projekt",
+
+  "project_statuses.title": "Statusy",
+  "project_statuses.add": "Dodaj status",
+  "project_statuses.name_placeholder": "Nazwa statusu",
+  "project_statuses.slug_label": "Slug",
+  "project_statuses.delete_confirm": "Usunąć ten status? Istniejące elementy z tym statusem staną się nieprzypisane.",
+  "project_statuses.save": "Zapisz",
+  "project_statuses.cancel": "Anuluj",
+  "project_statuses.unlisted": "Nieprzypisane statusy"
 }

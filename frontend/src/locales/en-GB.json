@@ -195,5 +195,18 @@
   "search.empty": "No results for \"{{q}}\"",
   "search.group_projects": "Projects",
   "search.group_stories": "Stories",
-  "search.group_tasks": "Tasks"
+  "search.group_tasks": "Tasks",
+
+  "config.app_settings": "App Settings",
+  "config.project_settings": "Project Settings",
+  "config.select_project": "Select a project",
+
+  "project_statuses.title": "Statuses",
+  "project_statuses.add": "Add status",
+  "project_statuses.name_placeholder": "Status name",
+  "project_statuses.slug_label": "Slug",
+  "project_statuses.delete_confirm": "Delete this status? Existing items with this status will become unlisted.",
+  "project_statuses.save": "Save",
+  "project_statuses.cancel": "Cancel",
+  "project_statuses.unlisted": "Unlisted statuses"
 }
