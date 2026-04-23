@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
 from app.auth.permissions import require_project_access, require_manager
+from app.db.models import User
 from app.db.models.project_status import ProjectStatus
 from app.api.schemas.project_status import (
     ProjectStatusCreate,
@@ -61,7 +62,7 @@ async def get_default_status_slug(project_id: uuid.UUID, db: AsyncSession) -> st
 
 
 async def list_project_statuses(
-    project_id: uuid.UUID, user, db: AsyncSession
+    project_id: uuid.UUID, user: User, db: AsyncSession
 ) -> list[ProjectStatusResponse]:
     await require_project_access(user, project_id, db)
     statuses = await get_project_statuses_ordered(project_id, db)
@@ -69,7 +70,7 @@ async def list_project_statuses(
 
 
 async def create_project_status(
-    project_id: uuid.UUID, data: ProjectStatusCreate, user, db: AsyncSession
+    project_id: uuid.UUID, data: ProjectStatusCreate, user: User, db: AsyncSession
 ) -> ProjectStatusResponse:
     role = await require_project_access(user, project_id, db)
     require_manager(role)
@@ -96,7 +97,7 @@ async def update_project_status(
     project_id: uuid.UUID,
     status_id: uuid.UUID,
     data: ProjectStatusUpdate,
-    user,
+    user: User,
     db: AsyncSession,
 ) -> ProjectStatusResponse:
     role = await require_project_access(user, project_id, db)
@@ -118,7 +119,7 @@ async def update_project_status(
 
 
 async def delete_project_status(
-    project_id: uuid.UUID, status_id: uuid.UUID, user, db: AsyncSession
+    project_id: uuid.UUID, status_id: uuid.UUID, user: User, db: AsyncSession
 ) -> None:
     role = await require_project_access(user, project_id, db)
     require_manager(role)
