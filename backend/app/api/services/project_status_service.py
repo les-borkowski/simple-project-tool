@@ -1,23 +1,23 @@
-# backend/app/api/services/project_status_service.py
 import uuid
+
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException
 
-from app.auth.permissions import require_project_access, require_manager
-from app.db.models import User
-from app.db.models.project_status import ProjectStatus
 from app.api.schemas.project_status import (
     ProjectStatusCreate,
-    ProjectStatusUpdate,
     ProjectStatusResponse,
+    ProjectStatusUpdate,
 )
+from app.auth.permissions import require_manager, require_project_access
+from app.db.models import User
+from app.db.models.project_status import ProjectStatus
 
 DEFAULT_STATUSES = [
-    {"slug": "to_do",       "name": "To Do",       "colour": "#6b7280", "order": 0},
+    {"slug": "to_do", "name": "To Do", "colour": "#6b7280", "order": 0},
     {"slug": "in_progress", "name": "In Progress", "colour": "#3b82f6", "order": 1},
-    {"slug": "in_review",   "name": "In Review",   "colour": "#f59e0b", "order": 2},
-    {"slug": "done",        "name": "Done",        "colour": "#22c55e", "order": 3},
+    {"slug": "in_review", "name": "In Review", "colour": "#f59e0b", "order": 2},
+    {"slug": "done", "name": "Done", "colour": "#22c55e", "order": 3},
 ]
 
 
@@ -45,9 +45,7 @@ async def seed_default_statuses(project_id: uuid.UUID, db: AsyncSession) -> None
         )
 
 
-async def validate_status_slug(
-    project_id: uuid.UUID, slug: str, db: AsyncSession
-) -> str:
+async def validate_status_slug(project_id: uuid.UUID, slug: str, db: AsyncSession) -> str:
     statuses = await get_project_statuses_ordered(project_id, db)
     if not any(s.slug == slug for s in statuses):
         raise HTTPException(status_code=422, detail=f"Invalid status '{slug}' for this project")

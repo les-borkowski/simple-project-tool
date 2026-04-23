@@ -17,6 +17,7 @@ from app.api.schemas.project import (
 )
 from app.api.schemas.common import PaginatedResponse
 from app.api.pagination import encode_cursor, decode_cursor
+from app.api.services import project_status_service
 
 
 async def list_projects(
@@ -107,6 +108,10 @@ async def create_project(
         changed_by=user.id,
     )
     db.add(history)
+
+    # Seed default custom statuses
+    await project_status_service.seed_default_statuses(project.id, db)
+
     await db.commit()
 
     return ProjectResponse.model_validate(project)

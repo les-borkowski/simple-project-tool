@@ -63,7 +63,8 @@ async def test_update_project_status(
     api_client: AsyncClient, manager_headers: dict, test_project: dict
 ):
     pid = test_project["id"]
-    statuses = (await api_client.get(f"/api/v1/projects/{pid}/statuses", headers=manager_headers)).json()
+    resp = await api_client.get(f"/api/v1/projects/{pid}/statuses", headers=manager_headers)
+    statuses = resp.json()
     sid = statuses[0]["id"]
 
     resp = await api_client.patch(
@@ -83,7 +84,8 @@ async def test_delete_project_status(
     api_client: AsyncClient, manager_headers: dict, test_project: dict
 ):
     pid = test_project["id"]
-    statuses = (await api_client.get(f"/api/v1/projects/{pid}/statuses", headers=manager_headers)).json()
+    resp = await api_client.get(f"/api/v1/projects/{pid}/statuses", headers=manager_headers)
+    statuses = resp.json()
     sid = statuses[-1]["id"]  # delete "done"
 
     resp = await api_client.delete(
@@ -91,7 +93,8 @@ async def test_delete_project_status(
     )
     assert resp.status_code == 204
 
-    remaining = (await api_client.get(f"/api/v1/projects/{pid}/statuses", headers=manager_headers)).json()
+    resp = await api_client.get(f"/api/v1/projects/{pid}/statuses", headers=manager_headers)
+    remaining = resp.json()
     assert all(s["slug"] != "done" for s in remaining)
 
 
@@ -102,13 +105,17 @@ async def test_contributor_cannot_create_status(
     pid = test_project["id"]
     # Add contributor to project first
     import uuid
+
     # Register contributor
     email = f"contrib_{uuid.uuid4().hex[:6]}@test.com"
-    await api_client.post("/api/v1/auth/register", json={"email": email, "name": "C", "password": "pass1234!"})
-    login = await api_client.post("/api/v1/auth/login", json={"email": email, "password": "pass1234!"})
+    register_payload = {"email": email, "name": "C", "password": "pass1234!"}
+    await api_client.post("/api/v1/auth/register", json=register_payload)
+    login_payload = {"email": email, "password": "pass1234!"}
+    login = await api_client.post("/api/v1/auth/login", json=login_payload)
     token = login.json()["access_token"]
     contrib_headers = {"Authorization": f"Bearer {token}"}
-    contrib_id = (await api_client.get("/api/v1/auth/me", headers=contrib_headers)).json()["id"]
+    me = await api_client.get("/api/v1/auth/me", headers=contrib_headers)
+    contrib_id = me.json()["id"]
     await api_client.post(
         f"/api/v1/projects/{pid}/members",
         json={"user_id": contrib_id, "role": "contributor"},

@@ -23,6 +23,7 @@ from app.api.routes import (
     recent,
     search,
 )
+from app.api.routes.project_statuses import router as project_statuses_router
 
 # Global locales dict
 LOCALES: dict[str, dict] = {}
@@ -182,3 +183,4 @@ app.include_router(time_tracking.router, prefix="/api/v1")
 app.include_router(config.router, prefix="/api/v1")
 app.include_router(recent.router, prefix="/api/v1")
 app.include_router(search.router, prefix="/api/v1")
+app.include_router(project_statuses_router, prefix="/api/v1")
