@@ -165,11 +165,11 @@ async def update_project(
     project.updated_by = user.id
 
     # Record status change if status changed
-    if data.status is not None and old_status != data.status:
+    if data.status is not None and old_status != project.status:
         history = StatusHistory(
             project_id=project.id,
             from_status=old_status,
-            to_status=data.status,
+            to_status=project.status,
             changed_by=user.id,
         )
         db.add(history)
