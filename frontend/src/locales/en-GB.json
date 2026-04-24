@@ -129,6 +129,7 @@
   "errors.password_mismatch": "Passwords do not match.",
   "errors.not_found": "Page not found",
   "errors.back_home": "Back to projects",
+  "errors.save_failed": "Failed to save changes",
 
   "time.seconds": "{{count}}s",
   "time.minutes": "{{count}}m",

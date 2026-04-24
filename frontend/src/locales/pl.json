@@ -139,6 +139,7 @@
   "errors.password_mismatch": "Hasła nie są zgodne.",
   "errors.not_found": "Strona nie znaleziona",
   "errors.back_home": "Wróć do projektów",
+  "errors.save_failed": "Nie udało się zapisać zmian",
 
   "time.seconds": "{{count}}s",
   "time.minutes": "{{count}} min",

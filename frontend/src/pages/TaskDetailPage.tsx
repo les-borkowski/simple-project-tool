@@ -50,15 +50,19 @@ export function TaskDetailPage() {
   const [editingPriority, setEditingPriority] = useState(false)
   const [editingDesc, setEditingDesc] = useState(false)
   const [desc, setDesc] = useState('')
+  const [effortDraft, setEffortDraft] = useState<string>('')
 
   useEffect(() => {
     if (!taskId) return
+    let cancelled = false
     tasksApi.get(taskId).then(async (res) => {
       setTask(res.data)
       setDesc(res.data.description ?? '')
       setTitleDraft(res.data.title)
-      storiesApi.list(res.data.project_id).then(storiesRes => {
-        setStories(storiesRes.data.items)
+      setEffortDraft(String(res.data.effort ?? ''))
+      const projectId = res.data.project_id
+      storiesApi.list(projectId).then(storiesRes => {
+        if (!cancelled) setStories(storiesRes.data.items)
       }).catch(() => {})
       try {
         if (res.data.story_id) {
@@ -78,58 +82,91 @@ export function TaskDetailPage() {
         // non-critical
       }
     }).finally(() => setLoading(false))
+    return () => { cancelled = true }
   }, [taskId])
 
   const handleStatusChange = async (status: Status) => {
     if (!taskId) return
-    const res = await tasksApi.update(taskId, { status })
-    setTask(res.data)
-    setEditingStatus(false)
-    addToast('Status updated')
+    try {
+      const res = await tasksApi.update(taskId, { status })
+      setTask(res.data)
+      addToast('Status updated')
+    } catch {
+      addToast(t('errors.save_failed'), 'error')
+    } finally {
+      setEditingStatus(false)
+    }
   }
 
   const handlePriorityChange = async (priority: Priority) => {
     if (!taskId) return
-    const res = await tasksApi.update(taskId, { priority })
-    setTask(res.data)
-    setEditingPriority(false)
-    addToast('Priority updated')
+    try {
+      const res = await tasksApi.update(taskId, { priority })
+      setTask(res.data)
+      addToast('Priority updated')
+    } catch {
+      addToast(t('errors.save_failed'), 'error')
+    } finally {
+      setEditingPriority(false)
+    }
   }
 
   const handleAssigneeChange = async (assignee_id: string) => {
     if (!taskId) return
-    const res = await tasksApi.update(taskId, { assignee_id: assignee_id || null })
-    setTask(res.data)
-    addToast('Assignee updated')
+    try {
+      const res = await tasksApi.update(taskId, { assignee_id: assignee_id || null })
+      setTask(res.data)
+      addToast('Assignee updated')
+    } catch {
+      addToast(t('errors.save_failed'), 'error')
+    }
   }
 
   const handleStoryChange = async (story_id: string) => {
     if (!taskId) return
-    const res = await tasksApi.update(taskId, { story_id: story_id || null })
-    setTask(res.data)
-    if (story_id) {
-      const storyRes = await storiesApi.get(story_id)
-      setStory(storyRes.data)
-    } else {
-      setStory(null)
+    try {
+      const res = await tasksApi.update(taskId, { story_id: story_id || null })
+      setTask(res.data)
+      if (story_id) {
+        setStory(null)
+        try {
+          const storyRes = await storiesApi.get(story_id)
+          setStory(storyRes.data)
+        } catch {
+          // task update succeeded; silently ignore story fetch failure
+        }
+      } else {
+        setStory(null)
+      }
+      addToast(t('tasks.story_updated'))
+    } catch {
+      addToast(t('errors.save_failed'), 'error')
     }
-    addToast(t('tasks.story_updated'))
   }
 
   const handleSprintChange = async (sprint_id: string) => {
     if (!taskId) return
-    const res = await tasksApi.update(taskId, { sprint_id: sprint_id || null })
-    setTask(res.data)
-    addToast(t('tasks.sprint_updated'))
+    try {
+      const res = await tasksApi.update(taskId, { sprint_id: sprint_id || null })
+      setTask(res.data)
+      addToast(t('tasks.sprint_updated'))
+    } catch {
+      addToast(t('errors.save_failed'), 'error')
+    }
   }
 
   const handleEffortChange = async (effort: string) => {
     if (!taskId) return
     const parsed = effort ? parseInt(effort, 10) : null
     if (effort && (isNaN(parsed!) || parsed! < 0)) return
-    const res = await tasksApi.update(taskId, { effort: parsed })
-    setTask(res.data)
-    addToast(t('tasks.effort_updated'))
+    try {
+      const res = await tasksApi.update(taskId, { effort: parsed })
+      setTask(res.data)
+      setEffortDraft(String(parsed ?? ''))
+      addToast(t('tasks.effort_updated'))
+    } catch {
+      addToast(t('errors.save_failed'), 'error')
+    }
   }
 
   const handleSaveTitle = async () => {
@@ -137,18 +174,28 @@ export function TaskDetailPage() {
       setEditingTitle(false)
       return
     }
-    const res = await tasksApi.update(taskId, { title: titleDraft.trim() })
-    setTask(res.data)
-    setEditingTitle(false)
-    addToast('Title updated')
+    try {
+      const res = await tasksApi.update(taskId, { title: titleDraft.trim() })
+      setTask(res.data)
+      addToast('Title updated')
+    } catch {
+      addToast(t('errors.save_failed'), 'error')
+    } finally {
+      setEditingTitle(false)
+    }
   }
 
   const handleSaveDesc = async () => {
     if (!taskId) return
-    const res = await tasksApi.update(taskId, { description: desc })
-    setTask(res.data)
-    setEditingDesc(false)
-    addToast('Description saved')
+    try {
+      const res = await tasksApi.update(taskId, { description: desc })
+      setTask(res.data)
+      addToast('Description saved')
+    } catch {
+      addToast(t('errors.save_failed'), 'error')
+    } finally {
+      setEditingDesc(false)
+    }
   }
 
   const priorities: Priority[] = ['low', 'medium', 'high']
@@ -360,7 +407,8 @@ export function TaskDetailPage() {
             <input
               type="number"
               min="0"
-              defaultValue={task.effort ?? ''}
+              value={effortDraft}
+              onChange={(e) => setEffortDraft(e.target.value)}
               onBlur={(e) => handleEffortChange(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
               placeholder="—"
