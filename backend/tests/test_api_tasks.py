@@ -293,3 +293,61 @@ async def test_task_update_clears_sprint_id(
     )
     assert resp.status_code == 200
     assert resp.json()["sprint_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_task_create_with_effort_and_due_date(
+    api_client: AsyncClient, manager_headers: dict, test_story: dict
+):
+    r = await api_client.post(
+        f"/api/v1/stories/{test_story['id']}/tasks",
+        json={"title": "Task with effort", "effort": 8, "due_date": "2026-06-15"},
+        headers=manager_headers,
+    )
+    assert r.status_code == 201
+    data = r.json()
+    assert data["effort"] == 8
+    assert data["due_date"] == "2026-06-15"
+
+
+@pytest.mark.asyncio
+async def test_task_create_sprint_id_wrong_project_rejected(
+    api_client: AsyncClient, manager_headers: dict, test_story: dict
+):
+    proj2 = await api_client.post(
+        "/api/v1/projects", json={"name": "Other Project"}, headers=manager_headers
+    )
+    pid2 = proj2.json()["id"]
+    sprint_r = await api_client.post(
+        f"/api/v1/projects/{pid2}/sprints",
+        json={"name": "S1", "start_date": "2026-05-01", "end_date": "2026-05-14"},
+        headers=manager_headers,
+    )
+    sprint_id = sprint_r.json()["id"]
+
+    r = await api_client.post(
+        f"/api/v1/stories/{test_story['id']}/tasks",
+        json={"title": "Task with bad sprint", "sprint_id": sprint_id},
+        headers=manager_headers,
+    )
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_task_update_clears_due_date(
+    api_client: AsyncClient, manager_headers: dict, test_story: dict
+):
+    r = await api_client.post(
+        f"/api/v1/stories/{test_story['id']}/tasks",
+        json={"title": "Task with due date", "due_date": "2026-06-01"},
+        headers=manager_headers,
+    )
+    task_id = r.json()["id"]
+
+    resp = await api_client.patch(
+        f"/api/v1/tasks/{task_id}",
+        json={"due_date": None},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["due_date"] is None

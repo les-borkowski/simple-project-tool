@@ -1,15 +1,22 @@
 import uuid
+
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException
 
-from app.auth.permissions import require_project_access, resolve_role, require_manager
-from app.db.base import PriorityEnum
-from app.db.models import Task, Story, Project, StatusHistory, User
-from app.api.services.project_status_service import validate_status_slug, get_default_status_slug
-from app.api.schemas.task import TaskCreate, TaskUpdate, TaskResponse
+from app.api.pagination import decode_cursor, encode_cursor
 from app.api.schemas.common import PaginatedResponse
-from app.api.pagination import encode_cursor, decode_cursor
+from app.api.schemas.task import TaskCreate, TaskResponse, TaskUpdate
+from app.api.services.project_status_service import get_default_status_slug, validate_status_slug
+from app.auth.permissions import require_manager, require_project_access, resolve_role
+from app.db.base import PriorityEnum
+from app.db.models import Project, Sprint, StatusHistory, Story, Task, User
+
+
+async def _validate_sprint(sprint_id: uuid.UUID, project_id: uuid.UUID, db: AsyncSession) -> None:
+    sprint = await db.get(Sprint, sprint_id)
+    if not sprint or sprint.project_id != project_id:
+        raise HTTPException(status_code=422, detail="Sprint not found in this project")
 
 
 async def list_tasks(
@@ -76,6 +83,9 @@ async def create_task(
     else:
         status_val = await get_default_status_slug(story.project_id, db)
 
+    if data.sprint_id is not None:
+        await _validate_sprint(data.sprint_id, story.project_id, db)
+
     task = Task(
         project_id=story.project_id,
         story_id=story_id,
@@ -118,6 +128,9 @@ async def create_task_for_project(
         status_val = await validate_status_slug(project_id, data.status, db)
     else:
         status_val = await get_default_status_slug(project_id, db)
+
+    if data.sprint_id is not None:
+        await _validate_sprint(data.sprint_id, project_id, db)
 
     task = Task(
         project_id=project_id,
@@ -232,17 +245,13 @@ async def update_task(
         task.priority = data.priority
     if data.assignee_id is not None:
         task.assignee_id = data.assignee_id
-    if 'effort' in data.model_fields_set:
+    if "effort" in data.model_fields_set:
         task.effort = data.effort
-    if 'due_date' in data.model_fields_set:
+    if "due_date" in data.model_fields_set:
         task.due_date = data.due_date
-    if 'sprint_id' in data.model_fields_set:
+    if "sprint_id" in data.model_fields_set:
         if data.sprint_id is not None:
-            from app.db.models.sprint import Sprint
-
-            sprint = await db.get(Sprint, data.sprint_id)
-            if not sprint or sprint.project_id != task.project_id:
-                raise HTTPException(status_code=422, detail="Sprint not found in this project")
+            await _validate_sprint(data.sprint_id, task.project_id, db)
         task.sprint_id = data.sprint_id
 
     task.updated_by = user.id
