@@ -274,6 +274,8 @@ export function ProjectDetailPage() {
         setNewTaskPriority('medium')
         setNewTaskStoryId('')
         setNewTaskAssigneeId(user?.id ?? '')
+        setNewTaskSprintId('')
+        setNewTaskEffort('')
       }
     }
     document.addEventListener('keydown', handleKeyDown)
