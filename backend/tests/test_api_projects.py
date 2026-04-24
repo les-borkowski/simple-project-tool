@@ -70,7 +70,9 @@ async def test_delete_project(api_client: AsyncClient, manager_headers: dict):
 
 
 @pytest.mark.asyncio
-async def test_archive_and_restore(api_client: AsyncClient, manager_headers: dict, test_project: dict):
+async def test_archive_and_restore(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict
+):
     pid = test_project["id"]
 
     archive = await api_client.post(f"/api/v1/projects/{pid}/archive", headers=manager_headers)
@@ -110,3 +112,27 @@ async def test_create_project_with_invalid_status_rejected(
         headers=manager_headers,
     )
     assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_project_update_effort_unit(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict
+):
+    pid = test_project["id"]
+    resp = await api_client.patch(
+        f"/api/v1/projects/{pid}",
+        json={"effort_unit": "sp"},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["effort_unit"] == "sp"
+
+
+@pytest.mark.asyncio
+async def test_project_response_includes_effort_unit(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict
+):
+    pid = test_project["id"]
+    resp = await api_client.get(f"/api/v1/projects/{pid}", headers=manager_headers)
+    assert resp.status_code == 200
+    assert "effort_unit" in resp.json()

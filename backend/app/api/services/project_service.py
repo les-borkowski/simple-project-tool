@@ -37,7 +37,9 @@ async def list_projects(
 
     if user.role == RoleEnum.manager:
         # Global managers see all non-archived projects
-        stmt = stmt.where(Project.archived_at.is_(None) if not archived else Project.archived_at.isnot(None))
+        stmt = stmt.where(
+            Project.archived_at.is_(None) if not archived else Project.archived_at.isnot(None)
+        )
     else:
         # Contributors see only projects where they are owner or member
         stmt = stmt.where(
@@ -48,7 +50,9 @@ async def list_projects(
                 ),
             )
         )
-        stmt = stmt.where(Project.archived_at.is_(None) if not archived else Project.archived_at.isnot(None))
+        stmt = stmt.where(
+            Project.archived_at.is_(None) if not archived else Project.archived_at.isnot(None)
+        )
 
     # Apply filters
     if status:
@@ -78,9 +82,7 @@ async def list_projects(
     )
 
 
-async def create_project(
-    data: ProjectCreate, user: User, db: AsyncSession
-) -> ProjectResponse:
+async def create_project(data: ProjectCreate, user: User, db: AsyncSession) -> ProjectResponse:
     """Create a new project. Only managers can create projects."""
     require_manager(user.role)
 
@@ -158,9 +160,12 @@ async def update_project(
         project.description = data.description
     if data.status is not None:
         from app.api.services.project_status_service import validate_status_slug
+
         project.status = await validate_status_slug(project_id, data.status, db)
     if data.priority is not None:
         project.priority = data.priority
+    if "effort_unit" in data.model_fields_set:
+        project.effort_unit = data.effort_unit
 
     project.updated_by = user.id
 
@@ -219,9 +224,7 @@ async def restore_project(project_id: uuid.UUID, user: User, db: AsyncSession) -
     return ProjectResponse.model_validate(project)
 
 
-async def list_members(
-    project_id: uuid.UUID, user: User, db: AsyncSession
-) -> list[MemberResponse]:
+async def list_members(project_id: uuid.UUID, user: User, db: AsyncSession) -> list[MemberResponse]:
     """List members of a project."""
     project = await db.get(Project, project_id)
     if not project:

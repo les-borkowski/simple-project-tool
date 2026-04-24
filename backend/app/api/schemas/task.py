@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from uuid import UUID
 from pydantic import BaseModel
 from app.db.base import PriorityEnum
@@ -10,6 +10,9 @@ class TaskCreate(BaseModel):
     status: str | None = None
     priority: PriorityEnum | None = None
     assignee_id: UUID | None = None
+    effort: int | None = None
+    due_date: date | None = None
+    sprint_id: UUID | None = None
 
 
 class TaskUpdate(BaseModel):
@@ -18,6 +21,9 @@ class TaskUpdate(BaseModel):
     status: str | None = None
     priority: PriorityEnum | None = None
     assignee_id: UUID | None = None
+    effort: int | None = None
+    due_date: date | None = None
+    sprint_id: UUID | None = None
 
 
 class TaskResponse(BaseModel):
@@ -31,6 +37,9 @@ class TaskResponse(BaseModel):
     assignee_id: UUID | None
     created_by: UUID
     created_at: datetime
+    effort: int | None
+    due_date: date | None
+    sprint_id: UUID | None
 
     class Config:
         from_attributes = True

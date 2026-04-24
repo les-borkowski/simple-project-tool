@@ -147,3 +147,101 @@ async def test_create_task_with_valid_custom_status(
     )
     assert resp.status_code == 201
     assert resp.json()["status"] == "deployed"
+
+
+@pytest.mark.asyncio
+async def test_task_update_effort_and_due_date(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict, test_story: dict
+):
+    r = await api_client.post(
+        f"/api/v1/stories/{test_story['id']}/tasks",
+        json={"title": "My task"},
+        headers=manager_headers,
+    )
+    task_id = r.json()["id"]
+
+    resp = await api_client.patch(
+        f"/api/v1/tasks/{task_id}",
+        json={"effort": 5, "due_date": "2026-05-30"},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["effort"] == 5
+    assert data["due_date"] == "2026-05-30"
+
+
+@pytest.mark.asyncio
+async def test_task_response_includes_new_fields(
+    api_client: AsyncClient, manager_headers: dict, test_story: dict
+):
+    r = await api_client.post(
+        f"/api/v1/stories/{test_story['id']}/tasks",
+        json={"title": "My task"},
+        headers=manager_headers,
+    )
+    data = r.json()
+    assert "effort" in data
+    assert "due_date" in data
+    assert "sprint_id" in data
+    assert data["effort"] is None
+    assert data["due_date"] is None
+    assert data["sprint_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_task_update_sprint_id_same_project(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict, test_story: dict
+):
+    pid = test_project["id"]
+    sprint_r = await api_client.post(
+        f"/api/v1/projects/{pid}/sprints",
+        json={"name": "S1", "start_date": "2026-05-01", "end_date": "2026-05-14"},
+        headers=manager_headers,
+    )
+    sprint_id = sprint_r.json()["id"]
+
+    r = await api_client.post(
+        f"/api/v1/stories/{test_story['id']}/tasks",
+        json={"title": "My task"},
+        headers=manager_headers,
+    )
+    task_id = r.json()["id"]
+
+    resp = await api_client.patch(
+        f"/api/v1/tasks/{task_id}",
+        json={"sprint_id": sprint_id},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["sprint_id"] == sprint_id
+
+
+@pytest.mark.asyncio
+async def test_task_update_sprint_id_wrong_project_rejected(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict, test_story: dict
+):
+    proj2 = await api_client.post(
+        "/api/v1/projects", json={"name": "Other Project"}, headers=manager_headers
+    )
+    pid2 = proj2.json()["id"]
+    sprint_r = await api_client.post(
+        f"/api/v1/projects/{pid2}/sprints",
+        json={"name": "S1", "start_date": "2026-05-01", "end_date": "2026-05-14"},
+        headers=manager_headers,
+    )
+    sprint_id = sprint_r.json()["id"]
+
+    r = await api_client.post(
+        f"/api/v1/stories/{test_story['id']}/tasks",
+        json={"title": "My task"},
+        headers=manager_headers,
+    )
+    task_id = r.json()["id"]
+
+    resp = await api_client.patch(
+        f"/api/v1/tasks/{task_id}",
+        json={"sprint_id": sprint_id},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 422

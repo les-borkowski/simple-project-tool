@@ -16,6 +16,7 @@ class ProjectUpdate(BaseModel):
     description: str | None = None
     status: str | None = None
     priority: PriorityEnum | None = None
+    effort_unit: str | None = None
 
 
 class ProjectResponse(BaseModel):
@@ -28,6 +29,7 @@ class ProjectResponse(BaseModel):
     archived_at: datetime | None
     created_by: UUID
     created_at: datetime
+    effort_unit: str | None
 
     class Config:
         from_attributes = True

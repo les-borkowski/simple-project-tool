@@ -85,6 +85,9 @@ async def create_task(
         priority=data.priority or PriorityEnum.medium,
         assignee_id=data.assignee_id if data.assignee_id is not None else user.id,
         created_by=user.id,
+        effort=data.effort,
+        due_date=data.due_date,
+        sprint_id=data.sprint_id,
     )
     db.add(task)
     await db.flush()
@@ -125,6 +128,9 @@ async def create_task_for_project(
         priority=data.priority or PriorityEnum.medium,
         assignee_id=data.assignee_id if data.assignee_id is not None else user.id,
         created_by=user.id,
+        effort=data.effort,
+        due_date=data.due_date,
+        sprint_id=data.sprint_id,
     )
     db.add(task)
     await db.flush()
@@ -226,6 +232,17 @@ async def update_task(
         task.priority = data.priority
     if data.assignee_id is not None:
         task.assignee_id = data.assignee_id
+    if data.effort is not None:
+        task.effort = data.effort
+    if data.due_date is not None:
+        task.due_date = data.due_date
+    if data.sprint_id is not None:
+        from app.db.models.sprint import Sprint
+
+        sprint = await db.get(Sprint, data.sprint_id)
+        if not sprint or sprint.project_id != task.project_id:
+            raise HTTPException(status_code=422, detail="Sprint not found in this project")
+        task.sprint_id = data.sprint_id
 
     task.updated_by = user.id
 
