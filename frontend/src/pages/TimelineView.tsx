@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { timelineApi, projectsApi } from '../services/api'
+import { timelineApi, sprintsApi } from '../services/api'
 import type { TimelineTask, Priority } from '../services/api'
 import { EmptyState } from '../components/common/EmptyState'
+import { useToast } from '../context/ToastContext'
 
 const PRIORITY_COLOURS: Record<Priority, string> = {
   low: '#6b7280',
@@ -58,7 +59,7 @@ interface Group {
 }
 
 // Group tasks by sprint_id; unassigned tasks go last
-function buildGroups(items: TimelineTask[]): Group[] {
+function buildGroups(items: TimelineTask[], sprintNames: Map<string, string>): Group[] {
   const bySprintId = new Map<string | null, TimelineTask[]>()
   for (const item of items) {
     const key = item.sprint_id
@@ -68,8 +69,7 @@ function buildGroups(items: TimelineTask[]): Group[] {
   const groups: Group[] = []
   for (const [sprintId, tasks] of bySprintId) {
     if (sprintId !== null) {
-      // Sprint name not in timeline response — label as "Sprint"
-      groups.push({ label: 'Sprint', tasks })
+      groups.push({ label: sprintNames.get(sprintId) ?? 'Sprint', tasks })
     }
   }
   const unassigned = bySprintId.get(null)
@@ -100,23 +100,32 @@ function Tooltip({ task }: TooltipProps) {
 export function TimelineView({ projectId }: { projectId: string }) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language || navigator.language
+  const { addToast } = useToast()
 
   const [items, setItems] = useState<TimelineTask[]>([])
+  const [sprintNames, setSprintNames] = useState<Map<string, string>>(new Map())
   const [loading, setLoading] = useState(true)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [tlResp] = await Promise.all([
+      const [tlResp, sprintsResp] = await Promise.all([
         timelineApi.get(projectId),
-        projectsApi.get(projectId),
+        sprintsApi.list(projectId),
       ])
       setItems(tlResp.data)
+      const nameMap = new Map<string, string>()
+      for (const s of sprintsResp.data) {
+        nameMap.set(s.id, s.name)
+      }
+      setSprintNames(nameMap)
+    } catch {
+      addToast('Failed to load timeline', 'error')
     } finally {
       setLoading(false)
     }
-  }, [projectId])
+  }, [projectId, addToast])
 
   useEffect(() => { load() }, [load])
 
@@ -142,7 +151,7 @@ export function TimelineView({ projectId }: { projectId: string }) {
     return ticks
   }, [rangeStart, rangeEnd])
 
-  const groups = useMemo(() => buildGroups(items), [items])
+  const groups = useMemo(() => buildGroups(items, sprintNames), [items, sprintNames])
 
   if (loading) {
     return <div className="p-6 text-[13px] text-stone-400">Loading…</div>
