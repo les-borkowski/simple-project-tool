@@ -245,3 +245,51 @@ async def test_task_update_sprint_id_wrong_project_rejected(
         headers=manager_headers,
     )
     assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_task_update_clears_effort(
+    api_client: AsyncClient, manager_headers: dict, test_story: dict
+):
+    r = await api_client.post(
+        f"/api/v1/stories/{test_story['id']}/tasks",
+        json={"title": "My task", "effort": 5},
+        headers=manager_headers,
+    )
+    task_id = r.json()["id"]
+
+    resp = await api_client.patch(
+        f"/api/v1/tasks/{task_id}",
+        json={"effort": None},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["effort"] is None
+
+
+@pytest.mark.asyncio
+async def test_task_update_clears_sprint_id(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict, test_story: dict
+):
+    pid = test_project["id"]
+    sprint_r = await api_client.post(
+        f"/api/v1/projects/{pid}/sprints",
+        json={"name": "S1", "start_date": "2026-05-01", "end_date": "2026-05-14"},
+        headers=manager_headers,
+    )
+    sprint_id = sprint_r.json()["id"]
+
+    r = await api_client.post(
+        f"/api/v1/stories/{test_story['id']}/tasks",
+        json={"title": "My task", "sprint_id": sprint_id},
+        headers=manager_headers,
+    )
+    task_id = r.json()["id"]
+
+    resp = await api_client.patch(
+        f"/api/v1/tasks/{task_id}",
+        json={"sprint_id": None},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["sprint_id"] is None
