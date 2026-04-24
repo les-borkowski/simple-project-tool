@@ -208,5 +208,26 @@
   "project_statuses.delete_confirm": "Delete this status? Existing items with this status will become unlisted.",
   "project_statuses.save": "Save",
   "project_statuses.cancel": "Cancel",
-  "project_statuses.unlisted": "Unlisted statuses"
+  "project_statuses.unlisted": "Unlisted statuses",
+
+  "sprints.title": "Sprints",
+  "sprints.create": "New sprint",
+  "sprints.empty": "No sprints yet",
+  "sprints.name": "Sprint name",
+  "sprints.start_date": "Start date",
+  "sprints.end_date": "End date",
+  "sprints.capacity": "Capacity",
+  "sprints.capacity_optional": "Capacity (optional)",
+  "sprints.effort_of": "{{used}} / {{capacity}}",
+  "sprints.over_capacity": "Over capacity",
+  "sprints.unassigned": "Unassigned tasks",
+  "sprints.assign_sprint": "Assign to sprint",
+  "sprints.no_sprint": "No sprint",
+  "effort.unit_label": "Effort unit",
+  "effort.enable": "Enable effort tracking",
+  "timeline.title": "Timeline",
+  "timeline.empty": "No tasks with timeline data",
+  "timeline.source_deadline": "Deadline",
+  "timeline.source_sprint": "Sprint",
+  "timeline.source_history": "Status history"
 }

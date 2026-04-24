@@ -218,5 +218,26 @@
   "project_statuses.delete_confirm": "Usunąć ten status? Istniejące elementy z tym statusem staną się nieprzypisane.",
   "project_statuses.save": "Zapisz",
   "project_statuses.cancel": "Anuluj",
-  "project_statuses.unlisted": "Nieprzypisane statusy"
+  "project_statuses.unlisted": "Nieprzypisane statusy",
+
+  "sprints.title": "Sprinty",
+  "sprints.create": "Nowy sprint",
+  "sprints.empty": "Brak sprintów",
+  "sprints.name": "Nazwa sprintu",
+  "sprints.start_date": "Data rozpoczęcia",
+  "sprints.end_date": "Data zakończenia",
+  "sprints.capacity": "Pojemność",
+  "sprints.capacity_optional": "Pojemność (opcjonalnie)",
+  "sprints.effort_of": "{{used}} / {{capacity}}",
+  "sprints.over_capacity": "Przekroczona pojemność",
+  "sprints.unassigned": "Nieprzypisane zadania",
+  "sprints.assign_sprint": "Przypisz do sprintu",
+  "sprints.no_sprint": "Bez sprintu",
+  "effort.unit_label": "Jednostka wysiłku",
+  "effort.enable": "Włącz śledzenie wysiłku",
+  "timeline.title": "Oś czasu",
+  "timeline.empty": "Brak zadań z danymi czasowymi",
+  "timeline.source_deadline": "Termin",
+  "timeline.source_sprint": "Sprint",
+  "timeline.source_history": "Historia statusów"
 }

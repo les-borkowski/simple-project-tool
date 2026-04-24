@@ -31,6 +31,7 @@ export interface ProjectResponse {
   archived_at: string | null
   created_by: string
   created_at: string
+  effort_unit: string | null
 }
 
 export interface StoryResponse {
@@ -53,6 +54,9 @@ export interface TaskResponse {
   status: Status
   priority: Priority
   assignee_id: string | null
+  sprint_id: string | null
+  effort: number | null
+  due_date: string | null  // ISO date "YYYY-MM-DD"
   created_by: string
   created_at: string
 }
@@ -112,6 +116,30 @@ export interface ProjectStatusResponse {
   name: string
   colour: string
   order: number
+}
+
+export interface SprintResponse {
+  id: string
+  project_id: string
+  name: string
+  start_date: string  // ISO date "YYYY-MM-DD"
+  end_date: string    // ISO date "YYYY-MM-DD"
+  capacity: number | null
+  created_by: string
+  total_effort: number
+  task_count: number
+}
+
+export interface TimelineTask {
+  task_id: string
+  title: string
+  status: string
+  priority: Priority
+  story_id: string | null
+  sprint_id: string | null
+  bar_start: string  // ISO date "YYYY-MM-DD"
+  bar_end: string    // ISO date "YYYY-MM-DD"
+  source: 'deadline' | 'sprint' | 'status_history'
 }
 
 export interface TimeMetrics {
@@ -225,8 +253,13 @@ export const projectsApi = {
   create: (data: { name: string; description?: string; status?: Status; priority?: Priority }) =>
     api.post<ProjectResponse>('/projects', data),
   get: (id: string) => api.get<ProjectResponse>(`/projects/${id}`),
-  update: (id: string, data: Partial<{ name: string; description: string; status: Status; priority: Priority }>) =>
-    api.patch<ProjectResponse>(`/projects/${id}`, data),
+  update: (id: string, data: Partial<{
+    name: string
+    description: string
+    status: Status
+    priority: Priority
+    effort_unit: string | null
+  }>) => api.patch<ProjectResponse>(`/projects/${id}`, data),
   delete: (id: string) => api.delete(`/projects/${id}`),
   archive: (id: string) => api.post(`/projects/${id}/archive`),
   restore: (id: string) => api.post(`/projects/${id}/restore`),
@@ -260,6 +293,33 @@ export const statusesApi = {
 }
 
 // ---------------------------------------------------------------------------
+// Sprints API
+// ---------------------------------------------------------------------------
+
+export const sprintsApi = {
+  list: (projectId: string) =>
+    api.get<SprintResponse[]>(`/projects/${projectId}/sprints`),
+  create: (
+    projectId: string,
+    data: { name: string; start_date: string; end_date: string; capacity?: number | null }
+  ) => api.post<SprintResponse>(`/projects/${projectId}/sprints`, data),
+  update: (
+    sprintId: string,
+    data: { name?: string; start_date?: string; end_date?: string; capacity?: number | null }
+  ) => api.patch<SprintResponse>(`/sprints/${sprintId}`, data),
+  delete: (sprintId: string) => api.delete(`/sprints/${sprintId}`),
+}
+
+// ---------------------------------------------------------------------------
+// Timeline API
+// ---------------------------------------------------------------------------
+
+export const timelineApi = {
+  get: (projectId: string) =>
+    api.get<TimelineTask[]>(`/projects/${projectId}/timeline`),
+}
+
+// ---------------------------------------------------------------------------
 // Stories API
 // ---------------------------------------------------------------------------
 
@@ -290,8 +350,16 @@ export const tasksApi = {
   createForProject: (projectId: string, data: { title: string; description?: string; status?: Status; priority?: Priority; assignee_id?: string }) =>
     api.post<TaskResponse>(`/projects/${projectId}/tasks`, data),
   get: (id: string) => api.get<TaskResponse>(`/tasks/${id}`),
-  update: (id: string, data: Partial<{ title: string; description: string; status: Status; priority: Priority; assignee_id: string | null }>) =>
-    api.patch<TaskResponse>(`/tasks/${id}`, data),
+  update: (id: string, data: Partial<{
+    title: string
+    description: string
+    status: Status
+    priority: Priority
+    assignee_id: string | null
+    effort: number | null
+    due_date: string | null
+    sprint_id: string | null
+  }>) => api.patch<TaskResponse>(`/tasks/${id}`, data),
   delete: (id: string) => api.delete(`/tasks/${id}`),
 }
 
