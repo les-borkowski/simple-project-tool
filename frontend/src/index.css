@@ -96,11 +96,15 @@ html, body {
 
 /* ── Fine grid board bg ── */
 .fine-grid {
-  background-image: linear-gradient(to right, rgba(0,0,0,.04) 1px, transparent 1px);
-  background-size: 280px 100%;
+  background-image:
+    linear-gradient(to right, rgba(0,0,0,.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,0,0,.025) 1px, transparent 1px);
+  background-size: 40px 40px;
 }
 .dark .fine-grid {
-  background-image: linear-gradient(to right, rgba(255,255,255,.04) 1px, transparent 1px);
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,.025) 1px, transparent 1px);
 }
 
 /* ── kbd ── */
