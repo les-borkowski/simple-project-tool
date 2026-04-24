@@ -1,13 +1,14 @@
 import uuid
+
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException
 
-from app.auth.permissions import require_project_access, resolve_role, require_manager
-from app.db.models import Comment, User, Project, Story, Task
-from app.api.schemas.comment import CommentCreate, CommentUpdate, CommentResponse
+from app.api.pagination import decode_cursor, encode_cursor
+from app.api.schemas.comment import CommentResponse
 from app.api.schemas.common import PaginatedResponse
-from app.api.pagination import encode_cursor, decode_cursor
+from app.auth.permissions import require_manager, require_project_access, resolve_role
+from app.db.models import Comment, Project, Story, Task, User
 
 
 async def list_comments_on_project(

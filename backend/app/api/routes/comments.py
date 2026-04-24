@@ -1,13 +1,14 @@
 import uuid
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.schemas.comment import CommentCreate, CommentResponse, CommentUpdate
+from app.api.schemas.common import PaginatedResponse
+from app.api.services import comment_service
 from app.auth.dependencies import get_current_user
 from app.db.database import get_db
 from app.db.models import User
-from app.api.schemas.comment import CommentCreate, CommentUpdate, CommentResponse
-from app.api.schemas.common import PaginatedResponse
-from app.api.services import comment_service
 
 router = APIRouter(tags=["comments"])
 

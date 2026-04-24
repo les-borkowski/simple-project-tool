@@ -11,9 +11,7 @@ from app.db.models.sprint import Sprint
 from app.db.models.task import Task
 
 
-async def list_sprints(
-    project_id: uuid.UUID, user: User, db: AsyncSession
-) -> list[SprintResponse]:
+async def list_sprints(project_id: uuid.UUID, user: User, db: AsyncSession) -> list[SprintResponse]:
     await require_project_access(user, project_id, db)
     stmt = select(Sprint).where(Sprint.project_id == project_id).order_by(Sprint.start_date)
     sprints = list((await db.scalars(stmt)).all())
@@ -82,16 +80,14 @@ async def update_sprint(
         sprint.start_date = data.start_date
     if data.end_date is not None:
         sprint.end_date = data.end_date
-    if 'capacity' in data.model_fields_set:
+    if "capacity" in data.model_fields_set:
         sprint.capacity = data.capacity
     await db.commit()
     await db.refresh(sprint)
     return await _build_response(sprint, db)
 
 
-async def delete_sprint(
-    sprint_id: uuid.UUID, user: User, db: AsyncSession
-) -> None:
+async def delete_sprint(sprint_id: uuid.UUID, user: User, db: AsyncSession) -> None:
     sprint = await db.get(Sprint, sprint_id)
     if not sprint:
         raise HTTPException(status_code=404, detail="Sprint not found")

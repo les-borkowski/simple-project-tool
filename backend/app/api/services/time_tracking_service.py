@@ -1,11 +1,12 @@
 import uuid
+
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException
 
-from app.auth.permissions import require_project_access, resolve_role
-from app.db.models import Project, Story, Task, StatusHistory, User
 from app.api.schemas.status_history import StatusHistoryResponse, TimeMetricsResponse
+from app.auth.permissions import require_project_access
+from app.db.models import Project, StatusHistory, Story, Task, User
 
 
 async def get_status_history(
@@ -64,9 +65,7 @@ async def get_time_metrics(
     return TimeMetricsResponse(status_seconds=status_seconds, total_seconds=total_seconds)
 
 
-async def get_project_time_report(
-    project_id: uuid.UUID, user: User, db: AsyncSession
-) -> dict:
+async def get_project_time_report(project_id: uuid.UUID, user: User, db: AsyncSession) -> dict:
     """Get aggregate time report for a project."""
     project = await db.get(Project, project_id)
     if not project:
@@ -91,9 +90,7 @@ async def get_project_time_report(
     return total_metrics
 
 
-async def get_user_time_report(
-    target_user_id: uuid.UUID, user: User, db: AsyncSession
-) -> dict:
+async def get_user_time_report(target_user_id: uuid.UUID, user: User, db: AsyncSession) -> dict:
     """Get time report for tasks assigned to a user."""
     target_user = await db.get(User, target_user_id)
     if not target_user:

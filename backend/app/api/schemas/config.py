@@ -1,5 +1,6 @@
 from pydantic import BaseModel
-from app.db.base import ThemeEnum, LocaleEnum
+
+from app.db.base import LocaleEnum, ThemeEnum
 
 
 class UserConfigResponse(BaseModel):

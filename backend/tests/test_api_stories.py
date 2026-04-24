@@ -18,7 +18,9 @@ async def test_create_story(api_client: AsyncClient, manager_headers: dict, test
 
 
 @pytest.mark.asyncio
-async def test_list_stories(api_client: AsyncClient, manager_headers: dict, test_project: dict, test_story: dict):
+async def test_list_stories(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict, test_story: dict
+):
     pid = test_project["id"]
     resp = await api_client.get(f"/api/v1/projects/{pid}/stories", headers=manager_headers)
     assert resp.status_code == 200

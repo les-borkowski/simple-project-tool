@@ -6,25 +6,25 @@ Create Date: 2026-04-11 14:25:08.860348
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
-
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = "c393321d07db"
-down_revision: Union[str, Sequence[str], None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     """Create all tables and enum types for the initial schema."""
 
     # --- Enum types (idempotent via DO blocks) ---
-    op.execute(sa.text("""
+    op.execute(
+        sa.text("""
         DO $$ BEGIN
             CREATE TYPE statusenum AS ENUM ('to_do', 'in_progress', 'in_review', 'in_testing', 'done');
         EXCEPTION WHEN duplicate_object THEN null; END $$;
@@ -43,7 +43,8 @@ def upgrade() -> None:
         DO $$ BEGIN
             CREATE TYPE invitationstatusenum AS ENUM ('pending', 'accepted', 'declined', 'expired');
         EXCEPTION WHEN duplicate_object THEN null; END $$;
-    """))
+    """)
+    )
 
     # --- users ---
     op.create_table(
@@ -79,7 +80,9 @@ def upgrade() -> None:
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("owner_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("status", postgresql.ENUM(name="statusenum", create_type=False), nullable=False),
-        sa.Column("priority", postgresql.ENUM(name="priorityenum", create_type=False), nullable=False),
+        sa.Column(
+            "priority", postgresql.ENUM(name="priorityenum", create_type=False), nullable=False
+        ),
         sa.Column("archived_at", sa.DateTime(), nullable=True),
         sa.Column("created_by", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("updated_by", postgresql.UUID(as_uuid=True), nullable=True),
@@ -111,7 +114,9 @@ def upgrade() -> None:
         sa.Column("title", sa.String(500), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("status", postgresql.ENUM(name="statusenum", create_type=False), nullable=False),
-        sa.Column("priority", postgresql.ENUM(name="priorityenum", create_type=False), nullable=False),
+        sa.Column(
+            "priority", postgresql.ENUM(name="priorityenum", create_type=False), nullable=False
+        ),
         sa.Column("created_by", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("updated_by", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
@@ -131,7 +136,9 @@ def upgrade() -> None:
         sa.Column("title", sa.String(500), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("status", postgresql.ENUM(name="statusenum", create_type=False), nullable=False),
-        sa.Column("priority", postgresql.ENUM(name="priorityenum", create_type=False), nullable=False),
+        sa.Column(
+            "priority", postgresql.ENUM(name="priorityenum", create_type=False), nullable=False
+        ),
         sa.Column("assignee_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("created_by", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("updated_by", postgresql.UUID(as_uuid=True), nullable=True),
@@ -157,7 +164,9 @@ def upgrade() -> None:
         sa.Column("body", sa.Text(), nullable=False),
         sa.Column("created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
-        sa.CheckConstraint("num_nonnulls(project_id, story_id, task_id) = 1", name="ck_comment_single_parent"),
+        sa.CheckConstraint(
+            "num_nonnulls(project_id, story_id, task_id) = 1", name="ck_comment_single_parent"
+        ),
         sa.ForeignKeyConstraint(["author_id"], ["users.id"]),
         sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["story_id"], ["stories.id"], ondelete="CASCADE"),
@@ -172,11 +181,18 @@ def upgrade() -> None:
         sa.Column("project_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("story_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("task_id", postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column("from_status", postgresql.ENUM(name="statusenum", create_type=False), nullable=True),
-        sa.Column("to_status", postgresql.ENUM(name="statusenum", create_type=False), nullable=False),
+        sa.Column(
+            "from_status", postgresql.ENUM(name="statusenum", create_type=False), nullable=True
+        ),
+        sa.Column(
+            "to_status", postgresql.ENUM(name="statusenum", create_type=False), nullable=False
+        ),
         sa.Column("changed_by", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("changed_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
-        sa.CheckConstraint("num_nonnulls(project_id, story_id, task_id) = 1", name="ck_status_history_single_parent"),
+        sa.CheckConstraint(
+            "num_nonnulls(project_id, story_id, task_id) = 1",
+            name="ck_status_history_single_parent",
+        ),
         sa.ForeignKeyConstraint(["changed_by"], ["users.id"]),
         sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["story_id"], ["stories.id"], ondelete="CASCADE"),
@@ -195,7 +211,11 @@ def upgrade() -> None:
         sa.Column("inviter_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("invitee_email", sa.String(255), nullable=False),
         sa.Column("role", postgresql.ENUM(name="roleenum", create_type=False), nullable=False),
-        sa.Column("status", postgresql.ENUM(name="invitationstatusenum", create_type=False), nullable=False),
+        sa.Column(
+            "status",
+            postgresql.ENUM(name="invitationstatusenum", create_type=False),
+            nullable=False,
+        ),
         sa.Column("created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
         sa.Column("expires_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(["inviter_id"], ["users.id"]),
@@ -228,9 +248,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "ix_api_key_user_revoked", "api_keys", ["user_id", "revoked_at"]
-    )
+    op.create_index("ix_api_key_user_revoked", "api_keys", ["user_id", "revoked_at"])
 
 
 def downgrade() -> None:

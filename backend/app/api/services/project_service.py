@@ -1,22 +1,22 @@
 import uuid
 from datetime import UTC, datetime
-from sqlalchemy import select, and_, or_
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException
 
-from app.auth.permissions import require_project_access, require_manager
-from app.db.models import Project, ProjectMember, User, StatusHistory
-from app.db.base import PriorityEnum, RoleEnum
-from app.api.schemas.project import (
-    ProjectCreate,
-    ProjectUpdate,
-    ProjectResponse,
-    MemberAdd,
-    MemberUpdate,
-    MemberResponse,
-)
+from fastapi import HTTPException
+from sqlalchemy import and_, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.pagination import decode_cursor, encode_cursor
 from app.api.schemas.common import PaginatedResponse
-from app.api.pagination import encode_cursor, decode_cursor
+from app.api.schemas.project import (
+    MemberAdd,
+    MemberResponse,
+    ProjectCreate,
+    ProjectResponse,
+    ProjectUpdate,
+)
+from app.auth.permissions import require_manager, require_project_access
+from app.db.base import PriorityEnum, RoleEnum
+from app.db.models import Project, ProjectMember, StatusHistory, User
 
 
 async def list_projects(
@@ -87,8 +87,8 @@ async def create_project(data: ProjectCreate, user: User, db: AsyncSession) -> P
     require_manager(user.role)
 
     from app.api.services.project_status_service import (
-        seed_default_statuses,
         get_default_status_slug,
+        seed_default_statuses,
         validate_status_slug,
     )
 

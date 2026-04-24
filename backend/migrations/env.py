@@ -2,16 +2,15 @@ import os
 import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
-
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 # Add backend src to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import app.db.models  # noqa: F401 — registers all models with Base.metadata
 from app.core.config import settings
 from app.db.base import Base
-import app.db.models  # noqa: F401 — registers all models with Base.metadata
 
 config = context.config
 if not config.get_main_option("sqlalchemy.url", None):

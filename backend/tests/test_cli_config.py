@@ -1,13 +1,11 @@
 import json
 import os
 import stat
-from pathlib import Path
-import pytest
 from unittest.mock import patch
 
 
 def test_load_defaults_when_no_file(tmp_path):
-    from app.cli.config import CLIConfig, DEFAULT_API_BASE_URL, DEFAULT_LOCALE
+    from app.cli.config import DEFAULT_API_BASE_URL, DEFAULT_LOCALE, CLIConfig
 
     with patch("app.cli.config.CONFIG_PATH", tmp_path / "config.json"):
         cfg = CLIConfig.load()

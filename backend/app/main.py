@@ -1,4 +1,5 @@
 """Entry point for running the application with uvicorn."""
+
 import uvicorn
 
 if __name__ == "__main__":

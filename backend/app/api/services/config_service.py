@@ -1,13 +1,14 @@
 import uuid
 from datetime import UTC, datetime
+
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException
 
-from app.auth.security import generate_api_key, check_scope
-from app.db.models import User, UserConfig, APIKey
+from app.api.schemas.api_key import APIKeyCreate, APIKeyCreatedResponse, APIKeyResponse
 from app.api.schemas.config import UserConfigResponse, UserConfigUpdate
-from app.api.schemas.api_key import APIKeyResponse, APIKeyCreatedResponse, APIKeyCreate
+from app.auth.security import generate_api_key
+from app.db.models import APIKey, User, UserConfig
 
 
 async def get_config(user: User, db: AsyncSession) -> UserConfigResponse:
@@ -27,9 +28,7 @@ async def get_config(user: User, db: AsyncSession) -> UserConfigResponse:
     return UserConfigResponse.model_validate(config)
 
 
-async def update_config(
-    data: UserConfigUpdate, user: User, db: AsyncSession
-) -> UserConfigResponse:
+async def update_config(data: UserConfigUpdate, user: User, db: AsyncSession) -> UserConfigResponse:
     """Update current user's configuration."""
     config = await db.get(UserConfig, user.id)
     if not config:
@@ -65,9 +64,7 @@ async def list_api_keys(user: User, db: AsyncSession) -> list[APIKeyResponse]:
     ]
 
 
-async def create_api_key(
-    data: APIKeyCreate, user: User, db: AsyncSession
-) -> APIKeyCreatedResponse:
+async def create_api_key(data: APIKeyCreate, user: User, db: AsyncSession) -> APIKeyCreatedResponse:
     """Create a new API key."""
     raw_key, key_hash = generate_api_key()
 

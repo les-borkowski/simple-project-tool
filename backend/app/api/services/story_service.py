@@ -1,15 +1,16 @@
 import uuid
+
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException
 
-from app.auth.permissions import require_project_access, require_manager
-from app.db.base import PriorityEnum
-from app.db.models import Story, Project, StatusHistory, User
-from app.api.services.project_status_service import validate_status_slug, get_default_status_slug
-from app.api.schemas.story import StoryCreate, StoryUpdate, StoryResponse
+from app.api.pagination import decode_cursor, encode_cursor
 from app.api.schemas.common import PaginatedResponse
-from app.api.pagination import encode_cursor, decode_cursor
+from app.api.schemas.story import StoryCreate, StoryResponse, StoryUpdate
+from app.api.services.project_status_service import get_default_status_slug, validate_status_slug
+from app.auth.permissions import require_manager, require_project_access
+from app.db.base import PriorityEnum
+from app.db.models import Project, StatusHistory, Story, User
 
 
 async def list_stories(

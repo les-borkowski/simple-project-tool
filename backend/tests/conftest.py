@@ -19,9 +19,7 @@ from app.db.database import get_db
 @pytest.fixture(scope="session", autouse=True)
 def apply_migrations():
     """Run Alembic migrations on the test database before any tests run."""
-    sync_url = settings.TEST_DATABASE_URL.replace(
-        "postgresql+asyncpg://", "postgresql+psycopg2://"
-    )
+    sync_url = settings.TEST_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
     ini_path = os.path.join(os.path.dirname(__file__), "..", "alembic.ini")
     cfg = Config(ini_path)
     cfg.set_main_option("sqlalchemy.url", sync_url)
@@ -35,9 +33,7 @@ def anyio_backend():
 
 @pytest_asyncio.fixture(scope="session")
 async def engine():
-    async_engine = create_async_engine(
-        settings.TEST_DATABASE_URL, echo=False, poolclass=NullPool
-    )
+    async_engine = create_async_engine(settings.TEST_DATABASE_URL, echo=False, poolclass=NullPool)
     yield async_engine
     await async_engine.dispose()
 
@@ -81,9 +77,7 @@ async def api_client(api_db) -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides[get_db] = override_get_db
     with patch("app.api.main.check_db_connection", new=AsyncMock()):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             yield client
     app.dependency_overrides.clear()
 
@@ -121,9 +115,7 @@ async def manager_auth_token(api_client: AsyncClient, api_db: AsyncSession) -> s
         "/api/v1/auth/register",
         json={"email": email, "name": "Manager User", "password": "testpassword123"},
     )
-    await api_db.execute(
-        update(User).where(User.email == email).values(role=RoleEnum.manager)
-    )
+    await api_db.execute(update(User).where(User.email == email).values(role=RoleEnum.manager))
     await api_db.flush()
     resp = await api_client.post(
         "/api/v1/auth/login",

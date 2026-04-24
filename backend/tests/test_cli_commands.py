@@ -1,10 +1,8 @@
 import json
+from unittest.mock import patch
+
 import httpx
-import pytest
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 from typer.testing import CliRunner
-from click.exceptions import Exit
 
 runner = CliRunner()
 
@@ -15,7 +13,7 @@ def make_resp(status_code: int, data: dict | None = None) -> httpx.Response:
 
 
 def mock_config(tmp_path, **kwargs):
-    from app.cli.config import CLIConfig, DEFAULT_API_BASE_URL, DEFAULT_LOCALE
+    from app.cli.config import DEFAULT_API_BASE_URL, DEFAULT_LOCALE, CLIConfig
 
     cfg = CLIConfig(
         access_token=kwargs.get("access_token", "tok"),

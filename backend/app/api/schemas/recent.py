@@ -1,6 +1,7 @@
 # backend/app/api/schemas/recent.py
 from datetime import datetime
 from typing import Literal
+
 from pydantic import BaseModel
 
 

@@ -1,11 +1,11 @@
 # backend/app/api/services/recent_service.py
-from sqlalchemy import select, union_all, literal, null, cast, or_
+from sqlalchemy import cast, literal, null, or_, select, union_all
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.base import RoleEnum
-from app.db.models import Project, Story, Task, ProjectMember, User
 from app.api.schemas.recent import RecentItemResponse
+from app.db.base import RoleEnum
+from app.db.models import Project, ProjectMember, Story, Task, User
 
 
 async def get_recent_items(user: User, db: AsyncSession) -> list[RecentItemResponse]:

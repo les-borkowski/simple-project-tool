@@ -3,13 +3,16 @@ from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_create_sprint(
-    api_client: AsyncClient, manager_headers: dict, test_project: dict
-):
+async def test_create_sprint(api_client: AsyncClient, manager_headers: dict, test_project: dict):
     pid = test_project["id"]
     resp = await api_client.post(
         f"/api/v1/projects/{pid}/sprints",
-        json={"name": "Sprint 1", "start_date": "2026-05-01", "end_date": "2026-05-14", "capacity": 20},
+        json={
+            "name": "Sprint 1",
+            "start_date": "2026-05-01",
+            "end_date": "2026-05-14",
+            "capacity": 20,
+        },
         headers=manager_headers,
     )
     assert resp.status_code == 201
@@ -24,9 +27,7 @@ async def test_create_sprint(
 
 
 @pytest.mark.asyncio
-async def test_list_sprints(
-    api_client: AsyncClient, manager_headers: dict, test_project: dict
-):
+async def test_list_sprints(api_client: AsyncClient, manager_headers: dict, test_project: dict):
     pid = test_project["id"]
     await api_client.post(
         f"/api/v1/projects/{pid}/sprints",
@@ -41,9 +42,7 @@ async def test_list_sprints(
 
 
 @pytest.mark.asyncio
-async def test_update_sprint(
-    api_client: AsyncClient, manager_headers: dict, test_project: dict
-):
+async def test_update_sprint(api_client: AsyncClient, manager_headers: dict, test_project: dict):
     pid = test_project["id"]
     r = await api_client.post(
         f"/api/v1/projects/{pid}/sprints",
@@ -62,9 +61,7 @@ async def test_update_sprint(
 
 
 @pytest.mark.asyncio
-async def test_delete_sprint(
-    api_client: AsyncClient, manager_headers: dict, test_project: dict
-):
+async def test_delete_sprint(api_client: AsyncClient, manager_headers: dict, test_project: dict):
     pid = test_project["id"]
     r = await api_client.post(
         f"/api/v1/projects/{pid}/sprints",
@@ -98,7 +95,12 @@ async def test_update_sprint_clears_capacity(
     pid = test_project["id"]
     r = await api_client.post(
         f"/api/v1/projects/{pid}/sprints",
-        json={"name": "Sprint 1", "start_date": "2026-05-01", "end_date": "2026-05-14", "capacity": 20},
+        json={
+            "name": "Sprint 1",
+            "start_date": "2026-05-01",
+            "end_date": "2026-05-14",
+            "capacity": 20,
+        },
         headers=manager_headers,
     )
     sid = r.json()["id"]

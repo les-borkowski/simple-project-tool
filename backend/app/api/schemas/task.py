@@ -1,6 +1,8 @@
-from datetime import datetime, date
+from datetime import date, datetime
 from uuid import UUID
+
 from pydantic import BaseModel
+
 from app.db.base import PriorityEnum
 
 

@@ -2,11 +2,11 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.schemas.recent import RecentItemResponse
+from app.api.services import recent_service
 from app.auth.dependencies import get_current_user
 from app.db.database import get_db
 from app.db.models import User
-from app.api.schemas.recent import RecentItemResponse
-from app.api.services import recent_service
 
 router = APIRouter(tags=["recent"])
 

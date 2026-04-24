@@ -1,6 +1,3 @@
-import pytest
-
-
 def test_short_id():
     from app.cli.output import short_id
 
@@ -91,8 +88,9 @@ def test_fmt_date_none():
 
 def test_load_locale_loads_strings(tmp_path):
     import json
-    from app.cli import output
     from unittest.mock import patch
+
+    from app.cli import output
 
     locale_dir = tmp_path / "locales"
     locale_dir.mkdir()
@@ -104,8 +102,9 @@ def test_load_locale_loads_strings(tmp_path):
 
 def test_load_locale_falls_back_to_en_gb(tmp_path):
     import json
-    from app.cli import output
     from unittest.mock import patch
+
+    from app.cli import output
 
     locale_dir = tmp_path / "locales"
     locale_dir.mkdir()

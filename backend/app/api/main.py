@@ -107,9 +107,7 @@ async def locale_middleware(request: Request, call_next):
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     """Convert HTTPException to standard error format."""
     error_code = exc.detail if isinstance(exc.detail, str) else "INTERNAL_ERROR"
-    error_msg = translate(request, error_code) if isinstance(exc.detail, str) else str(
-        exc.detail
-    )
+    error_msg = translate(request, error_code) if isinstance(exc.detail, str) else str(exc.detail)
 
     return JSONResponse(
         status_code=exc.status_code,

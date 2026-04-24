@@ -1,6 +1,8 @@
+from unittest.mock import patch
+
 import httpx
 import pytest
-from unittest.mock import MagicMock, patch
+
 from app.cli.config import CLIConfig
 
 
@@ -46,8 +48,9 @@ def test_401_triggers_refresh_and_retry():
 
 
 def test_401_without_refresh_token_raises_exit():
-    from app.cli.http import APIClient
     from click.exceptions import Exit
+
+    from app.cli.http import APIClient
 
     config = CLIConfig(access_token="old", refresh_token=None, api_base_url="http://localhost:8000")
     client = APIClient(config)
@@ -61,8 +64,9 @@ def test_401_without_refresh_token_raises_exit():
 
 
 def test_non_success_raises_exit():
-    from app.cli.http import APIClient
     from click.exceptions import Exit
+
+    from app.cli.http import APIClient
 
     config = CLIConfig(access_token="tok", api_base_url="http://localhost:8000")
     client = APIClient(config)

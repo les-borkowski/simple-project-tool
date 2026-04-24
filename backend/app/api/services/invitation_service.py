@@ -1,13 +1,14 @@
 import uuid
 from datetime import UTC, datetime, timedelta
-from sqlalchemy import select, and_
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException
 
-from app.auth.permissions import require_project_access, require_manager
-from app.db.models import Invitation, Project, ProjectMember, User
-from app.db.base import InvitationStatusEnum, RoleEnum
+from fastapi import HTTPException
+from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.schemas.invitation import InvitationCreate, InvitationResponse
+from app.auth.permissions import require_manager, require_project_access
+from app.db.base import InvitationStatusEnum, RoleEnum
+from app.db.models import Invitation, Project, ProjectMember, User
 
 
 async def list_project_invitations(
@@ -63,9 +64,7 @@ async def create_invitation(
     return InvitationResponse.model_validate(invitation)
 
 
-async def cancel_invitation(
-    invitation_id: uuid.UUID, user: User, db: AsyncSession
-) -> None:
+async def cancel_invitation(invitation_id: uuid.UUID, user: User, db: AsyncSession) -> None:
     """Cancel an invitation. Only the manager who created it can cancel."""
     invitation = await db.get(Invitation, invitation_id)
     if not invitation:
@@ -78,9 +77,7 @@ async def cancel_invitation(
     await db.commit()
 
 
-async def accept_invitation(
-    invitation_id: uuid.UUID, user: User, db: AsyncSession
-) -> None:
+async def accept_invitation(invitation_id: uuid.UUID, user: User, db: AsyncSession) -> None:
     """Accept an invitation."""
     invitation = await db.get(Invitation, invitation_id)
     if not invitation:
@@ -90,17 +87,13 @@ async def accept_invitation(
         raise HTTPException(status_code=403, detail="Invitation email does not match your account")
 
     if invitation.status != InvitationStatusEnum.pending:
-        raise HTTPException(
-            status_code=409, detail="You have already responded to this invitation"
-        )
+        raise HTTPException(status_code=409, detail="You have already responded to this invitation")
 
     if datetime.now(UTC).replace(tzinfo=None) > invitation.expires_at:
         raise HTTPException(status_code=400, detail="Invitation has expired")
 
     # Create ProjectMember
-    member = ProjectMember(
-        project_id=invitation.project_id, user_id=user.id, role=invitation.role
-    )
+    member = ProjectMember(project_id=invitation.project_id, user_id=user.id, role=invitation.role)
     db.add(member)
 
     # Update invitation status
@@ -108,9 +101,7 @@ async def accept_invitation(
     await db.commit()
 
 
-async def decline_invitation(
-    invitation_id: uuid.UUID, user: User, db: AsyncSession
-) -> None:
+async def decline_invitation(invitation_id: uuid.UUID, user: User, db: AsyncSession) -> None:
     """Decline an invitation."""
     invitation = await db.get(Invitation, invitation_id)
     if not invitation:
@@ -120,9 +111,7 @@ async def decline_invitation(
         raise HTTPException(status_code=403, detail="Invitation email does not match your account")
 
     if invitation.status != InvitationStatusEnum.pending:
-        raise HTTPException(
-            status_code=409, detail="You have already responded to this invitation"
-        )
+        raise HTTPException(status_code=409, detail="You have already responded to this invitation")
 
     invitation.status = InvitationStatusEnum.declined
     await db.commit()

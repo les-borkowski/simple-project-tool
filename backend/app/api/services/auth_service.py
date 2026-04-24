@@ -1,19 +1,20 @@
 import uuid
+
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException
 
+from app.api.schemas.user import UserCreate, UserResponse
 from app.auth.security import (
+    create_access_token,
+    create_password_reset_token,
+    create_refresh_token,
     hash_password,
     verify_password,
-    create_access_token,
-    create_refresh_token,
-    create_password_reset_token,
     verify_password_reset_token,
 )
+from app.db.base import LocaleEnum, RoleEnum, ThemeEnum
 from app.db.models import User, UserConfig
-from app.db.base import RoleEnum, ThemeEnum, LocaleEnum
-from app.api.schemas.user import UserCreate, UserResponse, UserUpdate
 
 
 async def register(data: UserCreate, db: AsyncSession) -> UserResponse:

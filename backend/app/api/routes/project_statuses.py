@@ -1,16 +1,17 @@
 import uuid
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.schemas.project_status import (
+    ProjectStatusCreate,
+    ProjectStatusResponse,
+    ProjectStatusUpdate,
+)
+from app.api.services import project_status_service
 from app.auth.dependencies import get_current_user
 from app.db.database import get_db
 from app.db.models import User
-from app.api.schemas.project_status import (
-    ProjectStatusCreate,
-    ProjectStatusUpdate,
-    ProjectStatusResponse,
-)
-from app.api.services import project_status_service
 
 router = APIRouter(prefix="/projects", tags=["project-statuses"])
 
@@ -24,9 +25,7 @@ async def list_project_statuses(
     return await project_status_service.list_project_statuses(project_id, user, db)
 
 
-@router.post(
-    "/{project_id}/statuses", response_model=ProjectStatusResponse, status_code=201
-)
+@router.post("/{project_id}/statuses", response_model=ProjectStatusResponse, status_code=201)
 async def create_project_status(
     project_id: uuid.UUID,
     data: ProjectStatusCreate,
@@ -36,9 +35,7 @@ async def create_project_status(
     return await project_status_service.create_project_status(project_id, data, user, db)
 
 
-@router.patch(
-    "/{project_id}/statuses/{status_id}", response_model=ProjectStatusResponse
-)
+@router.patch("/{project_id}/statuses/{status_id}", response_model=ProjectStatusResponse)
 async def update_project_status(
     project_id: uuid.UUID,
     status_id: uuid.UUID,
@@ -46,9 +43,7 @@ async def update_project_status(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    return await project_status_service.update_project_status(
-        project_id, status_id, data, user, db
-    )
+    return await project_status_service.update_project_status(project_id, status_id, data, user, db)
 
 
 @router.delete("/{project_id}/statuses/{status_id}", status_code=204)

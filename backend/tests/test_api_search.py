@@ -23,9 +23,7 @@ async def test_search_too_long_query_rejected(api_client: AsyncClient, auth_head
 
 
 @pytest.mark.asyncio
-async def test_search_returns_matching_project(
-    api_client: AsyncClient, manager_headers: dict
-):
+async def test_search_returns_matching_project(api_client: AsyncClient, manager_headers: dict):
     unique = "UniqueProjectXYZ123"
     create_resp = await api_client.post(
         "/api/v1/projects",
@@ -35,7 +33,7 @@ async def test_search_returns_matching_project(
     assert create_resp.status_code == 201
     project = create_resp.json()
 
-    resp = await api_client.get(f"/api/v1/search?q=UniqueProjectXYZ123", headers=manager_headers)
+    resp = await api_client.get("/api/v1/search?q=UniqueProjectXYZ123", headers=manager_headers)
     assert resp.status_code == 200
     items = resp.json()
     match = next((i for i in items if i["id"] == project["id"]), None)
@@ -59,7 +57,7 @@ async def test_search_returns_matching_story(
     assert create_resp.status_code == 201
     story = create_resp.json()
 
-    resp = await api_client.get(f"/api/v1/search?q=UniqueStoryABC456", headers=manager_headers)
+    resp = await api_client.get("/api/v1/search?q=UniqueStoryABC456", headers=manager_headers)
     assert resp.status_code == 200
     items = resp.json()
     match = next((i for i in items if i["id"] == story["id"]), None)
@@ -83,7 +81,7 @@ async def test_search_returns_matching_task(
     assert create_resp.status_code == 201
     task = create_resp.json()
 
-    resp = await api_client.get(f"/api/v1/search?q=UniqueTaskDEF789", headers=manager_headers)
+    resp = await api_client.get("/api/v1/search?q=UniqueTaskDEF789", headers=manager_headers)
     assert resp.status_code == 200
     items = resp.json()
     match = next((i for i in items if i["id"] == task["id"]), None)
@@ -94,9 +92,7 @@ async def test_search_returns_matching_task(
 
 
 @pytest.mark.asyncio
-async def test_search_matches_description(
-    api_client: AsyncClient, manager_headers: dict
-):
+async def test_search_matches_description(api_client: AsyncClient, manager_headers: dict):
     unique_desc = "xq9DescriptionOnlyToken"
     create_resp = await api_client.post(
         "/api/v1/projects",
@@ -106,9 +102,7 @@ async def test_search_matches_description(
     assert create_resp.status_code == 201
     project = create_resp.json()
 
-    resp = await api_client.get(
-        f"/api/v1/search?q=xq9DescriptionOnlyToken", headers=manager_headers
-    )
+    resp = await api_client.get("/api/v1/search?q=xq9DescriptionOnlyToken", headers=manager_headers)
     assert resp.status_code == 200
     items = resp.json()
     match = next((i for i in items if i["id"] == project["id"]), None)
@@ -138,9 +132,7 @@ async def test_search_contributor_cannot_see_unrelated_project(
     assert create_resp.status_code == 201
     project = create_resp.json()
 
-    resp = await api_client.get(
-        f"/api/v1/search?q=ManagerOnlyProject777", headers=auth_headers
-    )
+    resp = await api_client.get("/api/v1/search?q=ManagerOnlyProject777", headers=auth_headers)
     assert resp.status_code == 200
     items = resp.json()
     match = next((i for i in items if i["id"] == project["id"]), None)

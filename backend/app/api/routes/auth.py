@@ -1,12 +1,12 @@
-from pydantic import BaseModel, EmailStr
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.schemas.user import UserCreate, UserResponse
+from app.api.services import auth_service
 from app.auth.dependencies import get_current_user
 from app.db.database import get_db
 from app.db.models import User
-from app.api.schemas.user import UserCreate, UserResponse
-from app.api.services import auth_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -49,9 +49,7 @@ class PasswordResetRequest(BaseModel):
 
 
 @router.post("/password-reset")
-async def request_password_reset(
-    data: PasswordResetRequest, db: AsyncSession = Depends(get_db)
-):
+async def request_password_reset(data: PasswordResetRequest, db: AsyncSession = Depends(get_db)):
     """Request password reset (returns token for demo; normally sent via email)."""
     token = await auth_service.request_password_reset(data.email, db)
     return {"reset_token": token}
