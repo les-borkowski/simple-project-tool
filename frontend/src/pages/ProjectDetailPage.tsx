@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { SprintView } from './SprintView'
+import { TimelineView } from './TimelineView'
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { projectsApi, invitationsApi, storiesApi, tasksApi } from '../services/api'
@@ -17,7 +19,7 @@ import { useToast } from '../context/ToastContext'
 import { formatRelative } from '../utils/time'
 import { useAuth } from '../context/AuthContext'
 
-type Tab = 'board' | 'stories' | 'members'
+type Tab = 'board' | 'stories' | 'members' | 'sprints' | 'timeline'
 
 
 const IPlus = () => (
@@ -53,6 +55,17 @@ const IArchive = () => (
 const IChevron = () => (
   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
     <path d="M6 9l6 6 6-6"/>
+  </svg>
+)
+const ISprint = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+    <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+  </svg>
+)
+const ITimeline = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+    <circle cx="7" cy="6" r="2" fill="currentColor"/><circle cx="14" cy="12" r="2" fill="currentColor"/><circle cx="10" cy="18" r="2" fill="currentColor"/>
   </svg>
 )
 
@@ -587,6 +600,8 @@ export function ProjectDetailPage() {
             ['board', t('tabs.board'), <IBoard key="b" />],
             ['stories', t('tabs.stories'), <IList key="s" />],
             ['members', t('tabs.members'), <IUser key="m" />],
+            ['sprints', t('sprints.title'), <ISprint key="sp" />],
+            ['timeline', t('timeline.title'), <ITimeline key="tl" />],
           ] as [Tab, string, React.ReactNode][]).map(([key, label, icon]) => (
             <button
               key={key}
@@ -877,6 +892,12 @@ export function ProjectDetailPage() {
           )}
         </div>
       )}
+
+      {/* Sprints tab */}
+      {tab === 'sprints' && id && <SprintView projectId={id} />}
+
+      {/* Timeline tab */}
+      {tab === 'timeline' && id && <TimelineView projectId={id} />}
 
       {/* Members tab */}
       {tab === 'members' && (
