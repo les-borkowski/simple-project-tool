@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm'
 import { tasksApi, projectsApi, storiesApi } from '../services/api'
 import type { TaskResponse, MemberResponse, Status, Priority, StoryResponse } from '../services/api'
 import { useProjectStatuses } from '../hooks/useProjectStatuses'
+import { useProjectSprints } from '../hooks/useProjectSprints'
 import { StatusPill } from '../components/common/StatusPill'
 import { PriorityBars } from '../components/common/PriorityBars'
 import { MarkdownEditor } from '../components/common/MarkdownEditor'
@@ -37,7 +38,9 @@ export function TaskDetailPage() {
 
   const [task, setTask] = useState<TaskResponse | null>(null)
   const { statuses: projectStatuses } = useProjectStatuses(task?.project_id)
+  const { sprints } = useProjectSprints(task?.project_id)
   const [story, setStory] = useState<StoryResponse | null>(null)
+  const [stories, setStories] = useState<StoryResponse[]>([])
   const [projectName, setProjectName] = useState('')
   const [members, setMembers] = useState<MemberResponse[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,6 +57,9 @@ export function TaskDetailPage() {
       setTask(res.data)
       setDesc(res.data.description ?? '')
       setTitleDraft(res.data.title)
+      storiesApi.list(res.data.project_id).then(storiesRes => {
+        setStories(storiesRes.data.items)
+      }).catch(() => {})
       try {
         if (res.data.story_id) {
           const storyRes = await storiesApi.get(res.data.story_id)
@@ -95,6 +101,35 @@ export function TaskDetailPage() {
     const res = await tasksApi.update(taskId, { assignee_id: assignee_id || null })
     setTask(res.data)
     addToast('Assignee updated')
+  }
+
+  const handleStoryChange = async (story_id: string) => {
+    if (!taskId) return
+    const res = await tasksApi.update(taskId, { story_id: story_id || null })
+    setTask(res.data)
+    if (story_id) {
+      const storyRes = await storiesApi.get(story_id)
+      setStory(storyRes.data)
+    } else {
+      setStory(null)
+    }
+    addToast(t('tasks.story_updated'))
+  }
+
+  const handleSprintChange = async (sprint_id: string) => {
+    if (!taskId) return
+    const res = await tasksApi.update(taskId, { sprint_id: sprint_id || null })
+    setTask(res.data)
+    addToast(t('tasks.sprint_updated'))
+  }
+
+  const handleEffortChange = async (effort: string) => {
+    if (!taskId) return
+    const parsed = effort ? parseInt(effort, 10) : null
+    if (effort && (isNaN(parsed!) || parsed! < 0)) return
+    const res = await tasksApi.update(taskId, { effort: parsed })
+    setTask(res.data)
+    addToast(t('tasks.effort_updated'))
   }
 
   const handleSaveTitle = async () => {
@@ -254,8 +289,31 @@ export function TaskDetailPage() {
 
         {/* Right rail */}
         <aside className="border-l border-stone-200 dark:border-stone-800 bg-stone-50/40 dark:bg-stone-950/30 px-5 py-5 space-y-5 text-[12.5px]">
-          <DetailField label={t('detail.status')}><StatusPill status={task.status} statuses={projectStatuses} /></DetailField>
-          <DetailField label={t('detail.priority')}><PriorityBars priority={task.priority} withLabel /></DetailField>
+          {/* Status */}
+          <DetailField label={t('detail.status')}>
+            <select
+              value={task.status}
+              onChange={(e) => handleStatusChange(e.target.value as Status)}
+              className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
+            >
+              {projectStatuses.map((ps) => (
+                <option key={ps.slug} value={ps.slug}>{ps.name}</option>
+              ))}
+            </select>
+          </DetailField>
+
+          {/* Priority */}
+          <DetailField label={t('detail.priority')}>
+            <select
+              value={task.priority}
+              onChange={(e) => handlePriorityChange(e.target.value as Priority)}
+              className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
+            >
+              {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
+            </select>
+          </DetailField>
+
+          {/* Assignee */}
           <DetailField label={t('detail.assignee')}>
             <select
               value={task.assignee_id ?? ''}
@@ -268,15 +326,54 @@ export function TaskDetailPage() {
               ))}
             </select>
           </DetailField>
-          {story && (
-            <DetailField label={t('detail.story')}>
-              <Link to={`/projects/${story.project_id}/stories/${storyId}`} className="accent-text hover:underline text-[12.5px]">
-                {story.title}
-              </Link>
-            </DetailField>
-          )}
+
+          {/* Story */}
+          <DetailField label={t('detail.story')}>
+            <select
+              value={task.story_id ?? ''}
+              onChange={(e) => handleStoryChange(e.target.value)}
+              className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
+            >
+              <option value="">{t('tasks.no_story')}</option>
+              {stories.map((s) => (
+                <option key={s.id} value={s.id}>{s.title}</option>
+              ))}
+            </select>
+          </DetailField>
+
+          {/* Sprint */}
+          <DetailField label={t('detail.sprint')}>
+            <select
+              value={task.sprint_id ?? ''}
+              onChange={(e) => handleSprintChange(e.target.value)}
+              className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
+            >
+              <option value="">{t('sprints.no_sprint')}</option>
+              {sprints.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </DetailField>
+
+          {/* Effort */}
+          <DetailField label={t('detail.effort')}>
+            <input
+              type="number"
+              min="0"
+              defaultValue={task.effort ?? ''}
+              onBlur={(e) => handleEffortChange(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+              placeholder="—"
+              className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
+            />
+          </DetailField>
+
+          {/* Project */}
           <DetailField label={t('detail.project')}><span className="text-stone-700 dark:text-stone-200">{projectName}</span></DetailField>
+          {/* Created */}
           <DetailField label={t('detail.created')}><span className="text-stone-500">{formatRelative(task.created_at)}</span></DetailField>
+
+          {/* Status history */}
           <div>
             <div className="text-[10.5px] uppercase tracking-wider text-stone-400 mb-2 font-medium">{t('history.title')}</div>
             <StatusHistoryTimeline itemType="task" itemId={taskId!} statuses={projectStatuses} />

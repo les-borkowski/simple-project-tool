@@ -356,6 +356,7 @@ export const tasksApi = {
     status: Status
     priority: Priority
     assignee_id: string | null
+    story_id: string | null
     effort: number | null
     due_date: string | null
     sprint_id: string | null

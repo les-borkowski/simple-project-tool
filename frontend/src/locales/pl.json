@@ -30,6 +30,9 @@
   "tasks.description": "Opis",
   "tasks.story": "Historyjka",
   "tasks.no_story": "Bez historyjki (poziom projektu)",
+  "tasks.story_updated": "Historia zaktualizowana",
+  "tasks.sprint_updated": "Sprint zaktualizowany",
+  "tasks.effort_updated": "Wysiłek zaktualizowany",
 
   "comments.title": "Komentarze",
   "comments.empty": "Brak komentarzy",
@@ -165,6 +168,8 @@
   "detail.created": "Utworzono",
   "detail.assignee": "Przypisany",
   "detail.story": "Historyjka",
+  "detail.sprint": "Sprint",
+  "detail.effort": "Wysiłek",
   "detail.description": "Opis",
   "detail.assigned_to": "Przypisano do {{name}}",
   "detail.add_description": "Dodaj opis…",

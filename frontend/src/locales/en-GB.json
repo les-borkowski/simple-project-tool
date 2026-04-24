@@ -28,6 +28,9 @@
   "tasks.description": "Description",
   "tasks.story": "Story",
   "tasks.no_story": "No story (project level)",
+  "tasks.story_updated": "Story updated",
+  "tasks.sprint_updated": "Sprint updated",
+  "tasks.effort_updated": "Effort updated",
 
   "comments.title": "Comments",
   "comments.empty": "No comments yet",
@@ -155,6 +158,8 @@
   "detail.created": "Created",
   "detail.assignee": "Assignee",
   "detail.story": "Story",
+  "detail.sprint": "Sprint",
+  "detail.effort": "Effort",
   "detail.description": "Description",
   "detail.assigned_to": "Assigned to {{name}}",
   "detail.add_description": "Add description…",
