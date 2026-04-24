@@ -32,10 +32,10 @@ const IChevron = ({ open }: { open: boolean }) => (
   </svg>
 )
 
-function formatDateRange(start: string, end: string): string {
+function formatDateRange(start: string, end: string, locale: string): string {
   const fmt = (s: string) => {
     const d = new Date(s + 'T00:00:00')
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+    return d.toLocaleDateString(locale, { day: 'numeric', month: 'short' })
   }
   return `${fmt(start)} – ${fmt(end)}`
 }
@@ -77,6 +77,7 @@ function SprintCard({
   effortUnit,
   statuses,
   isManager,
+  locale,
   onDelete,
 }: {
   sprint: SprintResponse
@@ -84,6 +85,7 @@ function SprintCard({
   effortUnit: string | null
   statuses: { slug: string; name: string; colour: string; order: number }[]
   isManager: boolean
+  locale: string
   onDelete: (id: string) => void
 }) {
   const { t } = useTranslation()
@@ -117,7 +119,7 @@ function SprintCard({
         <span className="text-[13.5px] font-medium flex-1 min-w-0 truncate">{sprint.name}</span>
         <div className="flex items-center gap-3 shrink-0">
           <span className="text-[11.5px] text-stone-400">
-            {formatDateRange(sprint.start_date, sprint.end_date)}
+            {formatDateRange(sprint.start_date, sprint.end_date, locale)}
           </span>
           {effortLabel && (
             <span className="text-[11.5px] text-stone-500">{effortLabel}</span>
@@ -168,7 +170,8 @@ function SprintCard({
 }
 
 export function SprintView({ projectId }: { projectId: string }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language || navigator.language
   const { sprints, loading: sprintsLoading, refresh } = useProjectSprints(projectId)
   const { statuses } = useProjectStatuses(projectId)
   const { isManager } = useRole(projectId)
@@ -193,6 +196,8 @@ export function SprintView({ projectId }: { projectId: string }) {
     if (!projectId) return
     setTasksLoading(true)
     Promise.all([
+      // Sprint view loads up to 500 tasks; projects with more tasks will show truncated rows
+      // (sprint effort totals remain accurate as they are computed server-side)
       tasksApi.listForProject(projectId, { limit: 500 }),
       projectsApi.get(projectId),
     ])
@@ -201,10 +206,11 @@ export function SprintView({ projectId }: { projectId: string }) {
         setEffortUnit(projectRes.data.effort_unit ?? null)
       })
       .catch(() => {
+        addToast('Failed to load sprint data', 'error')
         setAllTasks([])
       })
       .finally(() => setTasksLoading(false))
-  }, [projectId])
+  }, [projectId, addToast])
 
   const handleCreateSprint = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -222,7 +228,7 @@ export function SprintView({ projectId }: { projectId: string }) {
       setNewEndDate('')
       setNewCapacity('')
       refresh()
-      addToast(t('sprints.create'))
+      addToast('Sprint created', 'success')
     } finally {
       setCreating(false)
     }
@@ -230,10 +236,14 @@ export function SprintView({ projectId }: { projectId: string }) {
 
   const handleDeleteSprint = async () => {
     if (!deleteSprintId) return
-    await sprintsApi.delete(deleteSprintId)
-    setDeleteSprintId(null)
-    refresh()
-    addToast(t('actions.delete'))
+    try {
+      await sprintsApi.delete(deleteSprintId)
+      refresh()
+    } catch {
+      addToast('Failed to delete sprint', 'error')
+    } finally {
+      setDeleteSprintId(null)
+    }
   }
 
   const sprintTaskMap: Record<string, TaskResponse[]> = {}
@@ -295,6 +305,7 @@ export function SprintView({ projectId }: { projectId: string }) {
               effortUnit={effortUnit}
               statuses={statuses}
               isManager={isManager}
+              locale={locale}
               onDelete={setDeleteSprintId}
             />
           ))}
