@@ -47,12 +47,36 @@ export function ConfigPage() {
   const [projects, setProjects] = useState<ProjectResponse[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')
   const { isManager } = useRole(selectedProjectId || undefined)
+  const [effortEnabled, setEffortEnabled] = useState(false)
+  const [effortUnit, setEffortUnit] = useState('sp')
+  const [savingEffort, setSavingEffort] = useState(false)
 
   useEffect(() => {
     if (topTab === 'project') {
       projectsApi.list({ limit: 100 }).then((r) => setProjects(r.data.items))
     }
   }, [topTab])
+
+  useEffect(() => {
+    if (!selectedProjectId) return
+    projectsApi.get(selectedProjectId).then((r) => {
+      const unit = r.data.effort_unit
+      setEffortEnabled(!!unit)
+      setEffortUnit(unit ?? 'sp')
+    })
+  }, [selectedProjectId])
+
+  const handleSaveEffortUnit = async () => {
+    if (!selectedProjectId) return
+    setSavingEffort(true)
+    try {
+      await projectsApi.update(selectedProjectId, {
+        effort_unit: effortEnabled ? (effortUnit.trim() || 'sp') : null,
+      })
+    } finally {
+      setSavingEffort(false)
+    }
+  }
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: 'profile', label: t('config.profile'), icon: <IUser /> },
@@ -203,7 +227,50 @@ export function ConfigPage() {
             </select>
           </div>
           {selectedProjectId && (
-            <ProjectStatusManager projectId={selectedProjectId} isManager={isManager} />
+            <>
+              <ProjectStatusManager projectId={selectedProjectId} isManager={isManager} />
+              <div className="mt-6 pt-6 border-t border-stone-200 dark:border-stone-800">
+                <h3 className="text-[12px] font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-3">
+                  {t('effort.unit_label')}
+                </h3>
+                <label className="flex items-center gap-2 mb-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={effortEnabled}
+                    onChange={(e) => setEffortEnabled(e.target.checked)}
+                    className="accent-[var(--accent)]"
+                  />
+                  <span className="text-[13px]">{t('effort.enable')}</span>
+                </label>
+                {effortEnabled && (
+                  <div className="flex gap-2 items-center">
+                    <input
+                      className="px-2.5 py-1.5 text-[13px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-32"
+                      value={effortUnit}
+                      onChange={(e) => setEffortUnit(e.target.value)}
+                      placeholder="sp"
+                      maxLength={20}
+                    />
+                    <button
+                      className="px-3 py-1.5 text-[12px] rounded-md accent-bg text-white transition-colors disabled:opacity-50"
+                      onClick={handleSaveEffortUnit}
+                      disabled={savingEffort}
+                    >
+                      {savingEffort ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+                )}
+                {!effortEnabled && (
+                  <button
+                    className="px-3 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 disabled:opacity-50"
+                    onClick={handleSaveEffortUnit}
+                    disabled={savingEffort}
+                  >
+                    {savingEffort ? 'Saving…' : 'Disable'}
+                  </button>
+                )}
+              </div>
+            </>
           )}
         </div>
       )}
