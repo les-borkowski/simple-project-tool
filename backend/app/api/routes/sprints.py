@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.sprint import SprintCreate, SprintResponse, SprintUpdate
-from app.api.services import sprint_service
+from app.api.schemas.timeline import TimelineTaskResponse
+from app.api.services import sprint_service, timeline_service
 from app.auth.dependencies import get_current_user
 from app.db.database import get_db
 from app.db.models import User
@@ -48,3 +49,12 @@ async def delete_sprint(
     db: AsyncSession = Depends(get_db),
 ):
     await sprint_service.delete_sprint(sprint_id, user, db)
+
+
+@router.get("/projects/{project_id}/timeline", response_model=list[TimelineTaskResponse])
+async def get_project_timeline(
+    project_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await timeline_service.get_timeline(project_id, user, db)
