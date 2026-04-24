@@ -279,7 +279,7 @@ export function TaskDetailPage() {
           <DetailField label={t('detail.created')}><span className="text-stone-500">{formatRelative(task.created_at)}</span></DetailField>
           <div>
             <div className="text-[10.5px] uppercase tracking-wider text-stone-400 mb-2 font-medium">{t('history.title')}</div>
-            <StatusHistoryTimeline itemType="task" itemId={taskId!} />
+            <StatusHistoryTimeline itemType="task" itemId={taskId!} statuses={projectStatuses} />
           </div>
         </aside>
       </div>

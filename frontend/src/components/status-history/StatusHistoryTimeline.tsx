@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { timeTrackingApi } from '../../services/api'
-import type { StatusHistoryEntry } from '../../services/api'
+import type { StatusHistoryEntry, ProjectStatusResponse } from '../../services/api'
 import { StatusBadge } from '../common/StatusBadge'
 import { EmptyState } from '../common/EmptyState'
 import { formatDate, formatDuration } from '../../utils/format'
@@ -12,9 +12,10 @@ type ItemType = 'project' | 'story' | 'task'
 interface Props {
   itemType: ItemType
   itemId: string
+  statuses?: ProjectStatusResponse[]
 }
 
-export function StatusHistoryTimeline({ itemType, itemId }: Props) {
+export function StatusHistoryTimeline({ itemType, itemId, statuses }: Props) {
   const { t } = useTranslation()
   const [history, setHistory] = useState<StatusHistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -48,9 +49,9 @@ export function StatusHistoryTimeline({ itemType, itemId }: Props) {
           </div>
           <div className="flex-1 pb-4">
             <div className="flex items-center gap-2 flex-wrap">
-              {entry.from_status && <StatusBadge status={entry.from_status} />}
+              {entry.from_status && <StatusBadge status={entry.from_status} statuses={statuses} />}
               {entry.from_status && <span className="text-gray-400">→</span>}
-              <StatusBadge status={entry.to_status} />
+              <StatusBadge status={entry.to_status} statuses={statuses} />
               {entry.elapsed_seconds != null && (
                 <span className="text-xs text-gray-400 ml-1">
                   ({t('history.elapsed')}: {formatDuration(entry.elapsed_seconds, t)})

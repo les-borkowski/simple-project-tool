@@ -414,7 +414,7 @@ export function StoryDetailPage() {
           <DetailField label={t('detail.created')}><span className="text-stone-500">{formatRelative(story.created_at)}</span></DetailField>
           <div>
             <div className="text-[10.5px] uppercase tracking-wider text-stone-400 mb-2 font-medium">{t('history.title')}</div>
-            <StatusHistoryTimeline itemType="story" itemId={storyId!} />
+            <StatusHistoryTimeline itemType="story" itemId={storyId!} statuses={projectStatuses} />
           </div>
         </aside>
       </div>
