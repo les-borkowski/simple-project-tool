@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { sprintsApi, tasksApi, projectsApi } from '../services/api'
-import type { SprintResponse, TaskResponse } from '../services/api'
+import type { SprintResponse, TaskResponse, ProjectStatusResponse } from '../services/api'
 import { useProjectSprints } from '../hooks/useProjectSprints'
 import { useProjectStatuses } from '../hooks/useProjectStatuses'
 import { useRole } from '../hooks/useRole'
@@ -47,7 +47,7 @@ function TaskRow({
 }: {
   task: TaskResponse
   effortUnit: string | null
-  statuses: { slug: string; name: string; colour: string; order: number }[]
+  statuses: ProjectStatusResponse[]
 }) {
   const href = task.story_id ? `/stories/${task.story_id}/tasks/${task.id}` : `/tasks/${task.id}`
   return (
@@ -83,7 +83,7 @@ function SprintCard({
   sprint: SprintResponse
   tasks: TaskResponse[]
   effortUnit: string | null
-  statuses: { slug: string; name: string; colour: string; order: number }[]
+  statuses: ProjectStatusResponse[]
   isManager: boolean
   locale: string
   onDelete: (id: string) => void

@@ -12,7 +12,7 @@ type ItemType = 'project' | 'story' | 'task'
 interface Props {
   itemType: ItemType
   itemId: string
-  statuses?: ProjectStatusResponse[]
+  statuses: ProjectStatusResponse[]
 }
 
 export function StatusHistoryTimeline({ itemType, itemId, statuses }: Props) {
