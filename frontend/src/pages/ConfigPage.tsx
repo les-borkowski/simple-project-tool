@@ -9,6 +9,7 @@ import { projectsApi } from '../services/api'
 import type { ProjectResponse } from '../services/api'
 import { ProjectStatusManager } from '../components/config/ProjectStatusManager'
 import { useRole } from '../hooks/useRole'
+import { useToast } from '../context/ToastContext'
 
 const ACCENT_COLORS: Record<AccentColor, string> = {
   indigo: '#6366f1',
@@ -50,6 +51,7 @@ export function ConfigPage() {
   const [effortEnabled, setEffortEnabled] = useState(false)
   const [effortUnit, setEffortUnit] = useState('sp')
   const [savingEffort, setSavingEffort] = useState(false)
+  const { addToast } = useToast()
 
   useEffect(() => {
     if (topTab === 'project') {
@@ -59,11 +61,17 @@ export function ConfigPage() {
 
   useEffect(() => {
     if (!selectedProjectId) return
-    projectsApi.get(selectedProjectId).then((r) => {
-      const unit = r.data.effort_unit
-      setEffortEnabled(!!unit)
-      setEffortUnit(unit ?? 'sp')
-    })
+    setEffortEnabled(false)
+    setEffortUnit('sp')
+    projectsApi.get(selectedProjectId)
+      .then((r) => {
+        const unit = r.data.effort_unit
+        setEffortEnabled(!!unit)
+        setEffortUnit(unit ?? 'sp')
+      })
+      .catch(() => {
+        // keep default state on error
+      })
   }, [selectedProjectId])
 
   const handleSaveEffortUnit = async () => {
@@ -73,6 +81,8 @@ export function ConfigPage() {
       await projectsApi.update(selectedProjectId, {
         effort_unit: effortEnabled ? (effortUnit.trim() || 'sp') : null,
       })
+    } catch {
+      addToast('Failed to save effort settings', 'error')
     } finally {
       setSavingEffort(false)
     }
@@ -256,7 +266,7 @@ export function ConfigPage() {
                       onClick={handleSaveEffortUnit}
                       disabled={savingEffort}
                     >
-                      {savingEffort ? 'Saving…' : 'Save'}
+                      {savingEffort ? t('common.saving') : t('common.save')}
                     </button>
                   </div>
                 )}
@@ -266,7 +276,7 @@ export function ConfigPage() {
                     onClick={handleSaveEffortUnit}
                     disabled={savingEffort}
                   >
-                    {savingEffort ? 'Saving…' : 'Disable'}
+                    {savingEffort ? t('common.saving') : t('common.save')}
                   </button>
                 )}
               </div>

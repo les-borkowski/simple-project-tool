@@ -239,5 +239,8 @@
   "timeline.empty": "Brak zadań z danymi czasowymi",
   "timeline.source_deadline": "Termin",
   "timeline.source_sprint": "Sprint",
-  "timeline.source_history": "Historia statusów"
+  "timeline.source_history": "Historia statusów",
+
+  "common.save": "Zapisz",
+  "common.saving": "Zapisywanie…"
 }

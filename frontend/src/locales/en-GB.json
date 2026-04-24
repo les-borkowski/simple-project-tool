@@ -229,5 +229,8 @@
   "timeline.empty": "No tasks with timeline data",
   "timeline.source_deadline": "Deadline",
   "timeline.source_sprint": "Sprint",
-  "timeline.source_history": "Status history"
+  "timeline.source_history": "Status history",
+
+  "common.save": "Save",
+  "common.saving": "Saving…"
 }
