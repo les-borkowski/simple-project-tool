@@ -8,6 +8,7 @@ import type { ProjectResponse, MemberResponse, StoryResponse, TaskResponse, Stat
 import { useRole } from '../hooks/useRole'
 import { useStories } from '../hooks/useStories'
 import { useProjectStatuses } from '../hooks/useProjectStatuses'
+import { useProjectSprints } from '../hooks/useProjectSprints'
 import { StatusPill } from '../components/common/StatusPill'
 import { PriorityBars } from '../components/common/PriorityBars'
 import { LoadMoreButton } from '../components/common/LoadMoreButton'
@@ -162,6 +163,7 @@ export function ProjectDetailPage() {
 
   const storiesHook = useStories(id ?? '')
   const { statuses: projectStatuses } = useProjectStatuses(id)
+  const { sprints } = useProjectSprints(id)
 
   const [showCreateStory, setShowCreateStory] = useState(false)
   const [newStoryTitle, setNewStoryTitle] = useState('')
@@ -192,6 +194,8 @@ export function ProjectDetailPage() {
   const [newTaskPriority, setNewTaskPriority] = useState<Priority>('medium')
   const [newTaskStoryId, setNewTaskStoryId] = useState('')
   const [newTaskAssigneeId, setNewTaskAssigneeId] = useState(user?.id ?? '')
+  const [newTaskSprintId, setNewTaskSprintId] = useState('')
+  const [newTaskEffort, setNewTaskEffort] = useState('')
   const [creatingTask, setCreatingTask] = useState(false)
 
   useEffect(() => {
@@ -377,6 +381,8 @@ export function ProjectDetailPage() {
         status: createTaskStatus,
         priority: newTaskPriority,
         assignee_id: newTaskAssigneeId || undefined,
+        sprint_id: newTaskSprintId || null,
+        effort: newTaskEffort ? parseInt(newTaskEffort, 10) : null,
       }
       if (newTaskStoryId) {
         const task = await tasksApi.create(newTaskStoryId, data)
@@ -394,6 +400,8 @@ export function ProjectDetailPage() {
       setNewTaskPriority('medium')
       setNewTaskStoryId('')
       setNewTaskAssigneeId(user?.id ?? '')
+      setNewTaskSprintId('')
+      setNewTaskEffort('')
       addToast('Task created')
     } finally {
       setCreatingTask(false)
@@ -965,6 +973,7 @@ export function ProjectDetailPage() {
                 autoExpand
               />
               <div className="grid grid-cols-2 gap-4">
+                {/* Status */}
                 <div className="space-y-1">
                   <label htmlFor="pdp-create-task-status" className="text-[11.5px] font-medium text-stone-500">{t('filter.status')}</label>
                   <select
@@ -978,6 +987,7 @@ export function ProjectDetailPage() {
                     ))}
                   </select>
                 </div>
+                {/* Priority */}
                 <div className="space-y-1">
                   <label htmlFor="pdp-create-task-priority" className="text-[11.5px] font-medium text-stone-500">{t('filter.priority')}</label>
                   <select
@@ -989,6 +999,7 @@ export function ProjectDetailPage() {
                     {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
                   </select>
                 </div>
+                {/* Story */}
                 <div className="space-y-1">
                   <label htmlFor="pdp-create-task-story" className="text-[11.5px] font-medium text-stone-500">{t('tasks.story')}</label>
                   <select
@@ -1001,6 +1012,20 @@ export function ProjectDetailPage() {
                     {storiesHook.items.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
                   </select>
                 </div>
+                {/* Sprint */}
+                <div className="space-y-1">
+                  <label htmlFor="pdp-create-task-sprint" className="text-[11.5px] font-medium text-stone-500">{t('detail.sprint')}</label>
+                  <select
+                    id="pdp-create-task-sprint"
+                    value={newTaskSprintId}
+                    onChange={(e) => setNewTaskSprintId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
+                  >
+                    <option value="">{t('sprints.no_sprint')}</option>
+                    {sprints.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                {/* Assignee */}
                 <div className="space-y-1">
                   <label htmlFor="pdp-create-task-assignee" className="text-[11.5px] font-medium text-stone-500">{t('tasks.assignee')}</label>
                   <select
@@ -1013,11 +1038,24 @@ export function ProjectDetailPage() {
                     {members.map((m) => <option key={m.user_id} value={m.user_id}>{m.name}</option>)}
                   </select>
                 </div>
+                {/* Effort */}
+                <div className="space-y-1">
+                  <label htmlFor="pdp-create-task-effort" className="text-[11.5px] font-medium text-stone-500">{t('detail.effort')}</label>
+                  <input
+                    id="pdp-create-task-effort"
+                    type="number"
+                    min="0"
+                    placeholder="—"
+                    value={newTaskEffort}
+                    onChange={(e) => setNewTaskEffort(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
+                  />
+                </div>
               </div>
               <div className="flex justify-end gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={() => { setShowCreateTask(false); setNewTaskTitle(''); setNewTaskDescription(''); setCreateTaskStatus('to_do'); setNewTaskPriority('medium'); setNewTaskStoryId(''); setNewTaskAssigneeId(user?.id ?? '') }}
+                  onClick={() => { setShowCreateTask(false); setNewTaskTitle(''); setNewTaskDescription(''); setCreateTaskStatus('to_do'); setNewTaskPriority('medium'); setNewTaskStoryId(''); setNewTaskAssigneeId(user?.id ?? ''); setNewTaskSprintId(''); setNewTaskEffort('') }}
                   className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
                 >
                   {t('actions.cancel')}

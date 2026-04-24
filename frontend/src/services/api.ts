@@ -345,9 +345,9 @@ export const tasksApi = {
     api.get<PaginatedResponse<TaskResponse>>(`/stories/${storyId}/tasks`, { params }),
   listForProject: (projectId: string, params?: Record<string, unknown>) =>
     api.get<PaginatedResponse<TaskResponse>>(`/projects/${projectId}/tasks`, { params }),
-  create: (storyId: string, data: { title: string; description?: string; status?: Status; priority?: Priority; assignee_id?: string }) =>
+  create: (storyId: string, data: { title: string; description?: string; status?: Status; priority?: Priority; assignee_id?: string; sprint_id?: string | null; effort?: number | null }) =>
     api.post<TaskResponse>(`/stories/${storyId}/tasks`, data),
-  createForProject: (projectId: string, data: { title: string; description?: string; status?: Status; priority?: Priority; assignee_id?: string }) =>
+  createForProject: (projectId: string, data: { title: string; description?: string; status?: Status; priority?: Priority; assignee_id?: string; sprint_id?: string | null; effort?: number | null }) =>
     api.post<TaskResponse>(`/projects/${projectId}/tasks`, data),
   get: (id: string) => api.get<TaskResponse>(`/tasks/${id}`),
   update: (id: string, data: Partial<{
