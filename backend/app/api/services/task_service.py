@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.pagination import decode_cursor, encode_cursor
@@ -86,6 +86,11 @@ async def create_task(
     if data.sprint_id is not None:
         await _validate_sprint(data.sprint_id, story.project_id, db)
 
+    pos_result = await db.execute(
+        select(func.max(Task.position)).where(Task.story_id == story_id)
+    )
+    max_pos = pos_result.scalar() or 0
+
     task = Task(
         project_id=story.project_id,
         story_id=story_id,
@@ -98,6 +103,7 @@ async def create_task(
         effort=data.effort,
         due_date=data.due_date,
         sprint_id=data.sprint_id,
+        position=max_pos + 1,
     )
     db.add(task)
     await db.flush()
@@ -132,6 +138,13 @@ async def create_task_for_project(
     if data.sprint_id is not None:
         await _validate_sprint(data.sprint_id, project_id, db)
 
+    pos_result = await db.execute(
+        select(func.max(Task.position)).where(
+            Task.project_id == project_id, Task.story_id.is_(None)
+        )
+    )
+    max_pos = pos_result.scalar() or 0
+
     task = Task(
         project_id=project_id,
         story_id=None,
@@ -144,6 +157,7 @@ async def create_task_for_project(
         effort=data.effort,
         due_date=data.due_date,
         sprint_id=data.sprint_id,
+        position=max_pos + 1,
     )
     db.add(task)
     await db.flush()

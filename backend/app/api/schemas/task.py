@@ -42,6 +42,7 @@ class TaskResponse(BaseModel):
     effort: int | None
     due_date: date | None
     sprint_id: UUID | None
+    position: int
 
     class Config:
         from_attributes = True
