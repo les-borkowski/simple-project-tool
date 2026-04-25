@@ -45,6 +45,7 @@ class Task(TimestampMixin, Base):
     )
     effort: Mapped[int | None] = mapped_column(Integer, nullable=True)
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     sprint_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("sprints.id", ondelete="SET NULL"), nullable=True
     )
