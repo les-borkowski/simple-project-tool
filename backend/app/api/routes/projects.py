@@ -12,7 +12,8 @@ from app.api.schemas.project import (
     ProjectResponse,
     ProjectUpdate,
 )
-from app.api.services import project_service
+from app.api.schemas.user_preferences import UserProjectPreferencesResponse, UserProjectPreferencesUpdate
+from app.api.services import project_service, user_preferences_service
 from app.auth.dependencies import get_current_user
 from app.db.base import PriorityEnum
 from app.db.database import get_db
@@ -142,3 +143,24 @@ async def remove_member(
 ):
     """Remove a member from a project."""
     await project_service.remove_member(project_id, user_id, user, db)
+
+
+@router.get("/{project_id}/my-preferences", response_model=UserProjectPreferencesResponse)
+async def get_my_preferences(
+    project_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get tab preferences for the current user in a project."""
+    return await user_preferences_service.get_preferences(project_id, user, db)
+
+
+@router.put("/{project_id}/my-preferences", response_model=UserProjectPreferencesResponse)
+async def update_my_preferences(
+    project_id: uuid.UUID,
+    data: UserProjectPreferencesUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create or update tab preferences for the current user in a project."""
+    return await user_preferences_service.upsert_preferences(project_id, data, user, db)
