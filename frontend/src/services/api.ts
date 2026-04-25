@@ -450,3 +450,29 @@ export const searchApi = {
   search: (q: string) =>
     api.get<RecentItemResponse[]>('/search', { params: { q } }),
 }
+
+// ---------------------------------------------------------------------------
+// User Project Preferences API
+// ---------------------------------------------------------------------------
+
+export interface UserProjectPreferencesResponse {
+  id: string
+  user_id: string
+  project_id: string
+  tab_order: string[]
+  hidden_tabs: string[]
+  created_at: string
+  updated_at: string
+}
+
+export interface UserProjectPreferencesUpdate {
+  tab_order: string[]
+  hidden_tabs: string[]
+}
+
+export const preferencesApi = {
+  get: (projectId: string) =>
+    api.get<UserProjectPreferencesResponse>(`/projects/${projectId}/my-preferences`),
+  update: (projectId: string, data: UserProjectPreferencesUpdate) =>
+    api.put<UserProjectPreferencesResponse>(`/projects/${projectId}/my-preferences`, data),
+}
