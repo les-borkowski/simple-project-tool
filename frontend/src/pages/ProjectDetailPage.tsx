@@ -587,7 +587,7 @@ export function ProjectDetailPage() {
         ? [...(tasksByStory[destStoryId] ?? [])].sort((a, b) => a.position - b.position)
         : [...projectTasks].sort((a, b) => a.position - b.position)
       const overIndex = destList.findIndex((t) => t.id === over.id)
-      const insertAt = overIndex === -1 ? destList.length : overIndex + 1
+      const insertAt = overIndex === -1 ? destList.length : overIndex
       const movedTask = { ...taskToMove, story_id: destStoryId }
       const newDestList = [
         ...destList.slice(0, insertAt),
@@ -611,6 +611,9 @@ export function ProjectDetailPage() {
       tasksApi.update(active.id as string, { story_id: destStoryId }).catch(() => {})
       if (id) {
         tasksApi.reorder(id, newDestList.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
+      }
+      if (id && newSourceList.length > 0) {
+        tasksApi.reorder(id, newSourceList.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
       }
     }
   }
