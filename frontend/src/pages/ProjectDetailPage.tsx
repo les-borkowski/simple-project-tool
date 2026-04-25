@@ -177,7 +177,7 @@ function SortableStoriesTaskRow({ task, storyId, href, children, dragOverlay }: 
   }
   return (
     <div ref={setNodeRef} style={dragOverlay ? undefined : style} {...attributes} {...listeners}>
-      <Link to={href} className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-1.5 pl-8 bg-stone-50/60 dark:bg-stone-900/20 hover:bg-stone-100/60 dark:hover:bg-stone-900/40 border-t border-stone-100/60 dark:border-stone-800/40 first:border-t-0 cursor-grab">
+      <Link to={href} className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-1.5 pl-8 bg-stone-50/60 dark:bg-stone-900/20 hover:bg-stone-100/60 dark:hover:bg-stone-900/40 border-t border-stone-100/60 dark:border-stone-800/40 first:border-t-0">
         {children}
       </Link>
     </div>
@@ -608,12 +608,26 @@ export function ProjectDetailPage() {
       }
 
       // Persist
-      tasksApi.update(active.id as string, { story_id: destStoryId }).catch(() => {})
       if (id) {
-        tasksApi.reorder(id, newDestList.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
-      }
-      if (id && newSourceList.length > 0) {
-        tasksApi.reorder(id, newSourceList.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
+        tasksApi.update(active.id as string, { story_id: destStoryId })
+          .then(() => {
+            tasksApi.reorder(id, newDestList.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
+            if (newSourceList.length > 0) {
+              tasksApi.reorder(id, newSourceList.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
+            }
+          })
+          .catch(() => {
+            if (sourceStoryId) {
+              setTasksByStory((prev) => ({ ...prev, [sourceStoryId]: sourceList }))
+            } else {
+              setProjectTasks(sourceList)
+            }
+            if (destStoryId) {
+              setTasksByStory((prev) => ({ ...prev, [destStoryId]: destList }))
+            } else {
+              setProjectTasks(destList)
+            }
+          })
       }
     }
   }
