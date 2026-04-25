@@ -163,6 +163,27 @@ function BoardCard({ task, storyTitle, dragOverlay }: { task: TaskResponse; stor
   )
 }
 
+function SortableStoriesTaskRow({ task, storyId, href, children, dragOverlay }: {
+  task: TaskResponse; storyId: string | null; href: string; children: React.ReactNode; dragOverlay?: boolean
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+    data: { storyId },
+  })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  }
+  return (
+    <div ref={setNodeRef} style={dragOverlay ? undefined : style} {...attributes} {...listeners}>
+      <Link to={href} className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-1.5 pl-8 bg-stone-50/60 dark:bg-stone-900/20 hover:bg-stone-100/60 dark:hover:bg-stone-900/40 border-t border-stone-100/60 dark:border-stone-800/40 first:border-t-0 cursor-grab">
+        {children}
+      </Link>
+    </div>
+  )
+}
+
 type StorySortField = 'created_at' | 'status' | 'priority' | 'title'
 
 const STORY_STATUS_ORDER: Record<string, number> = { to_do: 0, in_progress: 1, in_review: 2, in_testing: 3, done: 4 }
@@ -234,6 +255,7 @@ export function ProjectDetailPage() {
   const [hiddenTabs, setHiddenTabs] = useState<string[]>([])
 
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
+  const [activeStoriesTaskId, setActiveStoriesTaskId] = useState<string | null>(null)
   const boardSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   useEffect(() => {
@@ -303,7 +325,7 @@ export function ProjectDetailPage() {
     const stories = storiesHook.items
     stories.forEach((story) => {
       if (tasksByStory[story.id] !== undefined) return
-      tasksApi.list(story.id, { limit: 25 }).then((res) => {
+      tasksApi.list(story.id, { limit: 200 }).then((res) => {
         setTasksByStory((prev) => ({ ...prev, [story.id]: res.data.items }))
       }).catch(() => {
         setTasksByStory((prev) => ({ ...prev, [story.id]: [] }))
@@ -515,6 +537,80 @@ export function ProjectDetailPage() {
 
       if (id) {
         tasksApi.reorder(id, updates.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
+      }
+    }
+  }
+
+  const handleStoriesDragStart = (event: DragStartEvent) => {
+    setActiveStoriesTaskId(event.active.id as string)
+  }
+
+  const handleStoriesDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    setActiveStoriesTaskId(null)
+    if (!over || active.id === over.id) return
+
+    const activeData = active.data.current as { storyId: string | null } | undefined
+    const overData = over.data.current as { storyId: string | null } | undefined
+
+    const sourceStoryId = activeData?.storyId ?? null
+    const destStoryId = overData?.storyId ?? null
+
+    const sourceList = sourceStoryId
+      ? [...(tasksByStory[sourceStoryId] ?? [])].sort((a, b) => a.position - b.position)
+      : [...projectTasks].sort((a, b) => a.position - b.position)
+
+    if (sourceStoryId === destStoryId) {
+      // Same story/backlog: reorder within group
+      const oldIndex = sourceList.findIndex((t) => t.id === active.id)
+      const newIndex = sourceList.findIndex((t) => t.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return
+
+      const reordered = arrayMove(sourceList, oldIndex, newIndex).map((t, i) => ({ ...t, position: i }))
+
+      if (sourceStoryId) {
+        setTasksByStory((prev) => ({ ...prev, [sourceStoryId]: reordered }))
+      } else {
+        setProjectTasks(reordered)
+      }
+      if (id) {
+        tasksApi.reorder(id, reordered.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
+      }
+    } else {
+      // Cross-story: move task to different story (or backlog)
+      const taskToMove = sourceList.find((t) => t.id === active.id)
+      if (!taskToMove) return
+
+      const newSourceList = sourceList.filter((t) => t.id !== active.id).map((t, i) => ({ ...t, position: i }))
+
+      const destList = destStoryId
+        ? [...(tasksByStory[destStoryId] ?? [])].sort((a, b) => a.position - b.position)
+        : [...projectTasks].sort((a, b) => a.position - b.position)
+      const overIndex = destList.findIndex((t) => t.id === over.id)
+      const insertAt = overIndex === -1 ? destList.length : overIndex + 1
+      const movedTask = { ...taskToMove, story_id: destStoryId }
+      const newDestList = [
+        ...destList.slice(0, insertAt),
+        movedTask,
+        ...destList.slice(insertAt),
+      ].map((t, i) => ({ ...t, position: i }))
+
+      // Optimistic update
+      if (sourceStoryId) {
+        setTasksByStory((prev) => ({ ...prev, [sourceStoryId]: newSourceList }))
+      } else {
+        setProjectTasks(newSourceList)
+      }
+      if (destStoryId) {
+        setTasksByStory((prev) => ({ ...prev, [destStoryId]: newDestList }))
+      } else {
+        setProjectTasks(newDestList)
+      }
+
+      // Persist
+      tasksApi.update(active.id as string, { story_id: destStoryId }).catch(() => {})
+      if (id) {
+        tasksApi.reorder(id, newDestList.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
       }
     }
   }
@@ -863,96 +959,132 @@ export function ProjectDetailPage() {
               {filteredStories.length === 0 && projectTasks.length === 0 ? (
                 <p className="text-[13px] text-stone-400 py-8 text-center">{t('filter.no_results')}</p>
               ) : (
-                <div className="rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 overflow-hidden">
-                  <div className="grid grid-cols-[1fr_120px_100px_100px_80px] px-4 py-2 text-[10.5px] uppercase tracking-wider text-stone-400 font-medium border-b border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/30">
-                    <span>{t('board.col_title')}</span>
-                    <span>{t('board.col_status')}</span>
-                    <span>{t('board.col_priority')}</span>
-                    <span>{t('board.col_tasks')}</span>
-                    <span className="text-right">{t('board.col_updated')}</span>
-                  </div>
-                  {filteredStories.map((story) => (
-                    <div key={story.id} className="border-b border-stone-100 dark:border-stone-800 last:border-0">
-                      <div className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-2.5 hover:bg-stone-50 dark:hover:bg-stone-900/40">
-                        <div className="min-w-0">
-                          <Link
-                            to={`/projects/${id}/stories/${story.id}`}
-                            className="text-[13px] font-medium hover:accent-text"
-                          >
-                            {story.title}
-                          </Link>
-                        </div>
-                        <StatusPill status={story.status} statuses={projectStatuses} />
-                        <PriorityBars priority={story.priority} withLabel />
-                        <span className="text-[12px] text-stone-500">{tasksByStory[story.id]?.length ?? '…'}</span>
-                        <div className="flex items-center justify-end gap-2">
-                          <span className="text-[11px] text-stone-400">{formatRelative(story.created_at)}</span>
-                          {isManager && (
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => setEditStory({ id: story.id, title: story.title, description: story.description ?? '' })}
-                                className="text-[11px] text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
+                <DndContext
+                  sensors={boardSensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleStoriesDragStart}
+                  onDragEnd={handleStoriesDragEnd}
+                >
+                  <div className="rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 overflow-hidden">
+                    <div className="grid grid-cols-[1fr_120px_100px_100px_80px] px-4 py-2 text-[10.5px] uppercase tracking-wider text-stone-400 font-medium border-b border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/30">
+                      <span>{t('board.col_title')}</span>
+                      <span>{t('board.col_status')}</span>
+                      <span>{t('board.col_priority')}</span>
+                      <span>{t('board.col_tasks')}</span>
+                      <span className="text-right">{t('board.col_updated')}</span>
+                    </div>
+                    {filteredStories.map((story) => {
+                      const storyTasks = [...(tasksByStory[story.id] ?? [])].sort((a, b) => a.position - b.position)
+                      return (
+                        <div key={story.id} className="border-b border-stone-100 dark:border-stone-800 last:border-0">
+                          <div className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-2.5 hover:bg-stone-50 dark:hover:bg-stone-900/40">
+                            <div className="min-w-0">
+                              <Link
+                                to={`/projects/${id}/stories/${story.id}`}
+                                className="text-[13px] font-medium hover:accent-text"
                               >
-                                {t('actions.edit')}
-                              </button>
-                              <button
-                                onClick={() => setDeleteStoryId(story.id)}
-                                className="text-[11px] text-rose-400 hover:text-rose-600"
-                              >
-                                {t('actions.delete')}
-                              </button>
+                                {story.title}
+                              </Link>
+                            </div>
+                            <StatusPill status={story.status} statuses={projectStatuses} />
+                            <PriorityBars priority={story.priority} withLabel />
+                            <span className="text-[12px] text-stone-500">{tasksByStory[story.id]?.length ?? '…'}</span>
+                            <div className="flex items-center justify-end gap-2">
+                              <span className="text-[11px] text-stone-400">{formatRelative(story.created_at)}</span>
+                              {isManager && (
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => setEditStory({ id: story.id, title: story.title, description: story.description ?? '' })}
+                                    className="text-[11px] text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
+                                  >
+                                    {t('actions.edit')}
+                                  </button>
+                                  <button
+                                    onClick={() => setDeleteStoryId(story.id)}
+                                    className="text-[11px] text-rose-400 hover:text-rose-600"
+                                  >
+                                    {t('actions.delete')}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {/* Tasks inline */}
+                          {storyTasks.length > 0 && (
+                            <div className="border-t border-stone-50 dark:border-stone-800/60">
+                              <SortableContext items={storyTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                                {storyTasks.map((task) => (
+                                  <SortableStoriesTaskRow
+                                    key={task.id}
+                                    task={task}
+                                    storyId={story.id}
+                                    href={`/stories/${story.id}/tasks/${task.id}`}
+                                  >
+                                    <span className="text-[12px] text-stone-600 dark:text-stone-400 truncate">{task.title}</span>
+                                    <StatusPill status={task.status} statuses={projectStatuses} />
+                                    <PriorityBars priority={task.priority} withLabel />
+                                    <span />
+                                    <span className="text-[11px] text-stone-400 text-right">{formatRelative(task.created_at)}</span>
+                                  </SortableStoriesTaskRow>
+                                ))}
+                              </SortableContext>
                             </div>
                           )}
                         </div>
-                      </div>
-                      {/* Tasks inline */}
-                      {tasksByStory[story.id] && tasksByStory[story.id].length > 0 && (
-                        <div className="border-t border-stone-50 dark:border-stone-800/60">
-                          {tasksByStory[story.id].map((task) => (
-                            <Link
-                              key={task.id}
-                              to={`/stories/${story.id}/tasks/${task.id}`}
-                              className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-1.5 pl-8 bg-stone-50/60 dark:bg-stone-900/20 hover:bg-stone-100/60 dark:hover:bg-stone-900/40 border-t border-stone-100/60 dark:border-stone-800/40 first:border-t-0"
-                            >
-                              <span className="text-[12px] text-stone-600 dark:text-stone-400 truncate">{task.title}</span>
-                              <StatusPill status={task.status} statuses={projectStatuses} />
-                              <PriorityBars priority={task.priority} withLabel />
-                              <span />
-                              <span className="text-[11px] text-stone-400 text-right">{formatRelative(task.created_at)}</span>
-                            </Link>
-                          ))}
+                      )
+                    })}
+                    {/* Backlog — unassigned tasks (no story) */}
+                    {projectTasks.length > 0 && (
+                      <div className="border-t border-dashed border-stone-200 dark:border-stone-700">
+                        <div className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-2.5 bg-stone-50/40 dark:bg-stone-900/20">
+                          <Link to={`/projects/${id}/backlog`} className="text-[13px] font-medium text-stone-400 dark:text-stone-500 italic hover:accent-text">{t('stories.backlog')}</Link>
+                          <span />
+                          <span />
+                          <span className="text-[12px] text-stone-500">{projectTasks.length}</span>
+                          <span />
                         </div>
-                      )}
-                    </div>
-                  ))}
-                  {/* Backlog — unassigned tasks (no story) */}
-                  {projectTasks.length > 0 && (
-                    <div className="border-t border-dashed border-stone-200 dark:border-stone-700">
-                      <div className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-2.5 bg-stone-50/40 dark:bg-stone-900/20">
-                        <Link to={`/projects/${id}/backlog`} className="text-[13px] font-medium text-stone-400 dark:text-stone-500 italic hover:accent-text">{t('stories.backlog')}</Link>
-                        <span />
-                        <span />
-                        <span className="text-[12px] text-stone-500">{projectTasks.length}</span>
-                        <span />
-                      </div>
-                      <div className="border-t border-stone-50 dark:border-stone-800/60">
-                        {projectTasks.map((task) => (
-                          <Link
-                            key={task.id}
-                            to={`/projects/${id}/tasks/${task.id}`}
-                            className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-1.5 pl-8 bg-stone-50/60 dark:bg-stone-900/20 hover:bg-stone-100/60 dark:hover:bg-stone-900/40 border-t border-stone-100/60 dark:border-stone-800/40 first:border-t-0"
+                        <div className="border-t border-stone-50 dark:border-stone-800/60">
+                          <SortableContext
+                            items={[...projectTasks].sort((a, b) => a.position - b.position).map((t) => t.id)}
+                            strategy={verticalListSortingStrategy}
                           >
-                            <span className="text-[12px] text-stone-600 dark:text-stone-400 truncate">{task.title}</span>
-                            <StatusPill status={task.status} statuses={projectStatuses} />
-                            <PriorityBars priority={task.priority} withLabel />
-                            <span />
-                            <span className="text-[11px] text-stone-400 text-right">{formatRelative(task.created_at)}</span>
-                          </Link>
-                        ))}
+                            {[...projectTasks].sort((a, b) => a.position - b.position).map((task) => (
+                              <SortableStoriesTaskRow
+                                key={task.id}
+                                task={task}
+                                storyId={null}
+                                href={`/projects/${id}/tasks/${task.id}`}
+                              >
+                                <span className="text-[12px] text-stone-600 dark:text-stone-400 truncate">{task.title}</span>
+                                <StatusPill status={task.status} statuses={projectStatuses} />
+                                <PriorityBars priority={task.priority} withLabel />
+                                <span />
+                                <span className="text-[11px] text-stone-400 text-right">{formatRelative(task.created_at)}</span>
+                              </SortableStoriesTaskRow>
+                            ))}
+                          </SortableContext>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                  <DragOverlay>
+                    {activeStoriesTaskId ? (() => {
+                      const task = findTaskById(activeStoriesTaskId)
+                      if (!task) return null
+                      const storyId = task.story_id ?? null
+                      const href = storyId ? `/stories/${storyId}/tasks/${task.id}` : `/projects/${id}/tasks/${task.id}`
+                      return (
+                        <SortableStoriesTaskRow task={task} storyId={storyId} href={href} dragOverlay>
+                          <span className="text-[12px] text-stone-600 dark:text-stone-400 truncate">{task.title}</span>
+                          <StatusPill status={task.status} statuses={projectStatuses} />
+                          <PriorityBars priority={task.priority} withLabel />
+                          <span />
+                          <span className="text-[11px] text-stone-400 text-right">{formatRelative(task.created_at)}</span>
+                        </SortableStoriesTaskRow>
+                      )
+                    })() : null}
+                  </DragOverlay>
+                </DndContext>
               )}
               {storiesHook.nextCursor && (
                 <LoadMoreButton onLoadMore={storiesHook.loadMore} isLoading={storiesHook.isLoading} />
