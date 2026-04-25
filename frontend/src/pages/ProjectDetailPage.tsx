@@ -1,4 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { SprintView } from './SprintView'
 import { TimelineView } from './TimelineView'
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom'
@@ -117,24 +134,32 @@ function AvatarStack({ members, max = 4, size = 20 }: { members: MemberResponse[
   )
 }
 
-function BoardCard({ task, storyTitle }: { task: TaskResponse; storyTitle?: string }) {
+function BoardCard({ task, storyTitle, dragOverlay }: { task: TaskResponse; storyTitle?: string; dragOverlay?: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  }
   const href = task.story_id ? `/stories/${task.story_id}/tasks/${task.id}` : `/tasks/${task.id}`
   return (
-    <Link
-      to={href}
-      className="lift block bg-white dark:bg-stone-900 rounded-lg border border-stone-200 dark:border-stone-800 p-3 hover:border-stone-300 dark:hover:border-stone-700"
-    >
-      <div className="flex items-center justify-between gap-2 mb-1.5">
-        <PriorityBars priority={task.priority} />
-        <span className="text-[10.5px] text-stone-400">{formatRelative(task.created_at)}</span>
-      </div>
-      <div className="text-[13px] leading-snug">{task.title}</div>
-      {storyTitle && (
-        <div className="flex items-center gap-2 mt-2.5">
-          <span className="text-[10.5px] text-stone-400 truncate flex-1">{storyTitle}</span>
+    <div ref={setNodeRef} style={dragOverlay ? undefined : style} {...attributes} {...listeners}>
+      <Link
+        to={href}
+        className="lift block bg-white dark:bg-stone-900 rounded-lg border border-stone-200 dark:border-stone-800 p-3 hover:border-stone-300 dark:hover:border-stone-700"
+      >
+        <div className="flex items-center justify-between gap-2 mb-1.5">
+          <PriorityBars priority={task.priority} />
+          <span className="text-[10.5px] text-stone-400">{formatRelative(task.created_at)}</span>
         </div>
-      )}
-    </Link>
+        <div className="text-[13px] leading-snug">{task.title}</div>
+        {storyTitle && (
+          <div className="flex items-center gap-2 mt-2.5">
+            <span className="text-[10.5px] text-stone-400 truncate flex-1">{storyTitle}</span>
+          </div>
+        )}
+      </Link>
+    </div>
   )
 }
 
@@ -207,6 +232,9 @@ export function ProjectDetailPage() {
 
   const [tabOrder, setTabOrder] = useState<string[]>(['board', 'stories', 'sprints', 'timeline', 'members'])
   const [hiddenTabs, setHiddenTabs] = useState<string[]>([])
+
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
+  const boardSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   useEffect(() => {
     const modal = (location.state as { modal?: string } | null)?.modal
@@ -421,6 +449,75 @@ export function ProjectDetailPage() {
       if (boardFilterStory === 'none') return story === null
       return story?.id === boardFilterStory
     })
+    .sort((a, b) => a.task.position - b.task.position)
+
+  const findTaskById = (taskId: string): TaskResponse | undefined => {
+    for (const tasks of Object.values(tasksByStory)) {
+      const t = tasks.find((t) => t.id === taskId)
+      if (t) return t
+    }
+    return projectTasks.find((t) => t.id === taskId)
+  }
+
+  const updateTaskInState = (taskId: string, updates: Partial<TaskResponse>) => {
+    setTasksByStory((prev) => {
+      const next = { ...prev }
+      for (const [storyId, tasks] of Object.entries(next)) {
+        const idx = tasks.findIndex((t) => t.id === taskId)
+        if (idx !== -1) {
+          next[storyId] = tasks.map((t, i) => i === idx ? { ...t, ...updates } : t)
+          return next
+        }
+      }
+      return next
+    })
+    setProjectTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, ...updates } : t))
+  }
+
+  const handleBoardDragStart = (event: DragStartEvent) => {
+    setActiveTaskId(event.active.id as string)
+  }
+
+  const handleBoardDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    setActiveTaskId(null)
+    if (!over || active.id === over.id) return
+
+    const activeTask = findTaskById(active.id as string)
+    const overTask = findTaskById(over.id as string)
+    if (!activeTask) return
+
+    const sourceStatus = activeTask.status
+    const destStatus = overTask?.status ?? (over.id as string)
+
+    if (sourceStatus !== destStatus) {
+      // Cross-column: update status
+      updateTaskInState(active.id as string, { status: destStatus as Status })
+      tasksApi.update(active.id as string, { status: destStatus as Status }).catch(() => {
+        // rollback on error
+        updateTaskInState(active.id as string, { status: sourceStatus })
+      })
+    } else {
+      // Same column: reorder
+      const columnTasks = allTasks
+        .filter(({ task }) => task.status === sourceStatus)
+        .sort((a, b) => a.task.position - b.task.position)
+        .map(({ task }) => task)
+
+      const oldIndex = columnTasks.findIndex((t) => t.id === active.id)
+      const newIndex = columnTasks.findIndex((t) => t.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return
+
+      const reordered = arrayMove(columnTasks, oldIndex, newIndex)
+      const updates = reordered.map((t, i) => ({ ...t, position: i }))
+
+      updates.forEach((t) => updateTaskInState(t.id, { position: t.position }))
+
+      if (id) {
+        tasksApi.reorder(id, updates.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
+      }
+    }
+  }
 
   if (loading) {
     return (
@@ -618,6 +715,12 @@ export function ProjectDetailPage() {
             </span>
           </div>
           <div className="flex-1 overflow-x-auto scroll-hidden bg-stone-50 dark:bg-stone-950/50 fine-grid">
+            <DndContext
+              sensors={boardSensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleBoardDragStart}
+              onDragEnd={handleBoardDragEnd}
+            >
             <div className="flex gap-3 px-7 py-5 min-w-min min-h-full">
               {projectStatuses.map((ps) => {
                 const columnTasks = filteredBoardTasks.filter(({ task }) => task.status === ps.slug)
@@ -628,14 +731,16 @@ export function ProjectDetailPage() {
                       <span className="text-[12px] font-medium">{ps.name}</span>
                       <span className="text-[11px] text-stone-400 tabular-nums">{columnTasks.length}</span>
                     </div>
-                    <div className="space-y-1.5">
-                      {columnTasks.map(({ task, story }) => (
-                        <BoardCard key={task.id} task={task} storyTitle={story?.title} />
-                      ))}
-                      {columnTasks.length === 0 && (
-                        <div className="h-16 rounded-lg border border-dashed border-stone-200 dark:border-stone-800" />
-                      )}
-                    </div>
+                    <SortableContext items={columnTasks.map(({ task }) => task.id)} strategy={verticalListSortingStrategy}>
+                      <div className="space-y-1.5">
+                        {columnTasks.map(({ task, story }) => (
+                          <BoardCard key={task.id} task={task} storyTitle={story?.title} />
+                        ))}
+                        {columnTasks.length === 0 && (
+                          <div className="h-16 rounded-lg border border-dashed border-stone-200 dark:border-stone-800" />
+                        )}
+                      </div>
+                    </SortableContext>
                   </div>
                 )
               })}
@@ -681,6 +786,13 @@ export function ProjectDetailPage() {
                 )
               })()}
             </div>
+              <DragOverlay>
+                {activeTaskId ? (() => {
+                  const found = allTasks.find(({ task }) => task.id === activeTaskId)
+                  return found ? <BoardCard task={found.task} storyTitle={found.story?.title} dragOverlay /> : null
+                })() : null}
+              </DragOverlay>
+            </DndContext>
           </div>
         </>
       )}

@@ -56,6 +56,7 @@ export interface TaskResponse {
   assignee_id: string | null
   sprint_id: string | null
   effort: number | null
+  position: number
   due_date: string | null  // ISO date "YYYY-MM-DD"
   created_by: string
   created_at: string
@@ -362,6 +363,8 @@ export const tasksApi = {
     sprint_id: string | null
   }>) => api.patch<TaskResponse>(`/tasks/${id}`, data),
   delete: (id: string) => api.delete(`/tasks/${id}`),
+  reorder: (projectId: string, tasks: { task_id: string; position: number }[]) =>
+    api.patch<{ updated: number }>(`/projects/${projectId}/tasks/reorder`, { tasks }),
 }
 
 // ---------------------------------------------------------------------------
