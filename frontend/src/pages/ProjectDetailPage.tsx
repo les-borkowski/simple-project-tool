@@ -3,7 +3,8 @@ import { SprintView } from './SprintView'
 import { TimelineView } from './TimelineView'
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { projectsApi, invitationsApi, storiesApi, tasksApi } from '../services/api'
+import { projectsApi, invitationsApi, storiesApi, tasksApi, preferencesApi } from '../services/api'
+import { TabConfigPanel } from '../components/settings/TabConfigPanel'
 import type { ProjectResponse, MemberResponse, StoryResponse, TaskResponse, Status, Priority, Role } from '../services/api'
 import { CreateTaskModal } from '../components/tasks/CreateTaskModal'
 import { useRole } from '../hooks/useRole'
@@ -19,7 +20,7 @@ import { SkeletonCard } from '../components/common/Skeleton'
 import { useToast } from '../context/ToastContext'
 import { formatRelative } from '../utils/time'
 
-type Tab = 'board' | 'stories' | 'members' | 'sprints' | 'timeline'
+type Tab = 'board' | 'stories' | 'members' | 'sprints' | 'timeline' | 'settings'
 
 
 const IPlus = () => (
@@ -66,6 +67,12 @@ const ITimeline = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
     <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
     <circle cx="7" cy="6" r="2" fill="currentColor"/><circle cx="14" cy="12" r="2" fill="currentColor"/><circle cx="10" cy="18" r="2" fill="currentColor"/>
+  </svg>
+)
+const ICog = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
   </svg>
 )
 
@@ -198,6 +205,9 @@ export function ProjectDetailPage() {
   const [boardFilterAssignee, setBoardFilterAssignee] = useState('')
   const [boardFilterStory, setBoardFilterStory] = useState('')
 
+  const [tabOrder, setTabOrder] = useState<string[]>(['board', 'stories', 'sprints', 'timeline', 'members'])
+  const [hiddenTabs, setHiddenTabs] = useState<string[]>([])
+
   useEffect(() => {
     const modal = (location.state as { modal?: string } | null)?.modal
     if (modal === 'create-story') {
@@ -251,6 +261,14 @@ export function ProjectDetailPage() {
       setProject(pRes.data)
       setMembers(mRes.data)
     }).finally(() => setLoading(false))
+  }, [id])
+
+  useEffect(() => {
+    if (!id) return
+    preferencesApi.get(id).then((res) => {
+      setTabOrder(res.data.tab_order)
+      setHiddenTabs(res.data.hidden_tabs)
+    }).catch(() => {}) // fall back to default order on error
   }, [id])
 
   useEffect(() => {
@@ -528,21 +546,28 @@ export function ProjectDetailPage() {
 
         {/* Sub-tabs */}
         <div className="mt-4 flex items-center gap-5 text-[13px]">
-          {([
-            ['board', t('tabs.board'), <IBoard key="b" />],
-            ['stories', t('tabs.stories'), <IList key="s" />],
-            ['members', t('tabs.members'), <IUser key="m" />],
-            ['sprints', t('sprints.title'), <ISprint key="sp" />],
-            ['timeline', t('timeline.title'), <ITimeline key="tl" />],
-          ] as [Tab, string, React.ReactNode][]).map(([key, label, icon]) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              className={`pb-2 -mb-px flex items-center gap-1.5 border-b-2 ${tab === key ? 'border-stone-900 dark:border-stone-100 text-stone-900 dark:text-stone-100' : 'border-transparent text-stone-500 hover:text-stone-800 dark:hover:text-stone-200'}`}
-            >
-              <span className="text-stone-400">{icon}</span>{label}
-            </button>
-          ))}
+          {(() => {
+            const ALL_TABS: Record<string, { label: string; icon: React.ReactNode }> = {
+              board: { label: t('tabs.board'), icon: <IBoard /> },
+              stories: { label: t('tabs.stories'), icon: <IList /> },
+              sprints: { label: t('sprints.title'), icon: <ISprint /> },
+              timeline: { label: t('timeline.title'), icon: <ITimeline /> },
+              members: { label: t('tabs.members'), icon: <IUser /> },
+            }
+            const visibleTabs = tabOrder
+              .filter((k) => !hiddenTabs.includes(k) && ALL_TABS[k])
+              .map((k) => [k, ALL_TABS[k].label, ALL_TABS[k].icon] as [Tab, string, React.ReactNode])
+            const settingsTab: [Tab, string, React.ReactNode] = ['settings', t('tabs.settings'), <ICog />]
+            return [...visibleTabs, settingsTab].map(([key, label, icon]) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`pb-2 -mb-px flex items-center gap-1.5 border-b-2 ${tab === key ? 'border-stone-900 dark:border-stone-100 text-stone-900 dark:text-stone-100' : 'border-transparent text-stone-500 hover:text-stone-800 dark:hover:text-stone-200'}`}
+              >
+                <span className="text-stone-400">{icon}</span>{label}
+              </button>
+            ))
+          })()}
         </div>
       </div>
 
@@ -871,6 +896,21 @@ export function ProjectDetailPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Settings tab */}
+      {tab === 'settings' && id && (
+        <div className="flex-1 px-7 py-5">
+          <TabConfigPanel
+            projectId={id}
+            tabOrder={tabOrder}
+            hiddenTabs={hiddenTabs}
+            onPreferencesChange={(newOrder, newHidden) => {
+              setTabOrder(newOrder)
+              setHiddenTabs(newHidden)
+            }}
+          />
         </div>
       )}
 
