@@ -5,10 +5,10 @@ import { Link, useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { projectsApi, invitationsApi, storiesApi, tasksApi } from '../services/api'
 import type { ProjectResponse, MemberResponse, StoryResponse, TaskResponse, Status, Priority, Role } from '../services/api'
+import { CreateTaskModal } from '../components/tasks/CreateTaskModal'
 import { useRole } from '../hooks/useRole'
 import { useStories } from '../hooks/useStories'
 import { useProjectStatuses } from '../hooks/useProjectStatuses'
-import { useProjectSprints } from '../hooks/useProjectSprints'
 import { StatusPill } from '../components/common/StatusPill'
 import { PriorityBars } from '../components/common/PriorityBars'
 import { LoadMoreButton } from '../components/common/LoadMoreButton'
@@ -18,7 +18,6 @@ import { MarkdownEditor } from '../components/common/MarkdownEditor'
 import { SkeletonCard } from '../components/common/Skeleton'
 import { useToast } from '../context/ToastContext'
 import { formatRelative } from '../utils/time'
-import { useAuth } from '../context/AuthContext'
 
 type Tab = 'board' | 'stories' | 'members' | 'sprints' | 'timeline'
 
@@ -151,7 +150,6 @@ export function ProjectDetailPage() {
   const location = useLocation()
   const { isManager } = useRole(id)
   const { addToast } = useToast()
-  const { user } = useAuth()
 
   const [project, setProject] = useState<ProjectResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -163,7 +161,7 @@ export function ProjectDetailPage() {
 
   const storiesHook = useStories(id ?? '')
   const { statuses: projectStatuses } = useProjectStatuses(id)
-  const { sprints } = useProjectSprints(id)
+
 
   const [showCreateStory, setShowCreateStory] = useState(false)
   const [newStoryTitle, setNewStoryTitle] = useState('')
@@ -188,25 +186,6 @@ export function ProjectDetailPage() {
   const [projectTasks, setProjectTasks] = useState<TaskResponse[]>([])
 
   const [showCreateTask, setShowCreateTask] = useState(false)
-  const [createTaskStatus, setCreateTaskStatus] = useState<Status>('to_do')
-  const [newTaskTitle, setNewTaskTitle] = useState('')
-  const [newTaskDescription, setNewTaskDescription] = useState('')
-  const [newTaskPriority, setNewTaskPriority] = useState<Priority>('medium')
-  const [newTaskStoryId, setNewTaskStoryId] = useState('')
-  const [newTaskAssigneeId, setNewTaskAssigneeId] = useState(user?.id ?? '')
-  const [newTaskSprintId, setNewTaskSprintId] = useState('')
-  const [newTaskEffort, setNewTaskEffort] = useState('')
-  const [creatingTask, setCreatingTask] = useState(false)
-
-  useEffect(() => {
-    if (user?.id && !newTaskAssigneeId) setNewTaskAssigneeId(user.id)
-  }, [user?.id])
-
-  useEffect(() => {
-    if (showCreateTask && projectStatuses.length > 0) {
-      setCreateTaskStatus(projectStatuses[0].slug)
-    }
-  }, [showCreateTask, projectStatuses])
 
   const [storySearch, setStorySearch] = useState('')
   const [storyFilterStatus, setStoryFilterStatus] = useState<Status | 'all'>('all')
@@ -262,25 +241,6 @@ export function ProjectDetailPage() {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [showCreateStory])
-
-  useEffect(() => {
-    if (!showCreateTask) return
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setShowCreateTask(false)
-        setNewTaskTitle('')
-        setNewTaskDescription('')
-        setCreateTaskStatus('to_do')
-        setNewTaskPriority('medium')
-        setNewTaskStoryId('')
-        setNewTaskAssigneeId(user?.id ?? '')
-        setNewTaskSprintId('')
-        setNewTaskEffort('')
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [showCreateTask])
 
   useEffect(() => {
     if (!id) return
@@ -369,44 +329,6 @@ export function ProjectDetailPage() {
       addToast('Story created')
     } finally {
       setCreatingStory(false)
-    }
-  }
-
-  const handleCreateTask = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!id) return
-    setCreatingTask(true)
-    try {
-      const data = {
-        title: newTaskTitle,
-        description: newTaskDescription || undefined,
-        status: createTaskStatus,
-        priority: newTaskPriority,
-        assignee_id: newTaskAssigneeId || undefined,
-        sprint_id: newTaskSprintId || null,
-        effort: newTaskEffort ? parseInt(newTaskEffort, 10) : null,
-      }
-      if (newTaskStoryId) {
-        const task = await tasksApi.create(newTaskStoryId, data)
-        setTasksByStory((prev) => ({
-          ...prev,
-          [newTaskStoryId]: [task.data, ...(prev[newTaskStoryId] ?? [])],
-        }))
-      } else {
-        const task = await tasksApi.createForProject(id, data)
-        setProjectTasks((prev) => [task.data, ...prev])
-      }
-      setShowCreateTask(false)
-      setNewTaskTitle('')
-      setNewTaskDescription('')
-      setNewTaskPriority('medium')
-      setNewTaskStoryId('')
-      setNewTaskAssigneeId(user?.id ?? '')
-      setNewTaskSprintId('')
-      setNewTaskEffort('')
-      addToast('Task created')
-    } finally {
-      setCreatingTask(false)
     }
   }
 
@@ -574,7 +496,7 @@ export function ProjectDetailPage() {
                         Story
                       </button>
                       <button
-                        onClick={() => { setShowNewDropdown(false); setCreateTaskStatus('to_do'); setShowCreateTask(true) }}
+                        onClick={() => { setShowNewDropdown(false); setShowCreateTask(true) }}
                         className="w-full flex items-center px-3 py-2 text-[12.5px] text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 rounded-b-md"
                       >
                         Task
@@ -954,125 +876,14 @@ export function ProjectDetailPage() {
 
       {/* Modals */}
       {showCreateTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 w-[min(90vw,_900px)] min-w-[67vw] mx-4">
-            <h3 className="text-[15px] font-semibold mb-5">{t('tasks.create')}</h3>
-            <form onSubmit={handleCreateTask} className="space-y-4">
-              <input
-                type="text"
-                placeholder={t('board.col_title')}
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-                required
-                autoFocus
-                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
-              />
-              <MarkdownEditor
-                value={newTaskDescription}
-                onChange={setNewTaskDescription}
-                rows={4}
-                placeholder={t('tasks.description')}
-                autoExpand
-              />
-              <div className="grid grid-cols-2 gap-4">
-                {/* Status */}
-                <div className="space-y-1">
-                  <label htmlFor="pdp-create-task-status" className="text-[11.5px] font-medium text-stone-500">{t('filter.status')}</label>
-                  <select
-                    id="pdp-create-task-status"
-                    value={createTaskStatus}
-                    onChange={(e) => setCreateTaskStatus(e.target.value as Status)}
-                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-                  >
-                    {projectStatuses.map((ps) => (
-                      <option key={ps.slug} value={ps.slug}>{ps.name}</option>
-                    ))}
-                  </select>
-                </div>
-                {/* Priority */}
-                <div className="space-y-1">
-                  <label htmlFor="pdp-create-task-priority" className="text-[11.5px] font-medium text-stone-500">{t('filter.priority')}</label>
-                  <select
-                    id="pdp-create-task-priority"
-                    value={newTaskPriority}
-                    onChange={(e) => setNewTaskPriority(e.target.value as Priority)}
-                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-                  >
-                    {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
-                  </select>
-                </div>
-                {/* Story */}
-                <div className="space-y-1">
-                  <label htmlFor="pdp-create-task-story" className="text-[11.5px] font-medium text-stone-500">{t('tasks.story')}</label>
-                  <select
-                    id="pdp-create-task-story"
-                    value={newTaskStoryId}
-                    onChange={(e) => setNewTaskStoryId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-                  >
-                    <option value="">{t('tasks.no_story')}</option>
-                    {storiesHook.items.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
-                  </select>
-                </div>
-                {/* Sprint */}
-                <div className="space-y-1">
-                  <label htmlFor="pdp-create-task-sprint" className="text-[11.5px] font-medium text-stone-500">{t('detail.sprint')}</label>
-                  <select
-                    id="pdp-create-task-sprint"
-                    value={newTaskSprintId}
-                    onChange={(e) => setNewTaskSprintId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-                  >
-                    <option value="">{t('sprints.no_sprint')}</option>
-                    {sprints.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-                {/* Assignee */}
-                <div className="space-y-1">
-                  <label htmlFor="pdp-create-task-assignee" className="text-[11.5px] font-medium text-stone-500">{t('tasks.assignee')}</label>
-                  <select
-                    id="pdp-create-task-assignee"
-                    value={newTaskAssigneeId}
-                    onChange={(e) => setNewTaskAssigneeId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-                  >
-                    <option value="">{t('tasks.unassigned')}</option>
-                    {members.map((m) => <option key={m.user_id} value={m.user_id}>{m.name}</option>)}
-                  </select>
-                </div>
-                {/* Effort */}
-                <div className="space-y-1">
-                  <label htmlFor="pdp-create-task-effort" className="text-[11.5px] font-medium text-stone-500">{t('detail.effort')}</label>
-                  <input
-                    id="pdp-create-task-effort"
-                    type="number"
-                    min="0"
-                    placeholder="—"
-                    value={newTaskEffort}
-                    onChange={(e) => setNewTaskEffort(e.target.value)}
-                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => { setShowCreateTask(false); setNewTaskTitle(''); setNewTaskDescription(''); setCreateTaskStatus('to_do'); setNewTaskPriority('medium'); setNewTaskStoryId(''); setNewTaskAssigneeId(user?.id ?? ''); setNewTaskSprintId(''); setNewTaskEffort('') }}
-                  className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
-                >
-                  {t('actions.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={creatingTask}
-                  className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md disabled:opacity-50"
-                >
-                  {t('actions.create')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <CreateTaskModal
+          projectId={id!}
+          onCreated={(task) => {
+            setProjectTasks((prev) => [task, ...prev])
+            setShowCreateTask(false)
+          }}
+          onClose={() => setShowCreateTask(false)}
+        />
       )}
 
       {showCreateStory && (

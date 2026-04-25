@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { storiesApi, tasksApi, projectsApi } from '../services/api'
 import type { StoryResponse, Status, Priority, MemberResponse } from '../services/api'
+import { CreateTaskModal } from '../components/tasks/CreateTaskModal'
 import { useRole } from '../hooks/useRole'
 import { useProjectStatuses } from '../hooks/useProjectStatuses'
 import { useTasks } from '../hooks/useTasks'
@@ -17,7 +18,6 @@ import { MarkdownEditor } from '../components/common/MarkdownEditor'
 import { SkeletonCard } from '../components/common/Skeleton'
 import { useToast } from '../context/ToastContext'
 import { formatRelative } from '../utils/time'
-import { useAuth } from '../context/AuthContext'
 import { CommentList } from '../components/comments/CommentList'
 import { StatusHistoryTimeline } from '../components/status-history/StatusHistoryTimeline'
 
@@ -57,7 +57,6 @@ export function StoryDetailPage() {
   const { isManager } = useRole(projectId)
   const { statuses: projectStatuses } = useProjectStatuses(projectId)
   const { addToast } = useToast()
-  const { user } = useAuth()
   const location = useLocation()
 
   const [story, setStory] = useState<StoryResponse | null>(null)
@@ -71,15 +70,6 @@ export function StoryDetailPage() {
 
   const tasksHook = useTasks(storyId ?? '')
   const [showCreateTask, setShowCreateTask] = useState(false)
-  const [newTaskTitle, setNewTaskTitle] = useState('')
-  const [newTaskDescription, setNewTaskDescription] = useState('')
-  const [newTaskStatus, setNewTaskStatus] = useState<Status>('to_do')
-  const [newTaskPriority, setNewTaskPriority] = useState<Priority>('medium')
-  const [newTaskAssigneeId, setNewTaskAssigneeId] = useState(user?.id ?? '')
-
-  useEffect(() => {
-    if (user?.id && !newTaskAssigneeId) setNewTaskAssigneeId(user.id)
-  }, [user?.id])
 
   useEffect(() => {
     if ((location.state as { modal?: string } | null)?.modal === 'create-task') {
@@ -87,24 +77,6 @@ export function StoryDetailPage() {
       window.history.replaceState({}, '')
     }
   }, [location.state])
-
-  useEffect(() => {
-    if (!showCreateTask) return
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setShowCreateTask(false)
-        setNewTaskTitle('')
-        setNewTaskDescription('')
-        setNewTaskStatus('to_do')
-        setNewTaskPriority('medium')
-        setNewTaskAssigneeId(user?.id ?? '')
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [showCreateTask])
-
-  const [creatingTask, setCreatingTask] = useState(false)
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null)
   const [editTask, setEditTask] = useState<{ id: string; title: string; description: string } | null>(null)
   const [savingTask, setSavingTask] = useState(false)
@@ -166,31 +138,6 @@ export function StoryDetailPage() {
       addToast('Task updated')
     } finally {
       setSavingTask(false)
-    }
-  }
-
-  const handleCreateTask = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!storyId) return
-    setCreatingTask(true)
-    try {
-      await tasksApi.create(storyId, {
-        title: newTaskTitle,
-        description: newTaskDescription || undefined,
-        status: newTaskStatus,
-        priority: newTaskPriority,
-        assignee_id: newTaskAssigneeId || undefined,
-      })
-      setShowCreateTask(false)
-      setNewTaskTitle('')
-      setNewTaskDescription('')
-      setNewTaskStatus('to_do')
-      setNewTaskPriority('medium')
-      setNewTaskAssigneeId(user?.id ?? '')
-      tasksHook.refresh()
-      addToast('Task created')
-    } finally {
-      setCreatingTask(false)
     }
   }
 
@@ -421,75 +368,15 @@ export function StoryDetailPage() {
 
       {/* Modals */}
       {showCreateTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 w-[min(90vw,_900px)] min-w-[67vw] mx-4">
-            <h3 className="text-[15px] font-semibold mb-5">{t('tasks.create')}</h3>
-            <form onSubmit={handleCreateTask} className="space-y-4">
-              <input
-                type="text"
-                placeholder={t('board.col_title')}
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-                required
-                autoFocus
-                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
-              />
-              <MarkdownEditor
-                value={newTaskDescription}
-                onChange={setNewTaskDescription}
-                rows={4}
-                placeholder={t('tasks.description')}
-                autoExpand
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label htmlFor="create-task-status" className="text-[11.5px] font-medium text-stone-500">{t('filter.status')}</label>
-                  <select
-                    id="create-task-status"
-                    value={newTaskStatus}
-                    onChange={(e) => setNewTaskStatus(e.target.value as Status)}
-                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-                  >
-                    {projectStatuses.map((ps) => (
-                      <option key={ps.slug} value={ps.slug}>{ps.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label htmlFor="create-task-priority" className="text-[11.5px] font-medium text-stone-500">{t('filter.priority')}</label>
-                  <select
-                    id="create-task-priority"
-                    value={newTaskPriority}
-                    onChange={(e) => setNewTaskPriority(e.target.value as Priority)}
-                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-                  >
-                    {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1 col-span-2">
-                  <label htmlFor="create-task-assignee" className="text-[11.5px] font-medium text-stone-500">{t('tasks.assignee')}</label>
-                  <select
-                    id="create-task-assignee"
-                    value={newTaskAssigneeId}
-                    onChange={(e) => setNewTaskAssigneeId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-                  >
-                    <option value="">{t('tasks.unassigned')}</option>
-                    {members.map((m) => <option key={m.user_id} value={m.user_id}>{m.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 pt-1">
-                <button type="button" onClick={() => { setShowCreateTask(false); setNewTaskTitle(''); setNewTaskDescription(''); setNewTaskStatus('to_do'); setNewTaskPriority('medium'); setNewTaskAssigneeId(user?.id ?? '') }} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
-                  {t('actions.cancel')}
-                </button>
-                <button type="submit" disabled={creatingTask} className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md disabled:opacity-50">
-                  {t('actions.create')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <CreateTaskModal
+          projectId={projectId!}
+          defaultStoryId={storyId}
+          onCreated={() => {
+            tasksHook.refresh()
+            setShowCreateTask(false)
+          }}
+          onClose={() => setShowCreateTask(false)}
+        />
       )}
 
       {editTask && (
