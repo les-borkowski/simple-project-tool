@@ -86,6 +86,7 @@ async def create_task(
     if data.sprint_id is not None:
         await _validate_sprint(data.sprint_id, story.project_id, db)
 
+    # Best-effort position: concurrent creates may produce duplicates; reorder endpoint normalizes positions.
     pos_result = await db.execute(
         select(func.max(Task.position)).where(Task.story_id == story_id)
     )
@@ -138,6 +139,7 @@ async def create_task_for_project(
     if data.sprint_id is not None:
         await _validate_sprint(data.sprint_id, project_id, db)
 
+    # Best-effort position: concurrent creates may produce duplicates; reorder endpoint normalizes positions.
     pos_result = await db.execute(
         select(func.max(Task.position)).where(
             Task.project_id == project_id, Task.story_id.is_(None)

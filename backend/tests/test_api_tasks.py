@@ -16,6 +16,9 @@ async def test_create_task(api_client: AsyncClient, manager_headers: dict, test_
     assert data["story_id"] == sid
     assert "id" in data
     assert data["assignee_id"] is not None  # defaults to creator
+    assert "position" in data
+    assert isinstance(data["position"], int)
+    assert data["position"] >= 0
 
 
 @pytest.mark.asyncio
@@ -351,3 +354,29 @@ async def test_task_update_clears_due_date(
     )
     assert resp.status_code == 200
     assert resp.json()["due_date"] is None
+
+
+@pytest.mark.asyncio
+async def test_task_position_increments_sequentially(
+    api_client: AsyncClient, manager_headers: dict, test_story: dict
+):
+    sid = test_story["id"]
+    r1 = await api_client.post(
+        f"/api/v1/stories/{sid}/tasks",
+        json={"title": "First Task"},
+        headers=manager_headers,
+    )
+    assert r1.status_code == 201
+    pos1 = r1.json()["position"]
+    assert isinstance(pos1, int)
+    assert pos1 >= 0
+
+    r2 = await api_client.post(
+        f"/api/v1/stories/{sid}/tasks",
+        json={"title": "Second Task"},
+        headers=manager_headers,
+    )
+    assert r2.status_code == 201
+    pos2 = r2.json()["position"]
+    assert isinstance(pos2, int)
+    assert pos2 > pos1
