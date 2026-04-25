@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.common import PaginatedResponse
-from app.api.schemas.task import TaskCreate, TaskResponse, TaskUpdate
+from app.api.schemas.task import TaskCreate, TaskReorderRequest, TaskReorderResponse, TaskResponse, TaskUpdate
 from app.api.services import task_service
 from app.auth.dependencies import get_current_user
 from app.db.base import PriorityEnum
@@ -32,6 +32,17 @@ async def list_project_tasks(
     return await task_service.list_project_tasks(
         project_id, user, db, cursor, limit, status, priority_val, assignee_id, q, unassigned
     )
+
+
+@router.patch("/projects/{project_id}/tasks/reorder", response_model=TaskReorderResponse)
+async def reorder_tasks(
+    project_id: uuid.UUID,
+    data: TaskReorderRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Bulk-update task positions within a project."""
+    return await task_service.reorder_tasks(project_id, data, user, db)
 
 
 @router.post("/projects/{project_id}/tasks", response_model=TaskResponse, status_code=201)

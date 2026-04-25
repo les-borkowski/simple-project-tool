@@ -357,6 +357,88 @@ async def test_task_update_clears_due_date(
 
 
 @pytest.mark.asyncio
+async def test_reorder_tasks(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict, test_story: dict
+):
+    sid = test_story["id"]
+    pid = test_project["id"]
+
+    # Create 3 tasks
+    r1 = await api_client.post(
+        f"/api/v1/stories/{sid}/tasks",
+        json={"title": "Task A"},
+        headers=manager_headers,
+    )
+    r2 = await api_client.post(
+        f"/api/v1/stories/{sid}/tasks",
+        json={"title": "Task B"},
+        headers=manager_headers,
+    )
+    r3 = await api_client.post(
+        f"/api/v1/stories/{sid}/tasks",
+        json={"title": "Task C"},
+        headers=manager_headers,
+    )
+    tid1 = r1.json()["id"]
+    tid2 = r2.json()["id"]
+    tid3 = r3.json()["id"]
+
+    # Reorder: reverse order
+    reorder_payload = {
+        "tasks": [
+            {"task_id": tid1, "position": 30},
+            {"task_id": tid2, "position": 20},
+            {"task_id": tid3, "position": 10},
+        ]
+    }
+    resp = await api_client.patch(
+        f"/api/v1/projects/{pid}/tasks/reorder",
+        json=reorder_payload,
+        headers=manager_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json() == {"updated": 3}
+
+    # Verify positions were updated
+    g1 = await api_client.get(f"/api/v1/tasks/{tid1}", headers=manager_headers)
+    g2 = await api_client.get(f"/api/v1/tasks/{tid2}", headers=manager_headers)
+    g3 = await api_client.get(f"/api/v1/tasks/{tid3}", headers=manager_headers)
+    assert g1.json()["position"] == 30
+    assert g2.json()["position"] == 20
+    assert g3.json()["position"] == 10
+
+
+@pytest.mark.asyncio
+async def test_reorder_tasks_wrong_project_rejected(
+    api_client: AsyncClient, manager_headers: dict, test_story: dict
+):
+    sid = test_story["id"]
+
+    # Create a task in the test story
+    r = await api_client.post(
+        f"/api/v1/stories/{sid}/tasks",
+        json={"title": "Task X"},
+        headers=manager_headers,
+    )
+    tid = r.json()["id"]
+
+    # Create a second project
+    proj2 = await api_client.post(
+        "/api/v1/projects", json={"name": "Other Project"}, headers=manager_headers
+    )
+    pid2 = proj2.json()["id"]
+
+    # Try to reorder task from project 1 via project 2's endpoint
+    resp = await api_client.patch(
+        f"/api/v1/projects/{pid2}/tasks/reorder",
+        json={"tasks": [{"task_id": tid, "position": 5}]},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 400
+    assert "do not belong to this project" in resp.json()["error"]["code"]
+
+
+@pytest.mark.asyncio
 async def test_task_position_increments_sequentially(
     api_client: AsyncClient, manager_headers: dict, test_story: dict
 ):

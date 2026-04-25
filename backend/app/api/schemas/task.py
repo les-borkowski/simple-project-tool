@@ -28,6 +28,19 @@ class TaskUpdate(BaseModel):
     sprint_id: UUID | None = None
 
 
+class TaskReorderItem(BaseModel):
+    task_id: UUID
+    position: int
+
+
+class TaskReorderRequest(BaseModel):
+    tasks: list[TaskReorderItem]
+
+
+class TaskReorderResponse(BaseModel):
+    updated: int
+
+
 class TaskResponse(BaseModel):
     id: UUID
     project_id: UUID

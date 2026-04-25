@@ -1,12 +1,12 @@
 import uuid
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.pagination import decode_cursor, encode_cursor
 from app.api.schemas.common import PaginatedResponse
-from app.api.schemas.task import TaskCreate, TaskResponse, TaskUpdate
+from app.api.schemas.task import TaskCreate, TaskReorderRequest, TaskReorderResponse, TaskResponse, TaskUpdate
 from app.api.services.project_status_service import get_default_status_slug, validate_status_slug
 from app.auth.permissions import require_manager, require_project_access, resolve_role
 from app.db.base import PriorityEnum
@@ -296,3 +296,29 @@ async def delete_task(task_id: uuid.UUID, user: User, db: AsyncSession) -> None:
 
     await db.delete(task)
     await db.commit()
+
+
+async def reorder_tasks(
+    project_id: uuid.UUID, data: TaskReorderRequest, user: User, db: AsyncSession
+) -> TaskReorderResponse:
+    """Bulk-update task positions within a project."""
+    await require_project_access(user, project_id, db)
+
+    task_ids = [item.task_id for item in data.tasks]
+    result = await db.execute(
+        select(Task.id).where(Task.id.in_(task_ids), Task.project_id == project_id)
+    )
+    found_ids = set(result.scalars().all())
+
+    if len(found_ids) != len(task_ids):
+        raise HTTPException(
+            status_code=400, detail="One or more tasks do not belong to this project"
+        )
+
+    for item in data.tasks:
+        await db.execute(
+            update(Task).where(Task.id == item.task_id).values(position=item.position)
+        )
+    await db.commit()
+
+    return TaskReorderResponse(updated=len(data.tasks))
