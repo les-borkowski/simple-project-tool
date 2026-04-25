@@ -315,10 +315,11 @@ async def reorder_tasks(
             status_code=400, detail="One or more tasks do not belong to this project"
         )
 
-    for item in data.tasks:
-        await db.execute(
-            update(Task).where(Task.id == item.task_id).values(position=item.position)
-        )
+    values = [{"id": item.task_id, "position": item.position} for item in data.tasks]
+    await db.execute(
+        update(Task),
+        values,
+    )
     await db.commit()
 
     return TaskReorderResponse(updated=len(data.tasks))

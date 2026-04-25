@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 from app.db.base import PriorityEnum
 
@@ -30,11 +30,20 @@ class TaskUpdate(BaseModel):
 
 class TaskReorderItem(BaseModel):
     task_id: UUID
-    position: int
+    position: int = Field(ge=0)
 
 
 class TaskReorderRequest(BaseModel):
     tasks: list[TaskReorderItem]
+
+    @model_validator(mode='after')
+    def no_duplicate_task_ids(self) -> 'TaskReorderRequest':
+        seen = set()
+        for item in self.tasks:
+            if item.task_id in seen:
+                raise ValueError(f"Duplicate task_id: {item.task_id}")
+            seen.add(item.task_id)
+        return self
 
 
 class TaskReorderResponse(BaseModel):
