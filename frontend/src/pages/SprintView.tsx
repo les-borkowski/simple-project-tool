@@ -1,6 +1,23 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { sprintsApi, tasksApi, projectsApi } from '../services/api'
 import type { SprintResponse, TaskResponse, ProjectStatusResponse } from '../services/api'
 import { useProjectSprints } from '../hooks/useProjectSprints'
@@ -40,6 +57,8 @@ function formatDateRange(start: string, end: string, locale: string): string {
   return `${fmt(start)} – ${fmt(end)}`
 }
 
+const byPosition = (a: TaskResponse, b: TaskResponse) => a.position - b.position
+
 function TaskRow({
   task,
   effortUnit,
@@ -71,12 +90,59 @@ function TaskRow({
   )
 }
 
+function SortableTaskRow({
+  task,
+  sprintId,
+  effortUnit,
+  statuses,
+  dragOverlay,
+}: {
+  task: TaskResponse
+  sprintId: string | null
+  effortUnit: string | null
+  statuses: ProjectStatusResponse[]
+  dragOverlay?: boolean
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+    data: { sprintId },
+  })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  }
+  const href = task.story_id ? `/stories/${task.story_id}/tasks/${task.id}` : `/tasks/${task.id}`
+  return (
+    <div ref={setNodeRef} style={dragOverlay ? undefined : style} {...attributes} {...listeners}>
+      <Link
+        to={href}
+        className="flex items-center gap-3 px-4 py-2 pl-8 hover:bg-stone-50/80 dark:hover:bg-stone-800/50 border-t border-stone-100 dark:border-stone-800/60 first:border-t-0"
+      >
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <PriorityBars priority={task.priority} />
+          <span className="text-[12.5px] text-stone-700 dark:text-stone-300 truncate">{task.title}</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {task.effort !== null && effortUnit && (
+            <span className="text-[11px] bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 px-1.5 py-0.5 rounded">
+              {task.effort} {effortUnit}
+            </span>
+          )}
+          <StatusPill status={task.status} statuses={statuses} />
+        </div>
+      </Link>
+    </div>
+  )
+}
+
 function SprintCard({
   sprint,
   tasks,
   effortUnit,
   statuses,
   isManager,
+  sortable,
   locale,
   onDelete,
 }: {
@@ -85,6 +151,7 @@ function SprintCard({
   effortUnit: string | null
   statuses: ProjectStatusResponse[]
   isManager: boolean
+  sortable: boolean
   locale: string
   onDelete: (id: string) => void
 }) {
@@ -105,6 +172,8 @@ function SprintCard({
       effortLabel = `${sprint.total_effort} ${effortUnit}`
     }
   }
+
+  const sortedTasks = [...tasks].sort(byPosition)
 
   return (
     <div className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 overflow-hidden">
@@ -149,12 +218,24 @@ function SprintCard({
       {/* Task rows */}
       {open && (
         <div className="border-t border-stone-100 dark:border-stone-800">
-          {tasks.length === 0 ? (
+          {sortedTasks.length === 0 ? (
             <p className="px-4 py-3 pl-8 text-[12px] text-stone-400 italic">
               {t('tasks.empty')}
             </p>
+          ) : sortable ? (
+            <SortableContext items={sortedTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+              {sortedTasks.map((task) => (
+                <SortableTaskRow
+                  key={task.id}
+                  task={task}
+                  sprintId={sprint.id}
+                  effortUnit={effortUnit}
+                  statuses={statuses}
+                />
+              ))}
+            </SortableContext>
           ) : (
-            tasks.map((task) => (
+            sortedTasks.map((task) => (
               <TaskRow
                 key={task.id}
                 task={task}
@@ -180,6 +261,7 @@ export function SprintView({ projectId }: { projectId: string }) {
   const [allTasks, setAllTasks] = useState<TaskResponse[]>([])
   const [effortUnit, setEffortUnit] = useState<string | null>(null)
   const [tasksLoading, setTasksLoading] = useState(true)
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
 
   // Create sprint modal state
   const [showCreate, setShowCreate] = useState(false)
@@ -191,6 +273,8 @@ export function SprintView({ projectId }: { projectId: string }) {
 
   // Delete confirmation
   const [deleteSprintId, setDeleteSprintId] = useState<string | null>(null)
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   useEffect(() => {
     if (!projectId) return
@@ -246,6 +330,66 @@ export function SprintView({ projectId }: { projectId: string }) {
     }
   }
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveTaskId(event.active.id as string)
+  }
+
+  const handleSprintDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    setActiveTaskId(null)
+    if (!over || active.id === over.id) return
+
+    const sourceSprintId = (active.data.current as { sprintId: string | null } | undefined)?.sprintId ?? null
+    const destSprintId = (over.data.current as { sprintId: string | null } | undefined)?.sprintId ?? null
+
+    if (sourceSprintId === destSprintId) {
+      const group = allTasks.filter((t) => t.sprint_id === sourceSprintId).sort(byPosition)
+      const oldIndex = group.findIndex((t) => t.id === active.id)
+      const newIndex = group.findIndex((t) => t.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return
+      const reordered = arrayMove(group, oldIndex, newIndex).map((t, i) => ({ ...t, position: i }))
+      setAllTasks((prev) => [...prev.filter((t) => t.sprint_id !== sourceSprintId), ...reordered])
+      tasksApi.reorder(projectId, reordered.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
+    } else {
+      const snapshot = allTasks
+      const taskToMove = allTasks.find((t) => t.id === active.id)
+      if (!taskToMove) return
+
+      const newSourceList = allTasks
+        .filter((t) => t.sprint_id === sourceSprintId && t.id !== active.id)
+        .sort(byPosition)
+        .map((t, i) => ({ ...t, position: i }))
+
+      const destList = allTasks.filter((t) => t.sprint_id === destSprintId).sort(byPosition)
+      const overIndex = destList.findIndex((t) => t.id === over.id)
+      const insertAt = overIndex === -1 ? destList.length : overIndex
+      const movedTask = { ...taskToMove, sprint_id: destSprintId }
+      const newDestList = [
+        ...destList.slice(0, insertAt),
+        movedTask,
+        ...destList.slice(insertAt),
+      ].map((t, i) => ({ ...t, position: i }))
+
+      setAllTasks((prev) => [
+        ...prev.filter((t) => t.sprint_id !== sourceSprintId && t.sprint_id !== destSprintId),
+        ...newSourceList,
+        ...newDestList,
+      ])
+
+      tasksApi.update(active.id as string, { sprint_id: destSprintId })
+        .then(() => {
+          tasksApi.reorder(projectId, newDestList.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
+          if (newSourceList.length > 0) {
+            tasksApi.reorder(projectId, newSourceList.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
+          }
+        })
+        .catch(() => {
+          setAllTasks(snapshot)
+          addToast('Failed to move task', 'error')
+        })
+    }
+  }
+
   const sprintTaskMap: Record<string, TaskResponse[]> = {}
   const unassignedTasks: TaskResponse[] = []
 
@@ -258,7 +402,10 @@ export function SprintView({ projectId }: { projectId: string }) {
     }
   }
 
+  const sortedUnassigned = [...unassignedTasks].sort(byPosition)
+
   const isLoading = sprintsLoading || tasksLoading
+  const activeTask = activeTaskId ? allTasks.find((t) => t.id === activeTaskId) : null
 
   return (
     <div className="flex-1 px-7 py-5">
@@ -296,40 +443,74 @@ export function SprintView({ projectId }: { projectId: string }) {
           }
         />
       ) : (
-        <div className="space-y-3">
-          {sprints.map((sprint) => (
-            <SprintCard
-              key={sprint.id}
-              sprint={sprint}
-              tasks={sprintTaskMap[sprint.id] ?? []}
-              effortUnit={effortUnit}
-              statuses={statuses}
-              isManager={isManager}
-              locale={locale}
-              onDelete={setDeleteSprintId}
-            />
-          ))}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleSprintDragEnd}
+        >
+          <div className="space-y-3">
+            {sprints.map((sprint) => (
+              <SprintCard
+                key={sprint.id}
+                sprint={sprint}
+                tasks={sprintTaskMap[sprint.id] ?? []}
+                effortUnit={effortUnit}
+                statuses={statuses}
+                isManager={isManager}
+                sortable={isManager}
+                locale={locale}
+                onDelete={setDeleteSprintId}
+              />
+            ))}
 
-          {/* Unassigned tasks section */}
-          {unassignedTasks.length > 0 && (
-            <div className="rounded-lg border border-dashed border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 overflow-hidden">
-              <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-800">
-                <span className="text-[13px] font-medium text-stone-500 dark:text-stone-400 italic">
-                  {t('sprints.unassigned')}
-                </span>
-                <span className="ml-2 text-[11px] text-stone-400 tabular-nums">{unassignedTasks.length}</span>
+            {/* Unassigned tasks section */}
+            {sortedUnassigned.length > 0 && (
+              <div className="rounded-lg border border-dashed border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 overflow-hidden">
+                <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-800">
+                  <span className="text-[13px] font-medium text-stone-500 dark:text-stone-400 italic">
+                    {t('sprints.unassigned')}
+                  </span>
+                  <span className="ml-2 text-[11px] text-stone-400 tabular-nums">{sortedUnassigned.length}</span>
+                </div>
+                {isManager ? (
+                  <SortableContext items={sortedUnassigned.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                    {sortedUnassigned.map((task) => (
+                      <SortableTaskRow
+                        key={task.id}
+                        task={task}
+                        sprintId={null}
+                        effortUnit={effortUnit}
+                        statuses={statuses}
+                      />
+                    ))}
+                  </SortableContext>
+                ) : (
+                  sortedUnassigned.map((task) => (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      effortUnit={effortUnit}
+                      statuses={statuses}
+                    />
+                  ))
+                )}
               </div>
-              {unassignedTasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  effortUnit={effortUnit}
-                  statuses={statuses}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+
+          <DragOverlay>
+            {activeTask ? (
+              <SortableTaskRow
+                task={activeTask}
+                sprintId={null}
+                effortUnit={effortUnit}
+                statuses={statuses}
+                dragOverlay
+              />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
 
       {/* Create Sprint Modal */}
