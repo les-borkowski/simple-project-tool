@@ -313,6 +313,7 @@ export function ProjectDetailPage() {
     }).finally(() => setLoading(false))
   }, [id])
 
+  const fetchingStoriesRef = useRef(new Set<string>())
   useEffect(() => {
     if (!id) return
     preferencesApi.get(id).then((res) => {
@@ -323,15 +324,21 @@ export function ProjectDetailPage() {
 
   useEffect(() => {
     const stories = storiesHook.items
+    if (!stories.length) return
     stories.forEach((story) => {
       if (tasksByStory[story.id] !== undefined) return
-      tasksApi.list(story.id, { limit: 200 }).then((res) => {
+      if (fetchingStoriesRef.current.has(story.id)) return
+      fetchingStoriesRef.current.add(story.id)
+      tasksApi.list(story.id, { limit: 25 }).then((res) => {
         setTasksByStory((prev) => ({ ...prev, [story.id]: res.data.items }))
       }).catch(() => {
         setTasksByStory((prev) => ({ ...prev, [story.id]: [] }))
+      }).finally(() => {
+        fetchingStoriesRef.current.delete(story.id)
       })
     })
-  }, [storiesHook.items, tasksByStory])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storiesHook.items])
 
   useEffect(() => {
     if (!id) return
@@ -392,7 +399,6 @@ export function ProjectDetailPage() {
       setNewStoryDescription('')
       setNewStoryStatus('to_do')
       setNewStoryPriority('medium')
-      setTasksByStory({})
       storiesHook.refresh()
       addToast('Story created')
     } finally {
