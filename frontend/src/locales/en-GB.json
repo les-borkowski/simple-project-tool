@@ -230,6 +230,7 @@
   "sprints.unassigned": "Unassigned tasks",
   "sprints.assign_sprint": "Assign to sprint",
   "sprints.no_sprint": "No sprint",
+  "sprints.drop_here": "Drop here to assign to sprint",
   "effort.unit_label": "Effort unit",
   "effort.enable": "Enable effort tracking",
   "timeline.title": "Timeline",

@@ -63,16 +63,25 @@ function TaskRow({
   task,
   effortUnit,
   statuses,
+  draggable,
+  onDragStart,
+  onDragEnd,
 }: {
   task: TaskResponse
   effortUnit: string | null
   statuses: ProjectStatusResponse[]
+  draggable?: boolean
+  onDragStart?: (e: React.DragEvent) => void
+  onDragEnd?: () => void
 }) {
   const href = task.story_id ? `/stories/${task.story_id}/tasks/${task.id}` : `/tasks/${task.id}`
   return (
     <Link
       to={href}
-      className="flex items-center gap-3 px-4 py-2 pl-8 hover:bg-stone-50/80 dark:hover:bg-stone-800/50 border-t border-stone-100 dark:border-stone-800/60 first:border-t-0"
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      className={`flex items-center gap-3 px-4 py-2 pl-8 hover:bg-stone-50/80 dark:hover:bg-stone-800/50 border-t border-stone-100 dark:border-stone-800/60 first:border-t-0 ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
     >
       <div className="flex-1 min-w-0 flex items-center gap-2">
         <PriorityBars priority={task.priority} />
@@ -145,6 +154,8 @@ function SprintCard({
   sortable,
   locale,
   onDelete,
+  isDragging,
+  onDrop,
 }: {
   sprint: SprintResponse
   tasks: TaskResponse[]
@@ -154,9 +165,12 @@ function SprintCard({
   sortable: boolean
   locale: string
   onDelete: (id: string) => void
+  isDragging: boolean
+  onDrop: (taskId: string) => void
 }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(true)
+  const [isOver, setIsOver] = useState(false)
 
   const isOverCapacity =
     sprint.capacity !== null && sprint.total_effort > sprint.capacity
@@ -176,7 +190,16 @@ function SprintCard({
   const sortedTasks = [...tasks].sort(byPosition)
 
   return (
-    <div className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 overflow-hidden">
+    <div
+      className={`rounded-lg border bg-white dark:bg-stone-900 overflow-hidden transition-colors ${
+        isOver
+          ? 'border-stone-400 dark:border-stone-500'
+          : 'border-stone-200 dark:border-stone-800'
+      }`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       {/* Card header */}
       <div
         className="flex items-center gap-2 px-4 py-3 cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800/40 select-none"

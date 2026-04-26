@@ -240,6 +240,7 @@
   "sprints.unassigned": "Nieprzypisane zadania",
   "sprints.assign_sprint": "Przypisz do sprintu",
   "sprints.no_sprint": "Bez sprintu",
+  "sprints.drop_here": "Upuść tutaj, aby przypisać do sprintu",
   "effort.unit_label": "Jednostka wysiłku",
   "effort.enable": "Włącz śledzenie wysiłku",
   "timeline.title": "Oś czasu",
