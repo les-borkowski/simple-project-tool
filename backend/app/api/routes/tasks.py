@@ -20,7 +20,7 @@ async def list_project_tasks(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     cursor: str | None = Query(None),
-    limit: int = Query(25, ge=1, le=100),
+    limit: int = Query(25, ge=1, le=500),
     status: str | None = Query(None),
     priority: PriorityEnum | None = Query(None),
     assignee_id: uuid.UUID | None = Query(None),
