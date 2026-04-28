@@ -200,7 +200,7 @@ export function ProjectsPage() {
             {items.map((project) => (
               <div
                 key={project.id}
-                className="lift bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 p-4 flex flex-col hover:border-stone-300 dark:hover:border-stone-700"
+                className="group lift bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 p-4 flex flex-col hover:border-stone-300 dark:hover:border-stone-700"
               >
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <span
