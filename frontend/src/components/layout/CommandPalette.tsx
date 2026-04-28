@@ -206,10 +206,12 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     label: currentTheme === 'dark' ? t('palette.toggle_light') : t('palette.toggle_dark'),
     icon: currentTheme === 'dark' ? <ISun /> : <IMoon />,
     onClick: () => {
-      const theme = getCurrentTheme()
-      const next = theme === 'dark' ? 'light' : 'dark'
+      const prev = getCurrentTheme()
+      const next = prev === 'dark' ? 'light' : 'dark'
       applyTheme(next)
-      configApi.update({ theme: next }).catch(() => {})
+      configApi.update({ theme: next }).catch(() => {
+        applyTheme(prev)
+      })
       onClose()
     },
   })
