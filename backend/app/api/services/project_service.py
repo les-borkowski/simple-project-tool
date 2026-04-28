@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import HTTPException
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.pagination import decode_cursor, encode_cursor
@@ -16,7 +16,7 @@ from app.api.schemas.project import (
 )
 from app.auth.permissions import require_manager, require_project_access
 from app.db.base import PriorityEnum, RoleEnum
-from app.db.models import Project, ProjectMember, StatusHistory, User
+from app.db.models import Project, ProjectMember, StatusHistory, Story, User
 
 
 async def list_projects(
@@ -65,7 +65,7 @@ async def list_projects(
     # Cursor pagination
     if cursor:
         cursor_ts, cursor_id = decode_cursor(cursor)
-        stmt = stmt.where((Project.created_at, Project.id) < (cursor_ts, cursor_id))
+        stmt = stmt.where(tuple_(Project.created_at, Project.id) < tuple_(cursor_ts, cursor_id))
 
     stmt = stmt.order_by(Project.created_at.desc(), Project.id.desc()).limit(limit + 1)
     items = (await db.scalars(stmt)).all()
@@ -125,6 +125,16 @@ async def create_project(data: ProjectCreate, user: User, db: AsyncSession) -> P
         changed_by=user.id,
     )
     db.add(history)
+
+    backlog = Story(
+        project_id=project.id,
+        is_default=True,
+        title="Backlog",
+        status=project.status,
+        created_by=user.id,
+    )
+    db.add(backlog)
+
     await db.commit()
 
     return ProjectResponse.model_validate(project)

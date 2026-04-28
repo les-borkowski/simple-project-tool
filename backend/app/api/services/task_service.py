@@ -1,13 +1,14 @@
 import uuid
 
 from fastapi import HTTPException
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.pagination import decode_cursor, encode_cursor
 from app.api.schemas.common import PaginatedResponse
 from app.api.schemas.task import TaskCreate, TaskReorderRequest, TaskReorderResponse, TaskResponse, TaskUpdate
 from app.api.services.project_status_service import get_default_status_slug, validate_status_slug
+from app.api.services.story_service import get_default_story
 from app.auth.permissions import require_manager, require_project_access, resolve_role
 from app.db.base import PriorityEnum
 from app.db.models import Project, Sprint, StatusHistory, Story, Task, User
@@ -52,7 +53,7 @@ async def list_tasks(
 
     if cursor:
         cursor_ts, cursor_id = decode_cursor(cursor)
-        stmt = stmt.where((Task.created_at, Task.id) < (cursor_ts, cursor_id))
+        stmt = stmt.where(tuple_(Task.created_at, Task.id) < tuple_(cursor_ts, cursor_id))
 
     stmt = stmt.order_by(Task.created_at.desc(), Task.id.desc()).limit(limit + 1)
     items = (await db.scalars(stmt)).all()
@@ -124,12 +125,14 @@ async def create_task(
 async def create_task_for_project(
     project_id: uuid.UUID, data: TaskCreate, user: User, db: AsyncSession
 ) -> TaskResponse:
-    """Create a task directly under a project (no story)."""
+    """Create a task under a project; auto-assigns to the project's default Backlog story."""
     project = await db.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
     await require_project_access(user, project_id, db)
+
+    backlog = await get_default_story(project_id, db)
 
     if data.status is not None:
         status_val = await validate_status_slug(project_id, data.status, db)
@@ -141,15 +144,13 @@ async def create_task_for_project(
 
     # Best-effort position: concurrent creates may produce duplicates; reorder endpoint normalizes positions.
     pos_result = await db.execute(
-        select(func.max(Task.position)).where(
-            Task.project_id == project_id, Task.story_id.is_(None)
-        )
+        select(func.max(Task.position)).where(Task.story_id == backlog.id)
     )
     max_pos = pos_result.scalar() or 0
 
     task = Task(
         project_id=project_id,
-        story_id=None,
+        story_id=backlog.id,
         title=data.title,
         description=data.description,
         status=status_val,
@@ -187,6 +188,7 @@ async def list_project_tasks(
     assignee_id: uuid.UUID | None = None,
     q: str | None = None,
     unassigned_only: bool = False,
+    sprint_id: uuid.UUID | None = None,
 ) -> PaginatedResponse[TaskResponse]:
     """List tasks directly under a project (optionally only those with no story)."""
     limit = min(limit, 100)
@@ -209,10 +211,12 @@ async def list_project_tasks(
         stmt = stmt.where(Task.assignee_id == assignee_id)
     if q:
         stmt = stmt.where(Task.title.ilike(f"%{q}%"))
+    if sprint_id is not None:
+        stmt = stmt.where(Task.sprint_id == sprint_id)
 
     if cursor:
         cursor_ts, cursor_id = decode_cursor(cursor)
-        stmt = stmt.where((Task.created_at, Task.id) < (cursor_ts, cursor_id))
+        stmt = stmt.where(tuple_(Task.created_at, Task.id) < tuple_(cursor_ts, cursor_id))
 
     stmt = stmt.order_by(Task.created_at.desc(), Task.id.desc()).limit(limit + 1)
     items = (await db.scalars(stmt)).all()
@@ -259,7 +263,7 @@ async def update_task(
         task.status = await validate_status_slug(task.project_id, data.status, db)
     if data.priority is not None:
         task.priority = data.priority
-    if data.assignee_id is not None:
+    if "assignee_id" in data.model_fields_set:
         task.assignee_id = data.assignee_id
     if "effort" in data.model_fields_set:
         task.effort = data.effort

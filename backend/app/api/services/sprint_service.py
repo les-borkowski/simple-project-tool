@@ -11,6 +11,14 @@ from app.db.models.sprint import Sprint
 from app.db.models.task import Task
 
 
+async def get_sprint(sprint_id: uuid.UUID, user: User, db: AsyncSession) -> SprintResponse:
+    sprint = await db.get(Sprint, sprint_id)
+    if not sprint:
+        raise HTTPException(status_code=404, detail="Sprint not found")
+    await require_project_access(user, sprint.project_id, db)
+    return await _build_response(sprint, db)
+
+
 async def list_sprints(project_id: uuid.UUID, user: User, db: AsyncSession) -> list[SprintResponse]:
     await require_project_access(user, project_id, db)
     stmt = select(Sprint).where(Sprint.project_id == project_id).order_by(Sprint.start_date)
@@ -40,6 +48,7 @@ async def list_sprints(project_id: uuid.UUID, user: User, db: AsyncSession) -> l
             end_date=s.end_date,
             capacity=s.capacity,
             created_by=s.created_by,
+            created_at=s.created_at,
             task_count=agg.get(s.id, (0, 0))[0],
             total_effort=agg.get(s.id, (0, 0))[1],
         )
@@ -82,6 +91,8 @@ async def update_sprint(
         sprint.end_date = data.end_date
     if "capacity" in data.model_fields_set:
         sprint.capacity = data.capacity
+    if sprint.start_date and sprint.end_date and sprint.end_date < sprint.start_date:
+        raise HTTPException(status_code=422, detail="end_date must be on or after start_date")
     await db.commit()
     await db.refresh(sprint)
     return await _build_response(sprint, db)
@@ -112,6 +123,7 @@ async def _build_response(sprint: Sprint, db: AsyncSession) -> SprintResponse:
         end_date=sprint.end_date,
         capacity=sprint.capacity,
         created_by=sprint.created_by,
+        created_at=sprint.created_at,
         total_effort=int(total_effort),
         task_count=int(task_count),
     )

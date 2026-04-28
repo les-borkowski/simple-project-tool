@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.pagination import decode_cursor, encode_cursor
@@ -26,7 +26,7 @@ async def list_comments_on_project(
 
     if cursor:
         cursor_ts, cursor_id = decode_cursor(cursor)
-        stmt = stmt.where((Comment.created_at, Comment.id) < (cursor_ts, cursor_id))
+        stmt = stmt.where(tuple_(Comment.created_at, Comment.id) < tuple_(cursor_ts, cursor_id))
 
     stmt = stmt.order_by(Comment.created_at.desc(), Comment.id.desc()).limit(limit + 1)
     items = (await db.scalars(stmt)).all()
@@ -72,7 +72,7 @@ async def list_comments_on_story(
 
     if cursor:
         cursor_ts, cursor_id = decode_cursor(cursor)
-        stmt = stmt.where((Comment.created_at, Comment.id) < (cursor_ts, cursor_id))
+        stmt = stmt.where(tuple_(Comment.created_at, Comment.id) < tuple_(cursor_ts, cursor_id))
 
     stmt = stmt.order_by(Comment.created_at.desc(), Comment.id.desc()).limit(limit + 1)
     items = (await db.scalars(stmt)).all()
@@ -113,14 +113,13 @@ async def list_comments_on_task(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    story = await db.get(Story, task.story_id)
-    await require_project_access(user, story.project_id, db)
+    await require_project_access(user, task.project_id, db)
 
     stmt = select(Comment).where(Comment.task_id == task_id)
 
     if cursor:
         cursor_ts, cursor_id = decode_cursor(cursor)
-        stmt = stmt.where((Comment.created_at, Comment.id) < (cursor_ts, cursor_id))
+        stmt = stmt.where(tuple_(Comment.created_at, Comment.id) < tuple_(cursor_ts, cursor_id))
 
     stmt = stmt.order_by(Comment.created_at.desc(), Comment.id.desc()).limit(limit + 1)
     items = (await db.scalars(stmt)).all()
@@ -203,8 +202,7 @@ async def create_comment_on_task(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    story = await db.get(Story, task.story_id)
-    await require_project_access(user, story.project_id, db)
+    await require_project_access(user, task.project_id, db)
 
     comment = Comment(task_id=task_id, body=body, author_id=user.id)
     db.add(comment)
@@ -261,8 +259,7 @@ async def delete_comment(comment_id: uuid.UUID, user: User, db: AsyncSession) ->
             role = await resolve_role(user, story.project_id, db)
         elif comment.task_id:
             task = await db.get(Task, comment.task_id)
-            story = await db.get(Story, task.story_id)
-            role = await resolve_role(user, story.project_id, db)
+            role = await resolve_role(user, task.project_id, db)
         else:
             raise HTTPException(status_code=400, detail="Invalid comment")
 

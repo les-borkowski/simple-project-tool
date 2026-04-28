@@ -58,7 +58,7 @@ async def get_time_metrics(
         if i + 1 < len(history):
             next_record = history[i + 1]
             elapsed = (next_record.changed_at - record.changed_at).total_seconds()
-            status_key = str(record.to_status.value)
+            status_key = record.to_status
             status_seconds[status_key] = status_seconds.get(status_key, 0) + int(elapsed)
             total_seconds += int(elapsed)
 
@@ -104,9 +104,8 @@ async def get_user_time_report(target_user_id: uuid.UUID, user: User, db: AsyncS
 
     for task in tasks:
         # Only include if user has access to the project
-        story = await db.get(Story, task.story_id)
         try:
-            await require_project_access(user, story.project_id, db)
+            await require_project_access(user, task.project_id, db)
             metrics = await get_time_metrics("task", task.id, user, db)
             for status, seconds in metrics.status_seconds.items():
                 total_metrics["status_seconds"][status] = (

@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.pagination import decode_cursor, encode_cursor
@@ -10,7 +10,7 @@ from app.api.schemas.story import StoryCreate, StoryResponse, StoryUpdate
 from app.api.services.project_status_service import get_default_status_slug, validate_status_slug
 from app.auth.permissions import require_manager, require_project_access
 from app.db.base import PriorityEnum
-from app.db.models import Project, StatusHistory, Story, User
+from app.db.models import Project, StatusHistory, Story, Task, User
 
 
 async def list_stories(
@@ -39,9 +39,9 @@ async def list_stories(
 
     if cursor:
         cursor_ts, cursor_id = decode_cursor(cursor)
-        stmt = stmt.where((Story.created_at, Story.id) < (cursor_ts, cursor_id))
+        stmt = stmt.where(tuple_(Story.created_at, Story.id) < tuple_(cursor_ts, cursor_id))
 
-    stmt = stmt.order_by(Story.created_at.desc(), Story.id.desc()).limit(limit + 1)
+    stmt = stmt.order_by(Story.is_default.asc(), Story.created_at.desc(), Story.id.desc()).limit(limit + 1)
     items = (await db.scalars(stmt)).all()
 
     next_cursor = None
@@ -136,11 +136,25 @@ async def update_story(
     return StoryResponse.model_validate(story)
 
 
+async def get_default_story(project_id: uuid.UUID, db: AsyncSession) -> Story:
+    """Return the default (Backlog) story for a project."""
+    result = await db.execute(
+        select(Story).where(Story.project_id == project_id, Story.is_default.is_(True))
+    )
+    story = result.scalar_one_or_none()
+    if not story:
+        raise HTTPException(status_code=500, detail="Project has no default story")
+    return story
+
+
 async def delete_story(story_id: uuid.UUID, user: User, db: AsyncSession) -> None:
-    """Delete a story. Only managers can delete."""
+    """Delete a story. Only managers can delete. The default Backlog story cannot be deleted."""
     story = await db.get(Story, story_id)
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
+
+    if story.is_default:
+        raise HTTPException(status_code=400, detail="Cannot delete the default Backlog story")
 
     from app.auth.permissions import resolve_role
 
@@ -175,6 +189,9 @@ async def move_story(
 
     story.project_id = new_project_id
     story.updated_by = user.id
+    await db.execute(
+        update(Task).where(Task.story_id == story_id).values(project_id=new_project_id)
+    )
     await db.commit()
 
     return StoryResponse.model_validate(story)
