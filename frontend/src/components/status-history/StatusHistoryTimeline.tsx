@@ -21,6 +21,7 @@ export function StatusHistoryTimeline({ itemType, itemId, statuses }: Props) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    setLoading(true)
     const fetch = async () => {
       try {
         let res

@@ -36,7 +36,10 @@ export function CommentList({ itemType, itemId }: Props) {
     }
   }
 
-  useEffect(() => { load() }, [itemId, itemType])
+  useEffect(() => {
+    setLoading(true)
+    load()
+  }, [itemId, itemType])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
