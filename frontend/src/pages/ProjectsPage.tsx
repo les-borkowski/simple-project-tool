@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useProjects } from '../hooks/useProjects'
 import { useRole } from '../hooks/useRole'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { StatusPill } from '../components/common/StatusPill'
 import { PriorityBars } from '../components/common/PriorityBars'
 import { LoadMoreButton } from '../components/common/LoadMoreButton'
@@ -58,12 +59,13 @@ export function ProjectsPage() {
   const [priorityFilter, setPriorityFilter] = useState<Priority | ''>('')
   const [archived, setArchived] = useState(false)
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebouncedValue(search, 300)
 
   const { items, nextCursor, isLoading, initialized, refresh, loadMore } = useProjects({
     status: statusFilter,
     priority: priorityFilter,
     archived,
-    q: search,
+    q: debouncedSearch,
   })
 
   const location = useLocation()
