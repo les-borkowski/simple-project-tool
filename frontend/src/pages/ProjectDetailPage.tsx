@@ -36,6 +36,8 @@ import { MarkdownEditor } from '../components/common/MarkdownEditor'
 import { SkeletonCard } from '../components/common/Skeleton'
 import { useToast } from '../context/ToastContext'
 import { formatRelative } from '../utils/time'
+import { taskHref } from '../utils/links'
+import { useAuth } from '../context/AuthContext'
 
 type Tab = 'board' | 'stories' | 'members' | 'sprints' | 'timeline' | 'settings'
 
@@ -134,14 +136,8 @@ function AvatarStack({ members, max = 4, size = 20 }: { members: MemberResponse[
   )
 }
 
-function BoardCard({ task, storyTitle, dragOverlay }: { task: TaskResponse; storyTitle?: string; dragOverlay?: boolean }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-  }
-  const href = task.story_id ? `/stories/${task.story_id}/tasks/${task.id}` : `/tasks/${task.id}`
+function BoardCard({ task, storyTitle }: { task: TaskResponse; storyTitle?: string }) {
+  const href = taskHref(task)
   return (
     <div ref={setNodeRef} style={dragOverlay ? undefined : style} {...attributes} {...listeners}>
       <Link

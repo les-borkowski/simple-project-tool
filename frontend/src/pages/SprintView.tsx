@@ -28,6 +28,7 @@ import { StatusPill } from '../components/common/StatusPill'
 import { PriorityBars } from '../components/common/PriorityBars'
 import { ConfirmDialog } from '../components/common/ConfirmDialog'
 import { EmptyState } from '../components/common/EmptyState'
+import { taskHref } from '../utils/links'
 
 const IPlus = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -74,7 +75,7 @@ function TaskRow({
   onDragStart?: (e: React.DragEvent) => void
   onDragEnd?: () => void
 }) {
-  const href = task.story_id ? `/stories/${task.story_id}/tasks/${task.id}` : `/tasks/${task.id}`
+  const href = taskHref(task)
   return (
     <Link
       to={href}
