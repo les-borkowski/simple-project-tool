@@ -36,19 +36,25 @@ async def list_comments_on_project(
         items = items[:limit]
         next_cursor = encode_cursor(items[-1].created_at, items[-1].id)
 
-    result = []
-    for item in items:
-        author = await db.get(User, item.author_id)
-        result.append(
-            CommentResponse(
-                id=item.id,
-                body=item.body,
-                author_id=item.author_id,
-                author_name=author.name if author else "Unknown",
-                created_at=item.created_at,
-                updated_at=item.updated_at,
-            )
+    if not items:
+        return PaginatedResponse(items=[], next_cursor=next_cursor)
+
+    author_ids = {item.author_id for item in items}
+    authors = {
+        u.id: u
+        for u in (await db.scalars(select(User).where(User.id.in_(author_ids)))).all()
+    }
+    result = [
+        CommentResponse(
+            id=item.id,
+            body=item.body,
+            author_id=item.author_id,
+            author_name=authors[item.author_id].name if item.author_id in authors else "Unknown",
+            created_at=item.created_at,
+            updated_at=item.updated_at,
         )
+        for item in items
+    ]
 
     return PaginatedResponse(items=result, next_cursor=next_cursor)
 
@@ -82,19 +88,25 @@ async def list_comments_on_story(
         items = items[:limit]
         next_cursor = encode_cursor(items[-1].created_at, items[-1].id)
 
-    result = []
-    for item in items:
-        author = await db.get(User, item.author_id)
-        result.append(
-            CommentResponse(
-                id=item.id,
-                body=item.body,
-                author_id=item.author_id,
-                author_name=author.name if author else "Unknown",
-                created_at=item.created_at,
-                updated_at=item.updated_at,
-            )
+    if not items:
+        return PaginatedResponse(items=[], next_cursor=next_cursor)
+
+    author_ids = {item.author_id for item in items}
+    authors = {
+        u.id: u
+        for u in (await db.scalars(select(User).where(User.id.in_(author_ids)))).all()
+    }
+    result = [
+        CommentResponse(
+            id=item.id,
+            body=item.body,
+            author_id=item.author_id,
+            author_name=authors[item.author_id].name if item.author_id in authors else "Unknown",
+            created_at=item.created_at,
+            updated_at=item.updated_at,
         )
+        for item in items
+    ]
 
     return PaginatedResponse(items=result, next_cursor=next_cursor)
 
@@ -129,19 +141,25 @@ async def list_comments_on_task(
         items = items[:limit]
         next_cursor = encode_cursor(items[-1].created_at, items[-1].id)
 
-    result = []
-    for item in items:
-        author = await db.get(User, item.author_id)
-        result.append(
-            CommentResponse(
-                id=item.id,
-                body=item.body,
-                author_id=item.author_id,
-                author_name=author.name if author else "Unknown",
-                created_at=item.created_at,
-                updated_at=item.updated_at,
-            )
+    if not items:
+        return PaginatedResponse(items=[], next_cursor=next_cursor)
+
+    author_ids = {item.author_id for item in items}
+    authors = {
+        u.id: u
+        for u in (await db.scalars(select(User).where(User.id.in_(author_ids)))).all()
+    }
+    result = [
+        CommentResponse(
+            id=item.id,
+            body=item.body,
+            author_id=item.author_id,
+            author_name=authors[item.author_id].name if item.author_id in authors else "Unknown",
+            created_at=item.created_at,
+            updated_at=item.updated_at,
         )
+        for item in items
+    ]
 
     return PaginatedResponse(items=result, next_cursor=next_cursor)
 
