@@ -32,8 +32,7 @@ async def get_status_history(
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
 
-        story = await db.get(Story, task.story_id)
-        await require_project_access(user, story.project_id, db)
+        await require_project_access(user, task.project_id, db)
 
         stmt = select(StatusHistory).where(StatusHistory.task_id == item_id)
     else:
