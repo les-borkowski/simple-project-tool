@@ -37,6 +37,7 @@ export interface ProjectResponse {
 export interface StoryResponse {
   id: string
   project_id: string
+  is_default: boolean
   title: string
   description: string | null
   status: Status
@@ -127,6 +128,7 @@ export interface SprintResponse {
   end_date: string    // ISO date "YYYY-MM-DD"
   capacity: number | null
   created_by: string
+  created_at: string
   total_effort: number
   task_count: number
 }
@@ -298,6 +300,8 @@ export const statusesApi = {
 // ---------------------------------------------------------------------------
 
 export const sprintsApi = {
+  get: (sprintId: string) =>
+    api.get<SprintResponse>(`/sprints/${sprintId}`),
   list: (projectId: string) =>
     api.get<SprintResponse[]>(`/projects/${projectId}/sprints`),
   create: (

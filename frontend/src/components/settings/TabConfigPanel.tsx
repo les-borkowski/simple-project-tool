@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useToast } from '../../context/ToastContext'
 import {
   DndContext,
   closestCenter,
@@ -34,6 +35,7 @@ interface SortableTabRowProps {
 }
 
 function SortableTabRow({ tabKey, label, isHidden, onToggle }: SortableTabRowProps) {
+  const { t } = useTranslation()
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: tabKey })
   const style = { transform: CSS.Transform.toString(transform), transition }
   return (
@@ -55,7 +57,7 @@ function SortableTabRow({ tabKey, label, isHidden, onToggle }: SortableTabRowPro
         onClick={onToggle}
         className={`text-[11px] px-2 py-0.5 rounded-md border ${isHidden ? 'border-stone-200 dark:border-stone-700 text-stone-400' : 'border-stone-400 text-stone-600 dark:text-stone-300'}`}
       >
-        {isHidden ? 'Hidden' : 'Visible'}
+        {isHidden ? t('tabs.hidden') : t('tabs.visible')}
       </button>
     </div>
   )
@@ -63,6 +65,7 @@ function SortableTabRow({ tabKey, label, isHidden, onToggle }: SortableTabRowPro
 
 export function TabConfigPanel({ projectId, tabOrder, hiddenTabs, onPreferencesChange }: TabConfigPanelProps) {
   const { t } = useTranslation()
+  const { addToast } = useToast()
 
   const CONFIGURABLE_TABS = [
     { key: 'board', label: t('tabs.board') },
@@ -80,14 +83,18 @@ export function TabConfigPanel({ projectId, tabOrder, hiddenTabs, onPreferencesC
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const debouncedSave = useCallback((order: string[], hidden: string[]) => {
+  const debouncedSave = useCallback((order: string[], hidden: string[], prevOrder: string[], prevHidden: string[]) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(() => {
       preferencesApi.update(projectId, { tab_order: order, hidden_tabs: hidden })
         .then(() => onPreferencesChange(order, hidden))
-        .catch(() => {})
+        .catch(() => {
+          setLocalOrder(prevOrder)
+          setLocalHidden(prevHidden)
+          addToast(t('errors.save_failed'), 'error')
+        })
     }, 300)
-  }, [projectId, onPreferencesChange])
+  }, [projectId, onPreferencesChange, addToast, t])
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -103,7 +110,7 @@ export function TabConfigPanel({ projectId, tabOrder, hiddenTabs, onPreferencesC
     const newIndex = localOrder.indexOf(over.id as string)
     const newOrder = arrayMove(localOrder, oldIndex, newIndex)
     setLocalOrder(newOrder)
-    debouncedSave(newOrder, localHidden)
+    debouncedSave(newOrder, localHidden, localOrder, localHidden)
   }
 
   const handleToggle = (key: string) => {
@@ -111,7 +118,7 @@ export function TabConfigPanel({ projectId, tabOrder, hiddenTabs, onPreferencesC
       ? localHidden.filter((k) => k !== key)
       : [...localHidden, key]
     setLocalHidden(newHidden)
-    debouncedSave(localOrder, newHidden)
+    debouncedSave(localOrder, newHidden, localOrder, localHidden)
   }
 
   // Render tabs in localOrder, then any missing ones at the end
@@ -125,7 +132,7 @@ export function TabConfigPanel({ projectId, tabOrder, hiddenTabs, onPreferencesC
   return (
     <div className="max-w-md">
       <h2 className="text-[14px] font-semibold mb-1">{t('tabs.settings')}</h2>
-      <p className="text-[12px] text-stone-500 mb-4">Drag to reorder tabs or toggle their visibility.</p>
+      <p className="text-[12px] text-stone-500 mb-4">{t('tabs.reorder_hint')}</p>
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}

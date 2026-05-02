@@ -33,6 +33,8 @@
   "tasks.story_updated": "Historia zaktualizowana",
   "tasks.sprint_updated": "Sprint zaktualizowany",
   "tasks.effort_updated": "Wysiłek zaktualizowany",
+  "tasks.status_updated": "Status zaktualizowany",
+  "tasks.priority_updated": "Priorytet zaktualizowany",
 
   "comments.title": "Komentarze",
   "comments.empty": "Brak komentarzy",
@@ -150,6 +152,9 @@
   "tabs.members": "Członkowie",
   "tabs.board": "Tablica",
   "tabs.settings": "Ustawienia",
+  "tabs.visible": "Widoczna",
+  "tabs.hidden": "Ukryta",
+  "tabs.reorder_hint": "Przeciągnij, aby zmienić kolejność kart lub przełącz ich widoczność.",
 
   "shell.search": "Szukaj…",
   "shell.sign_out": "Wyloguj się",
@@ -241,6 +246,9 @@
   "sprints.assign_sprint": "Przypisz do sprintu",
   "sprints.no_sprint": "Bez sprintu",
   "sprints.drop_here": "Upuść tutaj, aby przypisać do sprintu",
+  "sprints.name_updated": "Nazwa zaktualizowana",
+  "sprints.dates_updated": "Daty zaktualizowane",
+  "sprints.capacity_updated": "Pojemność zaktualizowana",
   "effort.unit_label": "Jednostka wysiłku",
   "effort.enable": "Włącz śledzenie wysiłku",
   "timeline.title": "Oś czasu",

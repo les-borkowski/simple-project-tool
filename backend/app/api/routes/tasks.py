@@ -26,11 +26,12 @@ async def list_project_tasks(
     assignee_id: uuid.UUID | None = Query(None),
     q: str | None = Query(None),
     unassigned: bool = Query(False),
+    sprint_id: uuid.UUID | None = Query(None),
 ):
     """List tasks under a project (optionally only those with no story)."""
     priority_val = str(priority.value) if priority else None
     return await task_service.list_project_tasks(
-        project_id, user, db, cursor, limit, status, priority_val, assignee_id, q, unassigned
+        project_id, user, db, cursor, limit, status, priority_val, assignee_id, q, unassigned, sprint_id
     )
 
 

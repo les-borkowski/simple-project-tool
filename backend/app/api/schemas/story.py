@@ -23,6 +23,7 @@ class StoryUpdate(BaseModel):
 class StoryResponse(BaseModel):
     id: UUID
     project_id: UUID
+    is_default: bool
     title: str
     description: str | None
     status: str

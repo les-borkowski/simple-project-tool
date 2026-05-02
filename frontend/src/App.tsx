@@ -10,7 +10,7 @@ import { ProjectsPage } from './pages/ProjectsPage'
 import { ProjectDetailPage } from './pages/ProjectDetailPage'
 import { StoryDetailPage } from './pages/StoryDetailPage'
 import { TaskDetailPage } from './pages/TaskDetailPage'
-import { BacklogPage } from './pages/BacklogPage'
+import { SprintDetailPage } from './pages/SprintDetailPage'
 import { InvitationsPage } from './pages/InvitationsPage'
 import { ConfigPage } from './pages/ConfigPage'
 import { NotFoundPage } from './pages/NotFoundPage'
@@ -53,8 +53,8 @@ function ThemedApp() {
               element={<TaskDetailPage />}
             />
             <Route
-              path="/projects/:projectId/backlog"
-              element={<BacklogPage />}
+              path="/projects/:projectId/sprints/:sprintId"
+              element={<SprintDetailPage />}
             />
             <Route path="/invitations" element={<InvitationsPage />} />
             <Route path="/config" element={<ConfigPage />} />

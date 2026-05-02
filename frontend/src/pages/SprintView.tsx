@@ -8,6 +8,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
@@ -190,16 +191,14 @@ function SprintCard({
 
   const sortedTasks = [...tasks].sort(byPosition)
 
+  const { setNodeRef: setDropRef, isOver: isDropOver } = useDroppable({
+    id: `sprint-drop:${sprint.id}`,
+    data: { sprintId: sprint.id },
+  })
+
   return (
     <div
-      className={`rounded-lg border bg-white dark:bg-stone-900 overflow-hidden transition-colors ${
-        isOver
-          ? 'border-stone-400 dark:border-stone-500'
-          : 'border-stone-200 dark:border-stone-800'
-      }`}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 overflow-hidden"
     >
       {/* Card header */}
       <div
@@ -209,7 +208,11 @@ function SprintCard({
         <span className="text-stone-400">
           <IChevron open={open} />
         </span>
-        <span className="text-[13.5px] font-medium flex-1 min-w-0 truncate">{sprint.name}</span>
+        <Link
+          to={`/projects/${sprint.project_id}/sprints/${sprint.id}`}
+          className="text-[13.5px] font-medium flex-1 min-w-0 truncate hover:accent-text"
+          onClick={(e) => e.stopPropagation()}
+        >{sprint.name}</Link>
         <div className="flex items-center gap-3 shrink-0">
           <span className="text-[11.5px] text-stone-400">
             {formatDateRange(sprint.start_date, sprint.end_date, locale)}
@@ -243,9 +246,14 @@ function SprintCard({
       {open && (
         <div className="border-t border-stone-100 dark:border-stone-800">
           {sortedTasks.length === 0 ? (
-            <p className="px-4 py-3 pl-8 text-[12px] text-stone-400 italic">
+            <div
+              ref={sortable ? setDropRef : undefined}
+              className={`px-4 py-3 pl-8 text-[12px] text-stone-400 italic transition-colors${
+                sortable && isDropOver ? ' bg-stone-50 dark:bg-stone-800/50' : ''
+              }`}
+            >
               {t('tasks.empty')}
-            </p>
+            </div>
           ) : sortable ? (
             <SortableContext items={sortedTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
               {sortedTasks.map((task) => (

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, model_validator
@@ -32,6 +32,7 @@ class SprintResponse(BaseModel):
     end_date: date
     capacity: int | None
     created_by: UUID
+    created_at: datetime
     total_effort: int
     task_count: int
 

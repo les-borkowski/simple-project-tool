@@ -86,14 +86,17 @@ export function StoryDetailPage() {
 
   useEffect(() => {
     if (!storyId) return
-    storiesApi.get(storyId).then((res) => {
-      setStory(res.data)
-      setDesc(res.data.description ?? '')
-      if (projectId) {
-        projectsApi.get(projectId).then((p) => setProjectName(p.data.name))
-        projectsApi.listMembers(projectId).then((m) => setMembers(m.data))
-      }
-    }).finally(() => setLoading(false))
+    const fetches: Promise<unknown>[] = [
+      storiesApi.get(storyId).then((res) => {
+        setStory(res.data)
+        setDesc(res.data.description ?? '')
+      }),
+    ]
+    if (projectId) {
+      fetches.push(projectsApi.get(projectId).then((p) => setProjectName(p.data.name)))
+      fetches.push(projectsApi.listMembers(projectId).then((m) => setMembers(m.data)))
+    }
+    Promise.all(fetches).finally(() => setLoading(false))
   }, [storyId, projectId])
 
   const handleStatusChange = async (status: Status) => {
@@ -121,10 +124,15 @@ export function StoryDetailPage() {
   }
 
   const handleTaskFieldChange = async (taskId: string, field: 'status' | 'priority', value: string) => {
-    await tasksApi.update(taskId, { [field]: value })
-    setEditingTaskField(null)
-    tasksHook.refresh()
-    addToast(`${field === 'status' ? 'Status' : 'Priority'} updated`)
+    try {
+      await tasksApi.update(taskId, { [field]: value })
+      tasksHook.refresh()
+      addToast(field === 'status' ? t('tasks.status_updated') : t('tasks.priority_updated'))
+    } catch {
+      addToast(t('errors.save_failed'), 'error')
+    } finally {
+      setEditingTaskField(null)
+    }
   }
 
   const handleSaveTask = async (e: React.FormEvent) => {
@@ -172,7 +180,9 @@ export function StoryDetailPage() {
           <div className="min-w-0 flex-1">
             <h1 className="text-[22px] font-semibold tracking-tight">{story.title}</h1>
             <div className="flex items-center gap-3 mt-3">
-              {editingStatus ? (
+              {story.is_default ? (
+                <StatusPill status={story.status} statuses={projectStatuses} />
+              ) : editingStatus ? (
                 <select
                   autoFocus
                   defaultValue={story.status}
@@ -187,7 +197,9 @@ export function StoryDetailPage() {
               ) : (
                 <button onClick={() => setEditingStatus(true)}><StatusPill status={story.status} statuses={projectStatuses} /></button>
               )}
-              {editingPriority ? (
+              {story.is_default ? (
+                <PriorityBars priority={story.priority} withLabel />
+              ) : editingPriority ? (
                 <select
                   autoFocus
                   defaultValue={story.priority}
@@ -355,8 +367,28 @@ export function StoryDetailPage() {
 
         {/* Right rail */}
         <aside className="border-l border-stone-200 dark:border-stone-800 bg-stone-50/40 dark:bg-stone-950/30 px-5 py-5 space-y-5 text-[12.5px]">
-          <DetailField label={t('detail.status')}><StatusPill status={story.status} statuses={projectStatuses} /></DetailField>
-          <DetailField label={t('detail.priority')}><PriorityBars priority={story.priority} withLabel /></DetailField>
+          <DetailField label={t('detail.status')}>
+            <select
+              value={story.status}
+              onChange={(e) => handleStatusChange(e.target.value as Status)}
+              disabled={story.is_default}
+              className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {projectStatuses.map((ps) => (
+                <option key={ps.slug} value={ps.slug}>{ps.name}</option>
+              ))}
+            </select>
+          </DetailField>
+          <DetailField label={t('detail.priority')}>
+            <select
+              value={story.priority}
+              onChange={(e) => handlePriorityChange(e.target.value as Priority)}
+              disabled={story.is_default}
+              className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
+            </select>
+          </DetailField>
           <DetailField label={t('detail.project')}><span className="text-stone-700 dark:text-stone-200">{projectName}</span></DetailField>
           <DetailField label={t('detail.created')}><span className="text-stone-500">{formatRelative(story.created_at)}</span></DetailField>
           <div>

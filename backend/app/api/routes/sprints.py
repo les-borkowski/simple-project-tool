@@ -32,6 +32,15 @@ async def create_sprint(
     return await sprint_service.create_sprint(project_id, data, user, db)
 
 
+@router.get("/sprints/{sprint_id}", response_model=SprintResponse)
+async def get_sprint(
+    sprint_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await sprint_service.get_sprint(sprint_id, user, db)
+
+
 @router.patch("/sprints/{sprint_id}", response_model=SprintResponse)
 async def update_sprint(
     sprint_id: uuid.UUID,

@@ -6,6 +6,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
@@ -37,7 +38,6 @@ import { SkeletonCard } from '../components/common/Skeleton'
 import { useToast } from '../context/ToastContext'
 import { formatRelative } from '../utils/time'
 import { taskHref } from '../utils/links'
-import { useAuth } from '../context/AuthContext'
 
 type Tab = 'board' | 'stories' | 'members' | 'sprints' | 'timeline' | 'settings'
 
@@ -136,7 +136,27 @@ function AvatarStack({ members, max = 4, size = 20 }: { members: MemberResponse[
   )
 }
 
-function BoardCard({ task, storyTitle }: { task: TaskResponse; storyTitle?: string }) {
+function EmptyColumnDropZone({ statusSlug }: { statusSlug: string }) {
+  const { setNodeRef, isOver } = useDroppable({ id: statusSlug })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`h-16 rounded-lg border border-dashed transition-colors ${
+        isOver
+          ? 'border-stone-400 bg-stone-100 dark:border-stone-600 dark:bg-stone-800/50'
+          : 'border-stone-200 dark:border-stone-800'
+      }`}
+    />
+  )
+}
+
+function BoardCard({ task, storyTitle, dragOverlay }: { task: TaskResponse; storyTitle?: string; dragOverlay?: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  }
   const href = taskHref(task)
   return (
     <div ref={setNodeRef} style={dragOverlay ? undefined : style} {...attributes} {...listeners}>
@@ -232,7 +252,6 @@ export function ProjectDetailPage() {
   const [editStory, setEditStory] = useState<{ id: string; title: string; description: string } | null>(null)
   const [savingStory, setSavingStory] = useState(false)
   const [tasksByStory, setTasksByStory] = useState<Record<string, TaskResponse[]>>({})
-  const [projectTasks, setProjectTasks] = useState<TaskResponse[]>([])
 
   const [showCreateTask, setShowCreateTask] = useState(false)
 
@@ -336,12 +355,6 @@ export function ProjectDetailPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storiesHook.items])
 
-  useEffect(() => {
-    if (!id) return
-    tasksApi.listForProject(id, { unassigned: true, limit: 100 }).then((res) => {
-      setProjectTasks(res.data.items)
-    }).catch(() => setProjectTasks([]))
-  }, [id])
 
   const handleStatusChange = async (status: Status) => {
     if (!id) return
@@ -445,7 +458,6 @@ export function ProjectDetailPage() {
     ...storiesHook.items.flatMap((story) =>
       (tasksByStory[story.id] ?? []).map((task) => ({ task, story }))
     ),
-    ...projectTasks.map((task) => ({ task, story: null })),
   ]
 
   // Stories tab derived values
@@ -456,6 +468,8 @@ export function ProjectDetailPage() {
     .filter(s => storyFilterStatus === 'all' || s.status === storyFilterStatus)
     .filter(s => storyFilterPriority === 'all' || s.priority === storyFilterPriority)
     .sort((a, b) => {
+      if (a.is_default) return 1
+      if (b.is_default) return -1
       const c = applySortField(a, b, storySortField)
       return storySortDir === 'asc' ? c : -c
     })
@@ -470,7 +484,6 @@ export function ProjectDetailPage() {
     .filter(({ task }) => !boardFilterAssignee || task.assignee_id === boardFilterAssignee)
     .filter(({ story }) => {
       if (!boardFilterStory) return true
-      if (boardFilterStory === 'none') return story === null
       return story?.id === boardFilterStory
     })
     .sort((a, b) => a.task.position - b.task.position)
@@ -480,7 +493,7 @@ export function ProjectDetailPage() {
       const t = tasks.find((t) => t.id === taskId)
       if (t) return t
     }
-    return projectTasks.find((t) => t.id === taskId)
+    return undefined
   }
 
   const updateTaskInState = (taskId: string, updates: Partial<TaskResponse>) => {
@@ -495,7 +508,6 @@ export function ProjectDetailPage() {
       }
       return next
     })
-    setProjectTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, ...updates } : t))
   }
 
   const handleBoardDragStart = (event: DragStartEvent) => {
@@ -558,9 +570,7 @@ export function ProjectDetailPage() {
     const sourceStoryId = activeData?.storyId ?? null
     const destStoryId = overData?.storyId ?? null
 
-    const sourceList = sourceStoryId
-      ? [...(tasksByStory[sourceStoryId] ?? [])].sort((a, b) => a.position - b.position)
-      : [...projectTasks].sort((a, b) => a.position - b.position)
+    const sourceList = [...(tasksByStory[sourceStoryId ?? ''] ?? [])].sort((a, b) => a.position - b.position)
 
     if (sourceStoryId === destStoryId) {
       // Same story/backlog: reorder within group
@@ -572,8 +582,6 @@ export function ProjectDetailPage() {
 
       if (sourceStoryId) {
         setTasksByStory((prev) => ({ ...prev, [sourceStoryId]: reordered }))
-      } else {
-        setProjectTasks(reordered)
       }
       if (id) {
         tasksApi.reorder(id, reordered.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
@@ -585,9 +593,7 @@ export function ProjectDetailPage() {
 
       const newSourceList = sourceList.filter((t) => t.id !== active.id).map((t, i) => ({ ...t, position: i }))
 
-      const destList = destStoryId
-        ? [...(tasksByStory[destStoryId] ?? [])].sort((a, b) => a.position - b.position)
-        : [...projectTasks].sort((a, b) => a.position - b.position)
+      const destList = [...(tasksByStory[destStoryId ?? ''] ?? [])].sort((a, b) => a.position - b.position)
       const overIndex = destList.findIndex((t) => t.id === over.id)
       const insertAt = overIndex === -1 ? destList.length : overIndex
       const movedTask = { ...taskToMove, story_id: destStoryId }
@@ -600,13 +606,9 @@ export function ProjectDetailPage() {
       // Optimistic update
       if (sourceStoryId) {
         setTasksByStory((prev) => ({ ...prev, [sourceStoryId]: newSourceList }))
-      } else {
-        setProjectTasks(newSourceList)
       }
       if (destStoryId) {
         setTasksByStory((prev) => ({ ...prev, [destStoryId]: newDestList }))
-      } else {
-        setProjectTasks(newDestList)
       }
 
       // Persist
@@ -621,13 +623,9 @@ export function ProjectDetailPage() {
           .catch(() => {
             if (sourceStoryId) {
               setTasksByStory((prev) => ({ ...prev, [sourceStoryId]: sourceList }))
-            } else {
-              setProjectTasks(sourceList)
             }
             if (destStoryId) {
               setTasksByStory((prev) => ({ ...prev, [destStoryId]: destList }))
-            } else {
-              setProjectTasks(destList)
             }
           })
       }
@@ -821,7 +819,6 @@ export function ProjectDetailPage() {
               className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
             >
               <option value="">{t('filter.all')} {t('filter.story')}</option>
-              <option value="none">{t('filter.no_story')}</option>
               {storiesHook.items.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
             </select>
             <span className="flex-1" />
@@ -851,9 +848,7 @@ export function ProjectDetailPage() {
                         {columnTasks.map(({ task, story }) => (
                           <BoardCard key={task.id} task={task} storyTitle={story?.title} />
                         ))}
-                        {columnTasks.length === 0 && (
-                          <div className="h-16 rounded-lg border border-dashed border-stone-200 dark:border-stone-800" />
-                        )}
+                        {columnTasks.length === 0 && <EmptyColumnDropZone statusSlug={ps.slug} />}
                       </div>
                     </SortableContext>
                   </div>
@@ -975,7 +970,7 @@ export function ProjectDetailPage() {
               </div>
 
               {/* Stories table */}
-              {filteredStories.length === 0 && projectTasks.length === 0 ? (
+              {filteredStories.length === 0 ? (
                 <p className="text-[13px] text-stone-400 py-8 text-center">{t('filter.no_results')}</p>
               ) : (
                 <DndContext
@@ -998,15 +993,26 @@ export function ProjectDetailPage() {
                         <div key={story.id} className="border-b border-stone-100 dark:border-stone-800 last:border-0">
                           <div className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-2.5 hover:bg-stone-50 dark:hover:bg-stone-900/40">
                             <div className="min-w-0">
-                              <Link
-                                to={`/projects/${id}/stories/${story.id}`}
-                                className="text-[13px] font-medium hover:accent-text"
-                              >
-                                {story.title}
-                              </Link>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Link
+                                  to={`/projects/${id}/stories/${story.id}`}
+                                  className="text-[13px] font-medium hover:accent-text"
+                                >
+                                  {story.title}
+                                </Link>
+                                {story.is_default && (
+                                  <span className="shrink-0 text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-stone-100 dark:bg-stone-800 text-stone-400 dark:text-stone-500">
+                                    {t('stories.backlog')}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <StatusPill status={story.status} statuses={projectStatuses} />
-                            <PriorityBars priority={story.priority} withLabel />
+                            {story.is_default
+                              ? <span className="text-[11px] text-stone-300 dark:text-stone-700">—</span>
+                              : <StatusPill status={story.status} statuses={projectStatuses} />}
+                            {story.is_default
+                              ? <span className="text-[11px] text-stone-300 dark:text-stone-700">—</span>
+                              : <PriorityBars priority={story.priority} withLabel />}
                             <span className="text-[12px] text-stone-500">{tasksByStory[story.id]?.length ?? '…'}</span>
                             <div className="flex items-center justify-end gap-2">
                               <span className="text-[11px] text-stone-400">{formatRelative(story.created_at)}</span>
@@ -1018,12 +1024,14 @@ export function ProjectDetailPage() {
                                   >
                                     {t('actions.edit')}
                                   </button>
-                                  <button
-                                    onClick={() => setDeleteStoryId(story.id)}
-                                    className="text-[11px] text-rose-400 hover:text-rose-600"
-                                  >
-                                    {t('actions.delete')}
-                                  </button>
+                                  {!story.is_default && (
+                                    <button
+                                      onClick={() => setDeleteStoryId(story.id)}
+                                      className="text-[11px] text-rose-400 hover:text-rose-600"
+                                    >
+                                      {t('actions.delete')}
+                                    </button>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -1052,39 +1060,6 @@ export function ProjectDetailPage() {
                         </div>
                       )
                     })}
-                    {/* Backlog — unassigned tasks (no story) */}
-                    {projectTasks.length > 0 && (
-                      <div className="border-t border-dashed border-stone-200 dark:border-stone-700">
-                        <div className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-2.5 bg-stone-50/40 dark:bg-stone-900/20">
-                          <Link to={`/projects/${id}/backlog`} className="text-[13px] font-medium text-stone-400 dark:text-stone-500 italic hover:accent-text">{t('stories.backlog')}</Link>
-                          <span />
-                          <span />
-                          <span className="text-[12px] text-stone-500">{projectTasks.length}</span>
-                          <span />
-                        </div>
-                        <div className="border-t border-stone-50 dark:border-stone-800/60">
-                          <SortableContext
-                            items={[...projectTasks].sort((a, b) => a.position - b.position).map((t) => t.id)}
-                            strategy={verticalListSortingStrategy}
-                          >
-                            {[...projectTasks].sort((a, b) => a.position - b.position).map((task) => (
-                              <SortableStoriesTaskRow
-                                key={task.id}
-                                task={task}
-                                storyId={null}
-                                href={`/projects/${id}/tasks/${task.id}`}
-                              >
-                                <span className="text-[12px] text-stone-600 dark:text-stone-400 truncate">{task.title}</span>
-                                <StatusPill status={task.status} statuses={projectStatuses} />
-                                <PriorityBars priority={task.priority} withLabel />
-                                <span />
-                                <span className="text-[11px] text-stone-400 text-right">{formatRelative(task.created_at)}</span>
-                              </SortableStoriesTaskRow>
-                            ))}
-                          </SortableContext>
-                        </div>
-                      </div>
-                    )}
                   </div>
                   <DragOverlay>
                     {activeStoriesTaskId ? (() => {
@@ -1182,7 +1157,12 @@ export function ProjectDetailPage() {
         <CreateTaskModal
           projectId={id!}
           onCreated={(task) => {
-            setProjectTasks((prev) => [task, ...prev])
+            if (task.story_id) {
+              setTasksByStory((prev) => ({
+                ...prev,
+                [task.story_id!]: [task, ...(prev[task.story_id!] ?? [])],
+              }))
+            }
             setShowCreateTask(false)
           }}
           onClose={() => setShowCreateTask(false)}

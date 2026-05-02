@@ -31,6 +31,8 @@
   "tasks.story_updated": "Story updated",
   "tasks.sprint_updated": "Sprint updated",
   "tasks.effort_updated": "Effort updated",
+  "tasks.status_updated": "Status updated",
+  "tasks.priority_updated": "Priority updated",
 
   "comments.title": "Comments",
   "comments.empty": "No comments yet",
@@ -140,6 +142,9 @@
   "tabs.members": "Members",
   "tabs.board": "Board",
   "tabs.settings": "Settings",
+  "tabs.visible": "Visible",
+  "tabs.hidden": "Hidden",
+  "tabs.reorder_hint": "Drag to reorder tabs or toggle their visibility.",
 
   "shell.search": "Search…",
   "shell.sign_out": "Sign out",
@@ -231,6 +236,9 @@
   "sprints.assign_sprint": "Assign to sprint",
   "sprints.no_sprint": "No sprint",
   "sprints.drop_here": "Drop here to assign to sprint",
+  "sprints.name_updated": "Name updated",
+  "sprints.dates_updated": "Dates updated",
+  "sprints.capacity_updated": "Capacity updated",
   "effort.unit_label": "Effort unit",
   "effort.enable": "Enable effort tracking",
   "timeline.title": "Timeline",

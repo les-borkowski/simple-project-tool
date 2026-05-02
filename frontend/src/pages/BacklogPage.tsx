@@ -56,6 +56,7 @@ export function BacklogPage() {
   const [projectName, setProjectName] = useState('')
   const [members, setMembers] = useState<MemberResponse[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [tasks, setTasks] = useState<TaskResponse[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -81,7 +82,7 @@ export function BacklogPage() {
       projectsApi.get(projectId).then((r) => setProjectName(r.data.name)),
       projectsApi.listMembers(projectId).then((r) => setMembers(r.data)),
       fetchTasks(),
-    ]).finally(() => setLoading(false))
+    ]).catch(() => setError(true)).finally(() => setLoading(false))
   }, [projectId, fetchTasks])
 
   const loadMore = async () => {
@@ -97,10 +98,15 @@ export function BacklogPage() {
   }
 
   const handleTaskFieldChange = async (taskId: string, field: 'status' | 'priority', value: string) => {
-    await tasksApi.update(taskId, { [field]: value })
-    setEditingTaskField(null)
-    await fetchTasks()
-    addToast(`${field === 'status' ? 'Status' : 'Priority'} updated`)
+    try {
+      await tasksApi.update(taskId, { [field]: value })
+      await fetchTasks()
+      addToast(field === 'status' ? t('tasks.status_updated') : t('tasks.priority_updated'))
+    } catch {
+      addToast(t('errors.save_failed'), 'error')
+    } finally {
+      setEditingTaskField(null)
+    }
   }
 
   const handleSaveTask = async (e: React.FormEvent) => {
@@ -124,6 +130,11 @@ export function BacklogPage() {
       <div className="px-7 pt-6 pb-4">
         <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}</div>
       </div>
+    </div>
+  )
+  if (error) return (
+    <div className="flex-1 flex items-center justify-center text-[13px] text-stone-500">
+      {t('errors.generic')}
     </div>
   )
 
