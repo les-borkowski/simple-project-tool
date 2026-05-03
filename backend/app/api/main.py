@@ -10,8 +10,6 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-logger = logging.getLogger(__name__)
-
 from app.api.routes import (
     auth,
     comments,
@@ -28,6 +26,8 @@ from app.api.routes.project_statuses import router as project_statuses_router
 from app.api.routes.sprints import router as sprints_router
 from app.core.config import settings
 from app.db.database import engine
+
+logger = logging.getLogger(__name__)
 
 # Global locales dict
 LOCALES: dict[str, dict] = {}
@@ -49,9 +49,9 @@ async def check_db_connection():
     try:
         async with engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
-        print("✓ Database connection successful")
+        logger.info("Database connection successful")
     except Exception as e:
-        print(f"✗ Database connection failed: {e}")
+        logger.exception("Database connection failed: %s", e)
         raise
 
 
@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI):
     for locale_file in sorted(locales_dir.glob("*.json")):
         with open(locale_file) as f:
             LOCALES[locale_file.stem] = json.load(f)
-    print(f"✓ Loaded locales: {', '.join(LOCALES.keys())}")
+    logger.info("Loaded locales: %s", ", ".join(LOCALES.keys()))
 
     # Check database connection
     await check_db_connection()
@@ -72,7 +72,7 @@ async def lifespan(app: FastAPI):
 
     # Cleanup on shutdown
     await engine.dispose()
-    print("✓ Shutdown complete")
+    logger.info("Shutdown complete")
 
 
 app = FastAPI(
