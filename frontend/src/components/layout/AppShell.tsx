@@ -6,6 +6,7 @@ import { invitationsApi, projectsApi, recentApi } from '../../services/api'
 import type { ProjectResponse, RecentItemResponse } from '../../services/api'
 import { CommandPalette } from './CommandPalette'
 import { recentLink } from '../../utils/links'
+import { initials as getInitials } from '../../utils/initials'
 
 const ISearch = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -102,7 +103,7 @@ export function AppShell({ children }: Props) {
   const [recentProjects, setRecentProjects] = useState<ProjectResponse[]>([])
   const [hasMoreProjects, setHasMoreProjects] = useState(false)
   const [recentItems, setRecentItems] = useState<RecentItemResponse[]>([])
-  const initials = user?.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
+  const initials = user ? getInitials(user.name) : '?'
 
   useEffect(() => {
     invitationsApi.mine().then((res) => {

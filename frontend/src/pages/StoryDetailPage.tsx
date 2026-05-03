@@ -20,6 +20,7 @@ import { DetailField } from '../components/common/DetailField'
 import { useToast } from '../context/ToastContext'
 import { formatRelative } from '../utils/time'
 import { applySortField } from '../utils/sort'
+import { initials } from '../utils/initials'
 import { CommentList } from '../components/comments/CommentList'
 import { StatusHistoryTimeline } from '../components/status-history/StatusHistoryTimeline'
 
@@ -312,9 +313,8 @@ export function StoryDetailPage() {
                       {task.assignee_id && (() => {
                         const m = members.find(m => m.user_id === task.assignee_id)
                         if (!m) return null
-                        const ini = m.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
                         return (
-                          <span title={m.name} className="inline-flex items-center justify-center w-5 h-5 rounded-full av-2 text-white text-[9px] font-semibold">{ini}</span>
+                          <span title={m.name} className="inline-flex items-center justify-center w-5 h-5 rounded-full av-2 text-white text-[9px] font-semibold">{initials(m.name)}</span>
                         )
                       })()}
                       <span className="text-[11px] text-stone-400 w-10 text-right">{formatRelative(task.created_at)}</span>

@@ -7,6 +7,7 @@ import { SkeletonCard } from '../components/common/Skeleton'
 import { useToast } from '../context/ToastContext'
 import i18n from '../i18n'
 import { formatDate } from '../utils/format'
+import { initials } from '../utils/initials'
 
 const ICheck = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -63,7 +64,7 @@ export function InvitationsPage() {
         ) : (
           <div className="space-y-2 max-w-2xl">
             {invitations.map((inv) => {
-              const projInitials = inv.project_name.split(' ').map(w => w[0]).slice(0, 2).join('')
+              const projInitials = initials(inv.project_name)
               return (
                 <div
                   key={inv.id}

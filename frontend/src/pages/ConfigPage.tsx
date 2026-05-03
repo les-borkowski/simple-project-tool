@@ -10,6 +10,7 @@ import type { ProjectResponse } from '../services/api'
 import { ProjectStatusManager } from '../components/config/ProjectStatusManager'
 import { useRole } from '../hooks/useRole'
 import { useToast } from '../context/ToastContext'
+import { initials as getInitials } from '../utils/initials'
 
 const ACCENT_COLORS: Record<AccentColor, string> = {
   indigo: '#6366f1',
@@ -94,7 +95,7 @@ export function ConfigPage() {
     { key: 'security', label: t('config.security'), icon: <IShield /> },
   ]
 
-  const initials = user?.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'
+  const initials = user ? getInitials(user.name) : '?'
 
   return (
     <div className="flex-1 flex flex-col">
