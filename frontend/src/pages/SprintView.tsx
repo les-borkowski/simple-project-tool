@@ -123,7 +123,7 @@ function SortableTaskRow({
     transition,
     opacity: isDragging ? 0.4 : 1,
   }
-  const href = task.story_id ? `/stories/${task.story_id}/tasks/${task.id}` : `/tasks/${task.id}`
+  const href = taskHref(task)
   return (
     <div ref={setNodeRef} style={dragOverlay ? undefined : style} {...attributes} {...listeners}>
       <Link
