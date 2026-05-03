@@ -1,14 +1,10 @@
 import uuid
-from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
-
-if TYPE_CHECKING:
-    pass
 
 
 class ProjectStatus(Base):

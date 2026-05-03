@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.user import UserCreate, UserResponse
+from app.core.config import settings
 from app.auth.security import (
     create_access_token,
     create_password_reset_token,
@@ -101,8 +102,10 @@ async def request_password_reset(email: str, db: AsyncSession) -> str:
         return "reset_token_sent"
 
     token = create_password_reset_token(user.id)
-    # TODO: send token via email; for now just return it
-    return token
+    if settings.DEBUG:
+        return token
+    # TODO: send token via email
+    return "reset_token_sent"
 
 
 async def confirm_password_reset(token: str, new_password: str, db: AsyncSession) -> None:

@@ -1,4 +1,5 @@
 import json
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -8,6 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
+
+logger = logging.getLogger(__name__)
 
 from app.api.routes import (
     auth,
@@ -124,8 +127,6 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Convert validation errors to standard error format."""
-    from fastapi.responses import JSONResponse
-
     details = []
     for error in exc.errors():
         field = ".".join(str(x) for x in error["loc"][1:]) if len(error["loc"]) > 1 else None
@@ -146,12 +147,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     """Catch-all for unexpected errors."""
-    import traceback
-
-    from fastapi.responses import JSONResponse
-
-    print(f"Unexpected error: {exc}")
-    traceback.print_exc()
+    logger.exception("Unexpected error: %s", exc)
 
     return JSONResponse(
         status_code=500,
