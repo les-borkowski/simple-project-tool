@@ -52,11 +52,11 @@ export function MarkdownEditor({ value, onChange, rows = 4, placeholder = 'Add d
   }
 
   const btnClass =
-    'px-2 py-1 text-xs font-medium rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
+    'px-2 py-1 text-xs font-medium rounded border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 hover:bg-stone-100 dark:hover:bg-stone-600 text-stone-700 dark:text-stone-300'
 
   return (
     <div className="space-y-1">
-      <div className="flex flex-wrap gap-1 px-1 py-1 rounded-t border border-b-0 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-750">
+      <div className="flex flex-wrap gap-1 px-1 py-1 rounded-t border border-b-0 border-stone-300 dark:border-stone-600 bg-stone-50 dark:bg-stone-750">
         <button type="button" className={btnClass} title="Bold" onClick={() => wrap({ before: '**', after: '**', placeholder: 'bold' })}>
           <strong>B</strong>
         </button>
@@ -69,7 +69,7 @@ export function MarkdownEditor({ value, onChange, rows = 4, placeholder = 'Add d
         <button type="button" className={btnClass} title="Link" onClick={() => wrap({ before: '[', after: '](url)', placeholder: 'link text' })}>
           Link
         </button>
-        <span className="w-px bg-gray-300 dark:bg-gray-600 mx-0.5" />
+        <span className="w-px bg-stone-300 dark:bg-stone-600 mx-0.5" />
         <button type="button" className={btnClass} title="Bullet list" onClick={() => insertLine('- ')}>
           • List
         </button>
@@ -84,7 +84,7 @@ export function MarkdownEditor({ value, onChange, rows = 4, placeholder = 'Add d
         rows={rows}
         placeholder={placeholder}
         style={autoExpand ? { overflowY: 'auto', maxHeight } : undefined}
-        className="w-full px-3 py-2 rounded-b border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
+        className="w-full px-3 py-2 rounded-b border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)] resize-none"
       />
     </div>
   )

@@ -68,7 +68,7 @@ export function CommentList({ itemType, itemId }: Props) {
     setComments((prev) => prev.filter((c) => c.id !== id))
   }
 
-  if (loading) return <div className="animate-pulse h-10 bg-gray-100 dark:bg-gray-700 rounded" />
+  if (loading) return <div className="animate-pulse h-10 bg-stone-100 dark:bg-stone-700 rounded" />
 
   return (
     <div className="space-y-4">
@@ -77,10 +77,10 @@ export function CommentList({ itemType, itemId }: Props) {
       ) : (
         <div className="space-y-3">
           {comments.map((c) => (
-            <div key={c.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 p-4">
+            <div key={c.id} className="bg-white dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-600 p-4">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm font-medium">{c.author_name}</span>
-                <span className="text-xs text-gray-400">{formatDate(c.created_at, i18n.language)}</span>
+                <span className="text-xs text-stone-400">{formatDate(c.created_at, i18n.language)}</span>
               </div>
               {editId === c.id ? (
                 <div className="space-y-2">
@@ -88,20 +88,20 @@ export function CommentList({ itemType, itemId }: Props) {
                     value={editBody}
                     onChange={(e) => setEditBody(e.target.value)}
                     rows={2}
-                    className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
+                    className="w-full px-3 py-2 rounded border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 text-sm"
                   />
                   <div className="flex gap-2">
-                    <button onClick={() => handleEdit(c.id)} className="px-3 py-1 text-sm bg-sky-600 hover:bg-sky-700 text-white rounded">{t('actions.save')}</button>
-                    <button onClick={() => setEditId(null)} className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded">{t('actions.cancel')}</button>
+                    <button onClick={() => handleEdit(c.id)} className="px-3 py-1 text-sm accent-bg rounded">{t('actions.save')}</button>
+                    <button onClick={() => setEditId(null)} className="px-3 py-1 text-sm border border-stone-300 dark:border-stone-600 rounded">{t('actions.cancel')}</button>
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-gray-700 dark:text-gray-300">{c.body}</p>
+                <p className="text-sm text-stone-700 dark:text-stone-300">{c.body}</p>
               )}
               {(c.author_id === user?.id || user?.role === 'manager') && editId !== c.id && (
                 <div className="flex gap-3 mt-2">
                   {c.author_id === user?.id && (
-                    <button onClick={() => { setEditId(c.id); setEditBody(c.body) }} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">{t('actions.edit')}</button>
+                    <button onClick={() => { setEditId(c.id); setEditBody(c.body) }} className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-300">{t('actions.edit')}</button>
                   )}
                   <button onClick={() => handleDelete(c.id)} className="text-xs text-red-400 hover:text-red-600">{t('actions.delete')}</button>
                 </div>
@@ -118,12 +118,12 @@ export function CommentList({ itemType, itemId }: Props) {
           onChange={(e) => setNewBody(e.target.value)}
           placeholder={t('comments.placeholder')}
           rows={2}
-          className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+          className="w-full px-3 py-2 rounded-md border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
         />
         <button
           type="submit"
           disabled={submitting || !newBody.trim()}
-          className="px-4 py-2 text-sm bg-sky-600 hover:bg-sky-700 text-white rounded-md disabled:opacity-50"
+          className="px-4 py-2 text-sm accent-bg rounded-md disabled:opacity-50"
         >
           {t('comments.submit')}
         </button>

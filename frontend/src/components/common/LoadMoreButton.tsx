@@ -12,7 +12,7 @@ export function LoadMoreButton({ onLoadMore, isLoading }: Props) {
       <button
         onClick={onLoadMore}
         disabled={isLoading}
-        className="px-4 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+        className="px-4 py-2 text-sm rounded-md border border-stone-300 dark:border-stone-600 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700 disabled:opacity-50"
       >
         {isLoading ? (
           <span className="flex items-center gap-2">

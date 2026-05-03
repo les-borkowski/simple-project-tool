@@ -60,14 +60,14 @@ export function ApiKeyList() {
     )
   }
 
-  if (loading) return <div className="animate-pulse h-10 bg-gray-100 dark:bg-gray-700 rounded" />
+  if (loading) return <div className="animate-pulse h-10 bg-stone-100 dark:bg-stone-700 rounded" />
 
   return (
     <div>
       <div className="flex justify-end mb-4">
         <button
           onClick={() => setShowCreate(true)}
-          className="px-4 py-2 text-sm bg-sky-600 hover:bg-sky-700 text-white rounded-md"
+          className="px-4 py-2 text-sm accent-bg rounded-md"
         >
           {t('api_keys.create')}
         </button>
@@ -80,14 +80,14 @@ export function ApiKeyList() {
           {keys.map((key) => (
             <div
               key={key.id}
-              className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 p-4 flex items-center justify-between gap-4"
+              className="bg-white dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-600 p-4 flex items-center justify-between gap-4"
             >
               <div>
                 <p className="font-medium text-sm">{key.label}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-300 mt-0.5">
+                <p className="text-xs text-stone-500 dark:text-stone-300 mt-0.5">
                   {key.scopes.join(', ')}
                 </p>
-                <p className="text-xs text-gray-400 dark:text-gray-400 mt-0.5">
+                <p className="text-xs text-stone-400 dark:text-stone-400 mt-0.5">
                   {t('api_keys.last_used')}: {key.last_used_at ? formatDate(key.last_used_at, i18n.language) : t('api_keys.never')}
                 </p>
               </div>
@@ -105,15 +105,15 @@ export function ApiKeyList() {
       {/* Raw key modal */}
       {rawKey && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+          <div className="bg-white dark:bg-stone-800 rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold mb-2">{t('api_keys.create')}</h3>
             <p className="text-sm text-amber-600 dark:text-amber-400 mb-3">{t('api_keys.copy_warning')}</p>
-            <code className="block w-full bg-gray-100 dark:bg-gray-700 rounded p-3 text-sm font-mono break-all mb-4">
+            <code className="block w-full bg-stone-100 dark:bg-stone-700 rounded p-3 text-sm font-mono break-all mb-4">
               {rawKey}
             </code>
             <button
               onClick={() => setRawKey(null)}
-              className="w-full py-2 text-sm bg-sky-600 hover:bg-sky-700 text-white rounded-md"
+              className="w-full py-2 text-sm accent-bg rounded-md"
             >
               {t('actions.confirm')}
             </button>
@@ -124,7 +124,7 @@ export function ApiKeyList() {
       {/* Create modal */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+          <div className="bg-white dark:bg-stone-800 rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold mb-4">{t('api_keys.create')}</h3>
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
@@ -134,7 +134,7 @@ export function ApiKeyList() {
                   value={newLabel}
                   onChange={(e) => setNewLabel(e.target.value)}
                   required
-                  className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm"
+                  className="w-full px-3 py-2 rounded-md border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 text-sm"
                 />
               </div>
               <div>
@@ -153,8 +153,8 @@ export function ApiKeyList() {
                 </div>
               </div>
               <div className="flex justify-end gap-3">
-                <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md">{t('actions.cancel')}</button>
-                <button type="submit" disabled={creating} className="px-4 py-2 text-sm bg-sky-600 hover:bg-sky-700 text-white rounded-md disabled:opacity-50">{t('actions.create')}</button>
+                <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm border border-stone-300 dark:border-stone-600 rounded-md">{t('actions.cancel')}</button>
+                <button type="submit" disabled={creating} className="px-4 py-2 text-sm accent-bg rounded-md disabled:opacity-50">{t('actions.create')}</button>
               </div>
             </form>
           </div>

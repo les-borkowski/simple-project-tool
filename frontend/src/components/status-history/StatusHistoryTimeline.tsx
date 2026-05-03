@@ -36,7 +36,7 @@ export function StatusHistoryTimeline({ itemType, itemId, statuses }: Props) {
     fetch()
   }, [itemId, itemType])
 
-  if (loading) return <div className="animate-pulse h-16 bg-gray-100 dark:bg-gray-700 rounded" />
+  if (loading) return <div className="animate-pulse h-16 bg-stone-100 dark:bg-stone-700 rounded" />
 
   if (history.length === 0) return <EmptyState message={t('history.empty')} />
 
@@ -45,21 +45,21 @@ export function StatusHistoryTimeline({ itemType, itemId, statuses }: Props) {
       {history.map((entry, i) => (
         <div key={entry.id} className="flex gap-4 items-start">
           <div className="flex flex-col items-center">
-            <div className="w-2 h-2 rounded-full bg-sky-400 mt-1.5" />
-            {i < history.length - 1 && <div className="w-px flex-1 bg-gray-200 dark:bg-gray-700 mt-1" />}
+            <div className="w-2 h-2 rounded-full bg-[var(--accent)] mt-1.5" />
+            {i < history.length - 1 && <div className="w-px flex-1 bg-stone-200 dark:bg-stone-700 mt-1" />}
           </div>
           <div className="flex-1 pb-4">
             <div className="flex items-center gap-2 flex-wrap">
               {entry.from_status && <StatusBadge status={entry.from_status} statuses={statuses} />}
-              {entry.from_status && <span className="text-gray-400">→</span>}
+              {entry.from_status && <span className="text-stone-400">→</span>}
               <StatusBadge status={entry.to_status} statuses={statuses} />
               {entry.elapsed_seconds != null && (
-                <span className="text-xs text-gray-400 ml-1">
+                <span className="text-xs text-stone-400 ml-1">
                   ({t('history.elapsed')}: {formatDuration(entry.elapsed_seconds, t)})
                 </span>
               )}
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-300 mt-0.5">
+            <p className="text-xs text-stone-500 dark:text-stone-300 mt-0.5">
               {t('history.changed_by')}: {entry.changed_by_name} &middot; {formatDate(entry.changed_at, i18n.language)}
             </p>
           </div>
