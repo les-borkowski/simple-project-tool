@@ -11,6 +11,7 @@ import { StatusPill } from '../components/common/StatusPill'
 import { PriorityBars } from '../components/common/PriorityBars'
 import { MarkdownEditor } from '../components/common/MarkdownEditor'
 import { SkeletonCard } from '../components/common/Skeleton'
+import { DetailField } from '../components/common/DetailField'
 import { useToast } from '../context/ToastContext'
 import { CommentList } from '../components/comments/CommentList'
 import { StatusHistoryTimeline } from '../components/status-history/StatusHistoryTimeline'
@@ -21,15 +22,6 @@ const ICaret = () => (
     <path d="m6 9 6 6 6-6"/>
   </svg>
 )
-
-function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-[80px_1fr] items-center gap-3">
-      <span className="text-[10.5px] uppercase tracking-wider text-stone-400 font-medium">{label}</span>
-      <div>{children}</div>
-    </div>
-  )
-}
 
 export function TaskDetailPage() {
   const { storyId, taskId } = useParams<{ storyId: string; taskId: string }>()

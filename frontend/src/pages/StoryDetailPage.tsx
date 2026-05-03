@@ -16,8 +16,10 @@ import { EmptyState } from '../components/common/EmptyState'
 import { ConfirmDialog } from '../components/common/ConfirmDialog'
 import { MarkdownEditor } from '../components/common/MarkdownEditor'
 import { SkeletonCard } from '../components/common/Skeleton'
+import { DetailField } from '../components/common/DetailField'
 import { useToast } from '../context/ToastContext'
 import { formatRelative } from '../utils/time'
+import { applySortField } from '../utils/sort'
 import { CommentList } from '../components/comments/CommentList'
 import { StatusHistoryTimeline } from '../components/status-history/StatusHistoryTimeline'
 
@@ -29,27 +31,6 @@ const IPlus = () => (
 
 type SortField = 'created_at' | 'status' | 'priority' | 'title'
 type SortDir = 'asc' | 'desc'
-
-const STATUS_ORDER: Record<string, number> = { to_do: 0, in_progress: 1, in_review: 2, in_testing: 3, done: 4 }
-const PRIORITY_ORDER: Record<string, number> = { low: 0, medium: 1, high: 2 }
-
-function applySortField<T extends { created_at: string; status: string; priority: string; title: string }>(
-  a: T, b: T, field: SortField
-): number {
-  if (field === 'status') return STATUS_ORDER[a.status] - STATUS_ORDER[b.status]
-  if (field === 'priority') return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]
-  if (field === 'title') return a.title.localeCompare(b.title)
-  return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-}
-
-function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-[80px_1fr] items-center gap-3">
-      <span className="text-[10.5px] uppercase tracking-wider text-stone-400 font-medium">{label}</span>
-      <div>{children}</div>
-    </div>
-  )
-}
 
 export function StoryDetailPage() {
   const { projectId, storyId } = useParams<{ projectId: string; storyId: string }>()

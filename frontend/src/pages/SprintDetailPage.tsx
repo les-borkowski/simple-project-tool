@@ -8,17 +8,9 @@ import { useRole } from '../hooks/useRole'
 import { StatusPill } from '../components/common/StatusPill'
 import { PriorityBars } from '../components/common/PriorityBars'
 import { SkeletonCard } from '../components/common/Skeleton'
+import { DetailField } from '../components/common/DetailField'
 import { useToast } from '../context/ToastContext'
 import { formatRelative } from '../utils/time'
-
-function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-[80px_1fr] items-center gap-3">
-      <span className="text-[10.5px] uppercase tracking-wider text-stone-400 font-medium">{label}</span>
-      <div>{children}</div>
-    </div>
-  )
-}
 
 const inputCls = 'text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full'
 
