@@ -6,16 +6,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.pagination import decode_cursor, encode_cursor
 from app.api.schemas.common import PaginatedResponse
-from app.api.schemas.task import TaskCreate, TaskReorderRequest, TaskReorderResponse, TaskResponse, TaskUpdate
+from app.api.utils import escape_like
+from app.api.schemas.task import (
+    TaskCreate,
+    TaskReorderRequest,
+    TaskReorderResponse,
+    TaskResponse,
+    TaskUpdate,
+)
 from app.api.services.project_status_service import get_default_status_slug, validate_status_slug
 from app.api.services.story_service import get_default_story
 from app.auth.permissions import require_manager, require_project_access, resolve_role
 from app.db.base import PriorityEnum
 from app.db.models import Project, Sprint, StatusHistory, Story, Task, User
-
-
-def _escape_like(s: str) -> str:
-    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 async def _validate_sprint(sprint_id: uuid.UUID, project_id: uuid.UUID, db: AsyncSession) -> None:
@@ -53,7 +56,7 @@ async def list_tasks(
     if assignee_id:
         stmt = stmt.where(Task.assignee_id == assignee_id)
     if q:
-        stmt = stmt.where(Task.title.ilike(f"%{_escape_like(q)}%", escape="\\"))
+        stmt = stmt.where(Task.title.ilike(f"%{escape_like(q)}%", escape="\\"))
 
     if cursor:
         cursor_ts, cursor_id = decode_cursor(cursor)
@@ -214,7 +217,7 @@ async def list_project_tasks(
     if assignee_id:
         stmt = stmt.where(Task.assignee_id == assignee_id)
     if q:
-        stmt = stmt.where(Task.title.ilike(f"%{_escape_like(q)}%", escape="\\"))
+        stmt = stmt.where(Task.title.ilike(f"%{escape_like(q)}%", escape="\\"))
     if sprint_id is not None:
         stmt = stmt.where(Task.sprint_id == sprint_id)
 

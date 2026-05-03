@@ -3,14 +3,11 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.search import SearchResultItem
+from app.api.utils import escape_like
 from app.db.base import RoleEnum
 from app.db.models import Project, ProjectMember, Story, Task, User
 
 MAX_SEARCH_RESULTS = 20
-
-
-def _escape_like(s: str) -> str:
-    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 async def search_items(q: str, user: User, db: AsyncSession) -> list[SearchResultItem]:
@@ -36,8 +33,8 @@ async def search_items(q: str, user: User, db: AsyncSession) -> list[SearchResul
     ).where(
         Project.id.in_(project_ids_q),
         or_(
-            Project.name.ilike(f"%{_escape_like(q)}%", escape="\\"),
-            Project.description.ilike(f"%{_escape_like(q)}%", escape="\\"),
+            Project.name.ilike(f"%{escape_like(q)}%", escape="\\"),
+            Project.description.ilike(f"%{escape_like(q)}%", escape="\\"),
         ),
     )
 
@@ -51,8 +48,8 @@ async def search_items(q: str, user: User, db: AsyncSession) -> list[SearchResul
     ).where(
         Story.project_id.in_(project_ids_q),
         or_(
-            Story.title.ilike(f"%{_escape_like(q)}%", escape="\\"),
-            Story.description.ilike(f"%{_escape_like(q)}%", escape="\\"),
+            Story.title.ilike(f"%{escape_like(q)}%", escape="\\"),
+            Story.description.ilike(f"%{escape_like(q)}%", escape="\\"),
         ),
     )
 
@@ -66,8 +63,8 @@ async def search_items(q: str, user: User, db: AsyncSession) -> list[SearchResul
     ).where(
         Task.project_id.in_(project_ids_q),
         or_(
-            Task.title.ilike(f"%{_escape_like(q)}%", escape="\\"),
-            Task.description.ilike(f"%{_escape_like(q)}%", escape="\\"),
+            Task.title.ilike(f"%{escape_like(q)}%", escape="\\"),
+            Task.description.ilike(f"%{escape_like(q)}%", escape="\\"),
         ),
     )
 

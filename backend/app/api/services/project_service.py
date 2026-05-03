@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.pagination import decode_cursor, encode_cursor
 from app.api.schemas.common import PaginatedResponse
+from app.api.utils import escape_like
 from app.api.schemas.project import (
     MemberAdd,
     MemberResponse,
@@ -17,10 +18,6 @@ from app.api.schemas.project import (
 from app.auth.permissions import require_manager, require_project_access
 from app.db.base import PriorityEnum, RoleEnum
 from app.db.models import Project, ProjectMember, StatusHistory, Story, User
-
-
-def _escape_like(s: str) -> str:
-    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 async def list_projects(
@@ -64,7 +61,7 @@ async def list_projects(
     if priority:
         stmt = stmt.where(Project.priority == priority)
     if q:
-        stmt = stmt.where(Project.name.ilike(f"%{_escape_like(q)}%", escape="\\"))
+        stmt = stmt.where(Project.name.ilike(f"%{escape_like(q)}%", escape="\\"))
 
     # Cursor pagination
     if cursor:
