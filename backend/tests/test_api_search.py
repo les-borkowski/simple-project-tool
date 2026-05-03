@@ -120,6 +120,44 @@ async def test_search_no_results(api_client: AsyncClient, manager_headers: dict)
 
 
 @pytest.mark.asyncio
+async def test_search_percent_in_query_does_not_match_everything(
+    api_client: AsyncClient, manager_headers: dict
+):
+    """A % in the query should not act as a wildcard matching all projects."""
+    resp = await api_client.post(
+        "/api/v1/projects",
+        json={"name": "NeedsNoPercent"},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 201
+
+    # Searching for literal "%" should not match "NeedsNoPercent"
+    resp = await api_client.get("/api/v1/search?q=%25", headers=manager_headers)
+    assert resp.status_code == 200
+    titles = [r["title"] for r in resp.json()]
+    assert "NeedsNoPercent" not in titles
+
+
+@pytest.mark.asyncio
+async def test_search_underscore_in_query_does_not_act_as_wildcard(
+    api_client: AsyncClient, manager_headers: dict
+):
+    """An _ in the query should match only names containing literal underscore."""
+    resp = await api_client.post(
+        "/api/v1/projects",
+        json={"name": "NoUnderscore"},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 201
+
+    # "_" should not match "NoUnderscore" (no literal underscore in name)
+    resp = await api_client.get("/api/v1/search?q=_", headers=manager_headers)
+    assert resp.status_code == 200
+    titles = [r["title"] for r in resp.json()]
+    assert "NoUnderscore" not in titles
+
+
+@pytest.mark.asyncio
 async def test_search_contributor_cannot_see_unrelated_project(
     api_client: AsyncClient, auth_headers: dict, manager_headers: dict
 ):

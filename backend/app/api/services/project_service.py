@@ -19,6 +19,10 @@ from app.db.base import PriorityEnum, RoleEnum
 from app.db.models import Project, ProjectMember, StatusHistory, Story, User
 
 
+def _escape_like(s: str) -> str:
+    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 async def list_projects(
     user: User,
     db: AsyncSession,
@@ -60,7 +64,7 @@ async def list_projects(
     if priority:
         stmt = stmt.where(Project.priority == priority)
     if q:
-        stmt = stmt.where(Project.name.ilike(f"%{q}%"))
+        stmt = stmt.where(Project.name.ilike(f"%{_escape_like(q)}%", escape="\\"))
 
     # Cursor pagination
     if cursor:

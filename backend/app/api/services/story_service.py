@@ -13,6 +13,10 @@ from app.db.base import PriorityEnum
 from app.db.models import Project, StatusHistory, Story, Task, User
 
 
+def _escape_like(s: str) -> str:
+    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 async def list_stories(
     project_id: uuid.UUID,
     user: User,
@@ -35,7 +39,7 @@ async def list_stories(
     if priority:
         stmt = stmt.where(Story.priority == priority)
     if q:
-        stmt = stmt.where(Story.title.ilike(f"%{q}%"))
+        stmt = stmt.where(Story.title.ilike(f"%{_escape_like(q)}%", escape="\\"))
 
     if cursor:
         cursor_ts, cursor_id = decode_cursor(cursor)

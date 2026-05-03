@@ -14,6 +14,10 @@ from app.db.base import PriorityEnum
 from app.db.models import Project, Sprint, StatusHistory, Story, Task, User
 
 
+def _escape_like(s: str) -> str:
+    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 async def _validate_sprint(sprint_id: uuid.UUID, project_id: uuid.UUID, db: AsyncSession) -> None:
     sprint = await db.get(Sprint, sprint_id)
     if not sprint or sprint.project_id != project_id:
@@ -49,7 +53,7 @@ async def list_tasks(
     if assignee_id:
         stmt = stmt.where(Task.assignee_id == assignee_id)
     if q:
-        stmt = stmt.where(Task.title.ilike(f"%{q}%"))
+        stmt = stmt.where(Task.title.ilike(f"%{_escape_like(q)}%", escape="\\"))
 
     if cursor:
         cursor_ts, cursor_id = decode_cursor(cursor)
@@ -210,7 +214,7 @@ async def list_project_tasks(
     if assignee_id:
         stmt = stmt.where(Task.assignee_id == assignee_id)
     if q:
-        stmt = stmt.where(Task.title.ilike(f"%{q}%"))
+        stmt = stmt.where(Task.title.ilike(f"%{_escape_like(q)}%", escape="\\"))
     if sprint_id is not None:
         stmt = stmt.where(Task.sprint_id == sprint_id)
 
