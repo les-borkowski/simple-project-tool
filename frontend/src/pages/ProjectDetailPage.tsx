@@ -38,6 +38,7 @@ import { SkeletonCard } from '../components/common/Skeleton'
 import { useToast } from '../context/ToastContext'
 import { formatRelative } from '../utils/time'
 import { taskHref } from '../utils/links'
+import { applySortField } from '../utils/sort'
 
 type Tab = 'board' | 'stories' | 'members' | 'sprints' | 'timeline' | 'settings'
 
@@ -201,16 +202,6 @@ function SortableStoriesTaskRow({ task, storyId, href, children, dragOverlay }: 
 }
 
 type StorySortField = 'created_at' | 'status' | 'priority' | 'title'
-
-const STORY_STATUS_ORDER: Record<string, number> = { to_do: 0, in_progress: 1, in_review: 2, in_testing: 3, done: 4 }
-const STORY_PRIORITY_ORDER: Record<string, number> = { low: 0, medium: 1, high: 2 }
-
-function applySortField(a: StoryResponse, b: StoryResponse, field: StorySortField): number {
-  if (field === 'status') return STORY_STATUS_ORDER[a.status] - STORY_STATUS_ORDER[b.status]
-  if (field === 'priority') return STORY_PRIORITY_ORDER[a.priority] - STORY_PRIORITY_ORDER[b.priority]
-  if (field === 'title') return a.title.localeCompare(b.title)
-  return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-}
 
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
