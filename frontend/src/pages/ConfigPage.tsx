@@ -43,7 +43,7 @@ const IShield = () => (
 export function ConfigPage() {
   const { t } = useTranslation()
   const { user } = useAuth()
-  const { accent, setAccent, density, setDensity } = useTheme()
+  const { accent, setAccent } = useTheme()
   const [tab, setTab] = useState<Tab>('profile')
   const [topTab, setTopTab] = useState<TopTab>('app')
   const [projects, setProjects] = useState<ProjectResponse[]>([])
@@ -169,24 +169,6 @@ export function ConfigPage() {
                           style={{ background: ACCENT_COLORS[a] }}
                           className={`w-6 h-6 rounded-full transition-all ${accent === a ? 'ring-2 ring-offset-2 ring-current' : 'opacity-70 hover:opacity-100'}`}
                         />
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-2">{t('config.density')}</label>
-                    <div className="flex gap-2">
-                      {(['compact','balanced','spacious'] as const).map(d => (
-                        <button
-                          key={d}
-                          onClick={() => setDensity(d)}
-                          className={`px-3 py-1.5 text-[12px] rounded-md border transition-colors capitalize ${
-                            density === d
-                              ? 'accent-bg border-transparent text-white'
-                              : 'border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800'
-                          }`}
-                        >
-                          {d}
-                        </button>
                       ))}
                     </div>
                   </div>
