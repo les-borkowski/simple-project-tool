@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { searchApi, configApi } from '../../services/api'
 import type { RecentItemResponse } from '../../services/api'
 import { applyTheme, getCurrentTheme } from '../../utils/theme'
+import { recentLink } from '../../utils/links'
 
 // ---------------------------------------------------------------------------
 // Icons
@@ -61,13 +62,6 @@ const ISun = () => (
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function recentLink(item: RecentItemResponse): string {
-  if (item.type === 'project') return `/projects/${item.id}`
-  if (item.type === 'story') return `/projects/${item.project_id}/stories/${item.id}`
-  if (item.story_id) return `/stories/${item.story_id}/tasks/${item.id}`
-  return `/projects/${item.project_id}/tasks/${item.id}`
-}
 
 function typeLabel(type: RecentItemResponse['type']): string {
   if (type === 'project') return 'Project'

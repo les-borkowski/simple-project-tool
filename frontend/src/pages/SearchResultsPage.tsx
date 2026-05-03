@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { searchApi } from '../services/api'
 import type { RecentItemResponse } from '../services/api'
 import { SkeletonCard } from '../components/common/Skeleton'
+import { recentLink } from '../utils/links'
 
 const IFolder = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -26,13 +27,6 @@ function typeIcon(type: RecentItemResponse['type']) {
   if (type === 'project') return <IFolder />
   if (type === 'story') return <IDoc />
   return <ICheck />
-}
-
-function recentLink(item: RecentItemResponse): string {
-  if (item.type === 'project') return `/projects/${item.id}`
-  if (item.type === 'story') return `/projects/${item.project_id}/stories/${item.id}`
-  if (item.story_id) return `/stories/${item.story_id}/tasks/${item.id}`
-  return `/projects/${item.project_id}/tasks/${item.id}`
 }
 
 interface GroupSectionProps {
