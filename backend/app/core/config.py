@@ -22,6 +22,11 @@ class Settings(BaseSettings):
 
     DEBUG: bool = False
 
+    # Admin panel
+    ADMIN_USERNAME: str = "admin"
+    ADMIN_PASSWORD: str = "changeme"
+    ADMIN_SECRET: str = "change-this-admin-secret-32-chars"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
