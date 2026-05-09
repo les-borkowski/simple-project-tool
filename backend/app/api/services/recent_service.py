@@ -4,22 +4,18 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.recent import RecentItemResponse
-from app.db.base import RoleEnum
 from app.db.models import Project, ProjectMember, Story, Task, User
 
 
 async def get_recent_items(user: User, db: AsyncSession) -> list[RecentItemResponse]:
-    if user.role == RoleEnum.manager:
-        project_ids_q = select(Project.id)
-    else:
-        project_ids_q = select(Project.id).where(
-            or_(
-                Project.owner_id == user.id,
-                Project.id.in_(
-                    select(ProjectMember.project_id).where(ProjectMember.user_id == user.id)
-                ),
-            )
+    project_ids_q = select(Project.id).where(
+        or_(
+            Project.owner_id == user.id,
+            Project.id.in_(
+                select(ProjectMember.project_id).where(ProjectMember.user_id == user.id)
+            ),
         )
+    )
 
     projects_q = select(
         literal("project").label("type"),

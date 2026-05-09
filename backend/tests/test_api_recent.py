@@ -40,9 +40,8 @@ async def test_recent_returns_story(
     resp = await api_client.get("/api/v1/recent", headers=manager_headers)
     assert resp.status_code == 200
     items = resp.json()
-    story_item = next((i for i in items if i["type"] == "story"), None)
+    story_item = next((i for i in items if i["type"] == "story" and i["id"] == test_story["id"]), None)
     assert story_item is not None
-    assert story_item["id"] == test_story["id"]
     assert story_item["project_id"] == test_project["id"]
     assert story_item["story_id"] is None
 

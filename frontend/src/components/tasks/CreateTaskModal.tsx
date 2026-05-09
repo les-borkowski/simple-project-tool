@@ -49,6 +49,14 @@ export function CreateTaskModal({
     if (statuses.length > 0 && !taskStatus) setTaskStatus(statuses[0].slug as Status)
   }, [statuses])
 
+  // Auto-select Backlog story when stories load (only when no defaultStoryId provided)
+  useEffect(() => {
+    if (!defaultStoryId && !storyId && storiesHook.items.length > 0) {
+      const backlog = storiesHook.items.find(s => s.is_default) ?? storiesHook.items[0]
+      setStoryId(backlog.id.toString())
+    }
+  }, [storiesHook.items])
+
   // Set default assignee to current user when user loads
   useEffect(() => {
     if (user?.id && !assigneeId) setAssigneeId(user.id)
@@ -81,15 +89,8 @@ export function CreateTaskModal({
         sprint_id: sprintId || null,
         effort: effort ? parseInt(effort, 10) : null,
       }
-      let task: TaskResponse
-      if (storyId) {
-        const res = await tasksApi.create(storyId, data)
-        task = res.data
-      } else {
-        const res = await tasksApi.createForProject(projectId, data)
-        task = res.data
-      }
-      onCreated(task)
+      const res = await tasksApi.create(storyId, data)
+      onCreated(res.data)
     } finally {
       setCreating(false)
     }
@@ -161,8 +162,7 @@ export function CreateTaskModal({
                   onChange={(e) => setStoryId(e.target.value)}
                   className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
                 >
-                  <option value="">{t('tasks.no_story')}</option>
-                  {storiesHook.items.map((s) => (
+                  {[...storiesHook.items].sort((a, b) => a.is_default === b.is_default ? 0 : a.is_default ? -1 : 1).map((s) => (
                     <option key={s.id} value={s.id}>{s.title}</option>
                   ))}
                 </select>

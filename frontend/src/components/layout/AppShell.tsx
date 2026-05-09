@@ -82,7 +82,7 @@ interface Props {
 }
 
 export function AppShell({ children }: Props) {
-  const { user, logout } = useAuth()
+  const { user, logout, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const { t } = useTranslation()
@@ -106,6 +106,8 @@ export function AppShell({ children }: Props) {
   const initials = user ? getInitials(user.name) : '?'
 
   useEffect(() => {
+    if (!isAuthenticated) return
+
     invitationsApi.mine().then((res) => {
       setPendingCount(res.data.filter(i => i.status === 'pending').length)
     }).catch(() => {})
@@ -120,7 +122,7 @@ export function AppShell({ children }: Props) {
     recentApi.list().then((res) => {
       setRecentItems(res.data.slice(0, 5))
     }).catch(() => {})
-  }, [])
+  }, [isAuthenticated])
 
   const handleLogout = () => {
     logout()

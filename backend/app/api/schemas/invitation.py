@@ -13,7 +13,9 @@ class InvitationCreate(BaseModel):
 class InvitationResponse(BaseModel):
     id: UUID
     project_id: UUID
+    project_name: str
     invitee_email: str
+    inviter_name: str
     role: RoleEnum
     status: InvitationStatusEnum
     created_at: datetime

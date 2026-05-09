@@ -50,10 +50,9 @@ async def require_project_access(user: User, project_id: UUID, db: AsyncSession)
     """Verify user can access the project. Returns resolved role.
 
     - 404 if project not found
-    - 403 if global contributor with no member record and not owner
+    - 403 if user is not the owner and has no ProjectMember record
     - Owner → RoleEnum.manager
     - Member → member.role
-    - Global manager (no member record, not owner) → RoleEnum.manager
     """
     from app.db.models.project import Project
     from app.db.models.project_member import ProjectMember
@@ -74,8 +73,4 @@ async def require_project_access(user: User, project_id: UUID, db: AsyncSession)
     if member:
         return member.role
 
-    # Non-member: contributors denied, global managers allowed
-    if user.role == RoleEnum.contributor:
-        raise HTTPException(status_code=403, detail="Not a project member")
-
-    return user.role
+    raise HTTPException(status_code=403, detail="Not a project member")

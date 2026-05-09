@@ -29,7 +29,6 @@
   "tasks.unassigned": "Nieprzypisane",
   "tasks.description": "Opis",
   "tasks.story": "Historyjka",
-  "tasks.no_story": "Bez historyjki (poziom projektu)",
   "tasks.story_updated": "Historia zaktualizowana",
   "tasks.sprint_updated": "Sprint zaktualizowany",
   "tasks.effort_updated": "Wysiłek zaktualizowany",
@@ -98,7 +97,6 @@
   "filter.all": "Wszystkie",
   "filter.assignee": "Przypisany",
   "filter.story": "Historyjka",
-  "filter.no_story": "Bez historyjki",
   "filter.no_results": "Brak wyników pasujących do filtrów",
 
   "toolbar.tasks_count_one": "{{count}} zadanie",

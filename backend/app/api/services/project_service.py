@@ -33,27 +33,15 @@ async def list_projects(
     """List projects accessible to the user with cursor pagination."""
     limit = min(limit, 100)
 
-    # Base query: projects where user is owner, member, or global manager
-    stmt = select(Project)
-
-    if user.role == RoleEnum.manager:
-        # Global managers see all non-archived projects
-        stmt = stmt.where(
-            Project.archived_at.is_(None) if not archived else Project.archived_at.isnot(None)
-        )
-    else:
-        # Contributors see only projects where they are owner or member
-        stmt = stmt.where(
-            or_(
-                Project.owner_id == user.id,
-                Project.id.in_(
-                    select(ProjectMember.project_id).where(ProjectMember.user_id == user.id)
-                ),
-            )
-        )
-        stmt = stmt.where(
-            Project.archived_at.is_(None) if not archived else Project.archived_at.isnot(None)
-        )
+    stmt = select(Project).where(
+        or_(
+            Project.owner_id == user.id,
+            Project.id.in_(
+                select(ProjectMember.project_id).where(ProjectMember.user_id == user.id)
+            ),
+        ),
+        Project.archived_at.is_(None) if not archived else Project.archived_at.isnot(None),
+    )
 
     # Apply filters
     if status:

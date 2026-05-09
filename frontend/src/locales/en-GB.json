@@ -27,7 +27,6 @@
   "tasks.unassigned": "Unassigned",
   "tasks.description": "Description",
   "tasks.story": "Story",
-  "tasks.no_story": "No story (project level)",
   "tasks.story_updated": "Story updated",
   "tasks.sprint_updated": "Sprint updated",
   "tasks.effort_updated": "Effort updated",
@@ -96,7 +95,6 @@
   "filter.all": "All",
   "filter.assignee": "Assignee",
   "filter.story": "Story",
-  "filter.no_story": "No story",
   "filter.no_results": "No results match your filters",
 
   "toolbar.tasks_count_one": "{{count}} task",

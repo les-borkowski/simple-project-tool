@@ -153,8 +153,8 @@ async def test_require_project_access_owner_returns_manager():
 
 
 @pytest.mark.asyncio
-async def test_require_project_access_global_manager_non_member_succeeds():
-    """A global manager who is not a project member or owner still gets access."""
+async def test_require_project_access_global_manager_non_member_raises_403():
+    """A global manager who is not a project member or owner is denied access."""
     user = make_user(role=RoleEnum.manager)
     project = make_project(owner_id=uuid.uuid4())  # different owner
 
@@ -162,6 +162,7 @@ async def test_require_project_access_global_manager_non_member_succeeds():
     db.get.return_value = project
     db.scalar.side_effect = [None]  # no member record
 
-    role = await require_project_access(user, project.id, db)
-    assert role == RoleEnum.manager
+    with pytest.raises(HTTPException) as exc_info:
+        await require_project_access(user, project.id, db)
+    assert exc_info.value.status_code == 403
     db.scalar.assert_called_once()

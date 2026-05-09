@@ -3,12 +3,27 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import and_, select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.invitation import InvitationCreate, InvitationResponse
 from app.auth.permissions import require_manager, require_project_access
 from app.db.base import InvitationStatusEnum, RoleEnum
 from app.db.models import Invitation, Project, ProjectMember, User
+
+
+def _to_response(inv: Invitation) -> InvitationResponse:
+    return InvitationResponse(
+        id=inv.id,
+        project_id=inv.project_id,
+        project_name=inv.project.name,
+        invitee_email=inv.invitee_email,
+        inviter_name=inv.inviter.name,
+        role=inv.role,
+        status=inv.status,
+        created_at=inv.created_at,
+        expires_at=inv.expires_at,
+    )
 
 
 async def list_project_invitations(
@@ -22,10 +37,14 @@ async def list_project_invitations(
     role = await require_project_access(user, project_id, db)
     require_manager(role)
 
-    stmt = select(Invitation).where(Invitation.project_id == project_id)
+    stmt = (
+        select(Invitation)
+        .where(Invitation.project_id == project_id)
+        .options(selectinload(Invitation.project), selectinload(Invitation.inviter))
+    )
     invitations = (await db.scalars(stmt)).all()
 
-    return [InvitationResponse.model_validate(inv) for inv in invitations]
+    return [_to_response(inv) for inv in invitations]
 
 
 async def create_invitation(
@@ -60,8 +79,9 @@ async def create_invitation(
     )
     db.add(invitation)
     await db.commit()
+    await db.refresh(invitation, ["project", "inviter"])
 
-    return InvitationResponse.model_validate(invitation)
+    return _to_response(invitation)
 
 
 async def cancel_invitation(invitation_id: uuid.UUID, user: User, db: AsyncSession) -> None:
@@ -119,12 +139,16 @@ async def decline_invitation(invitation_id: uuid.UUID, user: User, db: AsyncSess
 
 async def list_my_invitations(user: User, db: AsyncSession) -> list[InvitationResponse]:
     """List pending invitations for the current user."""
-    stmt = select(Invitation).where(
-        and_(
-            Invitation.invitee_email == user.email,
-            Invitation.status == InvitationStatusEnum.pending,
+    stmt = (
+        select(Invitation)
+        .where(
+            and_(
+                Invitation.invitee_email == user.email,
+                Invitation.status == InvitationStatusEnum.pending,
+            )
         )
+        .options(selectinload(Invitation.project), selectinload(Invitation.inviter))
     )
     invitations = (await db.scalars(stmt)).all()
 
-    return [InvitationResponse.model_validate(inv) for inv in invitations]
+    return [_to_response(inv) for inv in invitations]

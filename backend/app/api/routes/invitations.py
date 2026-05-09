@@ -9,7 +9,7 @@ from app.auth.dependencies import get_current_user
 from app.db.database import get_db
 from app.db.models import User
 
-router = APIRouter(prefix="/invitations", tags=["invitations"])
+router = APIRouter(tags=["invitations"])
 
 
 @router.get("/projects/{project_id}/invitations", response_model=list[InvitationResponse])
@@ -37,7 +37,7 @@ async def create_invitation(
     return await invitation_service.create_invitation(project_id, data, user, db)
 
 
-@router.delete("/{invitation_id}", status_code=204)
+@router.delete("/invitations/{invitation_id}", status_code=204)
 async def cancel_invitation(
     invitation_id: uuid.UUID,
     user: User = Depends(get_current_user),
@@ -47,7 +47,7 @@ async def cancel_invitation(
     await invitation_service.cancel_invitation(invitation_id, user, db)
 
 
-@router.post("/{invitation_id}/accept", status_code=204)
+@router.post("/invitations/{invitation_id}/accept", status_code=204)
 async def accept_invitation(
     invitation_id: uuid.UUID,
     user: User = Depends(get_current_user),
@@ -57,7 +57,7 @@ async def accept_invitation(
     await invitation_service.accept_invitation(invitation_id, user, db)
 
 
-@router.post("/{invitation_id}/decline", status_code=204)
+@router.post("/invitations/{invitation_id}/decline", status_code=204)
 async def decline_invitation(
     invitation_id: uuid.UUID,
     user: User = Depends(get_current_user),
@@ -67,7 +67,7 @@ async def decline_invitation(
     await invitation_service.decline_invitation(invitation_id, user, db)
 
 
-@router.get("/mine", response_model=list[InvitationResponse])
+@router.get("/invitations/mine", response_model=list[InvitationResponse])
 async def list_my_invitations(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

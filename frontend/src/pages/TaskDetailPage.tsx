@@ -373,8 +373,7 @@ export function TaskDetailPage() {
               onChange={(e) => handleStoryChange(e.target.value)}
               className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
             >
-              <option value="">{t('tasks.no_story')}</option>
-              {stories.map((s) => (
+              {[...stories].sort((a, b) => a.is_default === b.is_default ? 0 : a.is_default ? -1 : 1).map((s) => (
                 <option key={s.id} value={s.id}>{s.title}</option>
               ))}
             </select>

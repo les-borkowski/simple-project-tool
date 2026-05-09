@@ -58,6 +58,7 @@ def make_story(project: Project, creator: User) -> Story:
 def make_task(story: Story, creator: User) -> Task:
     """Return an unsaved Task in *story*."""
     return Task(
+        project_id=story.project_id,
         story_id=story.id,
         title="Test Task",
         created_by=creator.id,

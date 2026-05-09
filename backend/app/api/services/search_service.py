@@ -4,24 +4,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.search import SearchResultItem
 from app.api.utils import escape_like
-from app.db.base import RoleEnum
 from app.db.models import Project, ProjectMember, Story, Task, User
 
 MAX_SEARCH_RESULTS = 20
 
 
 async def search_items(q: str, user: User, db: AsyncSession) -> list[SearchResultItem]:
-    if user.role == RoleEnum.manager:
-        project_ids_q = select(Project.id)
-    else:
-        project_ids_q = select(Project.id).where(
-            or_(
-                Project.owner_id == user.id,
-                Project.id.in_(
-                    select(ProjectMember.project_id).where(ProjectMember.user_id == user.id)
-                ),
-            )
+    project_ids_q = select(Project.id).where(
+        or_(
+            Project.owner_id == user.id,
+            Project.id.in_(
+                select(ProjectMember.project_id).where(ProjectMember.user_id == user.id)
+            ),
         )
+    )
 
     projects_q = select(
         literal("project").label("type"),
