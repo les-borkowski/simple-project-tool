@@ -110,3 +110,62 @@ async def test_login_sets_last_login(api_client: AsyncClient, api_db: AsyncSessi
 
     await api_db.refresh(user)
     assert user.last_login is not None
+
+
+@pytest.mark.asyncio
+async def test_change_password_success(api_client: AsyncClient, auth_headers: dict):
+    resp = await api_client.post(
+        "/api/v1/auth/change-password",
+        json={"current_password": "testpassword123", "new_password": "newpassword456"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "Password updated"
+
+
+@pytest.mark.asyncio
+async def test_change_password_wrong_current(api_client: AsyncClient, auth_headers: dict):
+    resp = await api_client.post(
+        "/api/v1/auth/change-password",
+        json={"current_password": "wrongpassword", "new_password": "newpassword456"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 400
+    assert resp.json()["error"]["code"] == "Current password is incorrect"
+
+
+@pytest.mark.asyncio
+async def test_change_password_unauthenticated(api_client: AsyncClient):
+    resp = await api_client.post(
+        "/api/v1/auth/change-password",
+        json={"current_password": "testpassword123", "new_password": "newpassword456"},
+    )
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_change_password_new_password_works(api_client: AsyncClient, auth_headers: dict):
+    """After changing password, user can log in with the new one."""
+    email = f"changepw_{__import__('uuid').uuid4().hex[:8]}@example.com"
+    await api_client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "name": "PwTest", "password": "oldpassword123"},
+    )
+    login_resp = await api_client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": "oldpassword123"},
+    )
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    await api_client.post(
+        "/api/v1/auth/change-password",
+        json={"current_password": "oldpassword123", "new_password": "brandnew789"},
+        headers=headers,
+    )
+
+    resp = await api_client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": "brandnew789"},
+    )
+    assert resp.status_code == 200

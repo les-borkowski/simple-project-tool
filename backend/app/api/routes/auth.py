@@ -67,3 +67,19 @@ async def confirm_password_reset(
     """Confirm password reset with token."""
     await auth_service.confirm_password_reset(data.token, data.new_password, db)
     return {"message": "Password updated"}
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password")
+async def change_password(
+    data: ChangePasswordRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Change password for the currently authenticated user."""
+    await auth_service.change_password(data.current_password, data.new_password, user, db)
+    return {"message": "Password updated"}

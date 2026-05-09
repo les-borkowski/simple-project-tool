@@ -122,3 +122,13 @@ async def confirm_password_reset(token: str, new_password: str, db: AsyncSession
 
     user.password_hash = hash_password(new_password)
     await db.commit()
+
+
+async def change_password(
+    current_password: str, new_password: str, user: User, db: AsyncSession
+) -> None:
+    """Verify current password and replace it with the new one."""
+    if not verify_password(current_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    user.password_hash = hash_password(new_password)
+    await db.commit()
