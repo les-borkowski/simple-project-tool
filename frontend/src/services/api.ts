@@ -244,6 +244,11 @@ export const authApi = {
   me: () => api.get<UserResponse>('/auth/me'),
   refresh: (refresh_token: string) =>
     api.post<TokenResponse>('/auth/refresh', { refresh_token }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post<{ message: string }>('/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
 }
 
 // ---------------------------------------------------------------------------
