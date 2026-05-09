@@ -34,7 +34,7 @@ async def login_submit(
     )
 
 
-@router.get("/", response_class=HTMLResponse)
+@router.get("", response_class=HTMLResponse)
 async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     if not is_admin_session(request):
         return RedirectResponse(url="/admin/login", status_code=302)

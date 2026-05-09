@@ -9,7 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.sessions import SessionMiddleware
 
+from app.admin.router import router as admin_router
 from app.api.routes import (
     auth,
     comments,
@@ -82,7 +84,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.ADMIN_SECRET,
+    https_only=False,
+    same_site="lax",
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
@@ -181,3 +188,4 @@ app.include_router(recent.router, prefix="/api/v1")
 app.include_router(search.router, prefix="/api/v1")
 app.include_router(project_statuses_router, prefix="/api/v1")
 app.include_router(sprints_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/admin")
