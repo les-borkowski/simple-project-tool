@@ -158,7 +158,12 @@ export function ConfigPage() {
             {tabs.map(({ key, label, icon, disabled }) => (
               <button
                 key={key}
-                onClick={() => !disabled && setTab(key)}
+                onClick={() => {
+                  if (!disabled) {
+                    setTab(key)
+                    if (key !== 'security') setPwChanged(false)
+                  }
+                }}
                 disabled={disabled}
                 className={`w-full flex items-center gap-2.5 text-left px-2 py-1.5 rounded-md text-[13px] transition-colors ${
                   disabled
@@ -235,10 +240,11 @@ export function ConfigPage() {
                   <h3 className="text-[14px] font-medium mb-4">{t('config.change_password')}</h3>
                   <form onSubmit={handleChangePassword} className="space-y-4 max-w-sm">
                     <div>
-                      <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1.5">
+                      <label htmlFor="current-password" className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1.5">
                         {t('config.current_password')}
                       </label>
                       <input
+                        id="current-password"
                         type="password"
                         value={currentPw}
                         onChange={(e) => setCurrentPw(e.target.value)}
@@ -251,10 +257,11 @@ export function ConfigPage() {
                       )}
                     </div>
                     <div>
-                      <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1.5">
+                      <label htmlFor="new-password" className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1.5">
                         {t('config.new_password')}
                       </label>
                       <input
+                        id="new-password"
                         type="password"
                         value={newPw}
                         onChange={(e) => setNewPw(e.target.value)}
@@ -264,10 +271,11 @@ export function ConfigPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1.5">
+                      <label htmlFor="confirm-password" className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1.5">
                         {t('config.confirm_new_password')}
                       </label>
                       <input
+                        id="confirm-password"
                         type="password"
                         value={confirmPw}
                         onChange={(e) => setConfirmPw(e.target.value)}
