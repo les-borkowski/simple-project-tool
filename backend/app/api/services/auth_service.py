@@ -51,11 +51,16 @@ async def register(data: UserCreate, db: AsyncSession) -> UserResponse:
 
 async def login(email: str, password: str, db: AsyncSession) -> dict:
     """Authenticate user and return tokens."""
+    from datetime import UTC, datetime
+
     stmt = select(User).where(User.email == email)
     user = await db.scalar(stmt)
 
     if not user or not verify_password(password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    user.last_login = datetime.now(UTC).replace(tzinfo=None)
+    await db.commit()
 
     access_token = create_access_token(user.id, user.role)
     refresh_token = create_refresh_token(user.id)

@@ -2,6 +2,10 @@ import uuid
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.models import User
 
 
 @pytest.mark.asyncio
@@ -86,3 +90,23 @@ async def test_me_authenticated(api_client: AsyncClient, auth_token: str):
 async def test_me_unauthenticated(api_client: AsyncClient):
     resp = await api_client.get("/api/v1/auth/me")
     assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_login_sets_last_login(api_client: AsyncClient, api_db: AsyncSession):
+    email = f"lastlogin_{uuid.uuid4().hex[:8]}@example.com"
+    await api_client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "name": "Test", "password": "password123"},
+    )
+
+    user = await api_db.scalar(select(User).where(User.email == email))
+    assert user.last_login is None
+
+    await api_client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": "password123"},
+    )
+
+    await api_db.refresh(user)
+    assert user.last_login is not None
