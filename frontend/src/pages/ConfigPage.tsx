@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme, type AccentColor } from '../context/ThemeContext'
 import { LocaleSwitcher } from '../components/config/LocaleSwitcher'
 import { ThemeSwitcher } from '../components/config/ThemeSwitcher'
 import { ApiKeyList } from '../components/config/ApiKeyList'
-import { projectsApi } from '../services/api'
+import { projectsApi, authApi } from '../services/api'
 import type { ProjectResponse } from '../services/api'
 import { ProjectStatusManager } from '../components/config/ProjectStatusManager'
 import { useRole } from '../hooks/useRole'
@@ -42,7 +43,8 @@ const IShield = () => (
 
 export function ConfigPage() {
   const { t } = useTranslation()
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const { accent, setAccent } = useTheme()
   const [tab, setTab] = useState<Tab>('profile')
   const [topTab, setTopTab] = useState<TopTab>('app')
@@ -53,6 +55,12 @@ export function ConfigPage() {
   const [effortUnit, setEffortUnit] = useState('sp')
   const [savingEffort, setSavingEffort] = useState(false)
   const { addToast } = useToast()
+  const [currentPw, setCurrentPw] = useState('')
+  const [newPw, setNewPw] = useState('')
+  const [confirmPw, setConfirmPw] = useState('')
+  const [pwLoading, setPwLoading] = useState(false)
+  const [pwError, setPwError] = useState<{ field: 'current' | 'confirm'; message: string } | null>(null)
+  const [pwChanged, setPwChanged] = useState(false)
 
   useEffect(() => {
     if (topTab === 'project') {
@@ -86,6 +94,32 @@ export function ConfigPage() {
       addToast('Failed to save effort settings', 'error')
     } finally {
       setSavingEffort(false)
+    }
+  }
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPwError(null)
+    if (newPw !== confirmPw) {
+      setPwError({ field: 'confirm', message: t('errors.password_mismatch') })
+      return
+    }
+    setPwLoading(true)
+    try {
+      await authApi.changePassword(currentPw, newPw)
+      setCurrentPw('')
+      setNewPw('')
+      setConfirmPw('')
+      setPwChanged(true)
+    } catch (err: unknown) {
+      const code = (err as { response?: { data?: { error?: { code?: string } } } })?.response?.data?.error?.code
+      if (code === 'Current password is incorrect') {
+        setPwError({ field: 'current', message: t('config.current_password_incorrect') })
+      } else {
+        addToast(t('errors.generic'), 'error')
+      }
+    } finally {
+      setPwLoading(false)
     }
   }
 
@@ -196,10 +230,92 @@ export function ConfigPage() {
             )}
 
             {tab === 'security' && (
-              <section className="rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-5">
-                <h3 className="text-[14px] font-medium mb-2">{t('config.security')}</h3>
-                <p className="text-[13px] text-stone-500">{t('config.security_placeholder')}</p>
-              </section>
+              <>
+                <section className="rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-5">
+                  <h3 className="text-[14px] font-medium mb-4">{t('config.change_password')}</h3>
+                  <form onSubmit={handleChangePassword} className="space-y-4 max-w-sm">
+                    <div>
+                      <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1.5">
+                        {t('config.current_password')}
+                      </label>
+                      <input
+                        type="password"
+                        value={currentPw}
+                        onChange={(e) => setCurrentPw(e.target.value)}
+                        autoComplete="current-password"
+                        required
+                        className="w-full px-3 py-1.5 text-[13px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
+                      />
+                      {pwError?.field === 'current' && (
+                        <p className="mt-1 text-[12px] text-red-500">{pwError.message}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1.5">
+                        {t('config.new_password')}
+                      </label>
+                      <input
+                        type="password"
+                        value={newPw}
+                        onChange={(e) => setNewPw(e.target.value)}
+                        autoComplete="new-password"
+                        required
+                        className="w-full px-3 py-1.5 text-[13px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1.5">
+                        {t('config.confirm_new_password')}
+                      </label>
+                      <input
+                        type="password"
+                        value={confirmPw}
+                        onChange={(e) => setConfirmPw(e.target.value)}
+                        autoComplete="new-password"
+                        required
+                        className="w-full px-3 py-1.5 text-[13px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
+                      />
+                      {pwError?.field === 'confirm' && (
+                        <p className="mt-1 text-[12px] text-red-500">{pwError.message}</p>
+                      )}
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={pwLoading}
+                      className="px-4 py-1.5 text-[12px] rounded-md accent-bg text-white disabled:opacity-50"
+                    >
+                      {pwLoading ? t('common.saving') : t('config.update_password')}
+                    </button>
+                  </form>
+                </section>
+
+                {pwChanged && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                    <div className="bg-white dark:bg-stone-800 rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
+                      <h3 className="text-[16px] font-semibold text-stone-900 dark:text-stone-100 mb-2">
+                        {t('config.password_changed_title')}
+                      </h3>
+                      <p className="text-[13px] text-stone-500 dark:text-stone-300 mb-5">
+                        {t('config.password_changed_body')}
+                      </p>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setPwChanged(false)}
+                          className="flex-1 px-4 py-2 text-[13px] rounded-md border border-stone-300 dark:border-stone-600 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700"
+                        >
+                          {t('config.stay_logged_in')}
+                        </button>
+                        <button
+                          onClick={() => { logout(); navigate('/login') }}
+                          className="flex-1 px-4 py-2 text-[13px] rounded-md accent-bg text-white"
+                        >
+                          {t('auth.logout')}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
