@@ -89,9 +89,9 @@ export function ConfigPage() {
     }
   }
 
-  const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
+  const tabs: { key: Tab; label: string; icon: React.ReactNode; disabled?: boolean }[] = [
     { key: 'profile', label: t('config.profile'), icon: <IUser /> },
-    { key: 'api_keys', label: t('config.api_keys'), icon: <IKey /> },
+    { key: 'api_keys', label: t('config.api_keys'), icon: <IKey />, disabled: true },
     { key: 'security', label: t('config.security'), icon: <IShield /> },
   ]
 
@@ -121,17 +121,20 @@ export function ConfigPage() {
       {topTab === 'app' && (
         <div className="flex-1 grid grid-cols-[200px_1fr]">
           <nav className="border-r border-stone-200 dark:border-stone-800 px-3 py-4 space-y-0.5 bg-white dark:bg-stone-950">
-            {tabs.map(({ key, label, icon }) => (
+            {tabs.map(({ key, label, icon, disabled }) => (
               <button
                 key={key}
-                onClick={() => setTab(key)}
+                onClick={() => !disabled && setTab(key)}
+                disabled={disabled}
                 className={`w-full flex items-center gap-2.5 text-left px-2 py-1.5 rounded-md text-[13px] transition-colors ${
-                  tab === key
-                    ? 'bg-stone-100 dark:bg-stone-900 font-medium text-stone-900 dark:text-stone-100'
-                    : 'text-stone-600 dark:text-stone-300 hover:bg-stone-100/60 dark:hover:bg-stone-900/60'
+                  disabled
+                    ? 'text-stone-400 dark:text-stone-600 cursor-not-allowed'
+                    : tab === key
+                      ? 'bg-stone-100 dark:bg-stone-900 font-medium text-stone-900 dark:text-stone-100'
+                      : 'text-stone-600 dark:text-stone-300 hover:bg-stone-100/60 dark:hover:bg-stone-900/60'
                 }`}
               >
-                <span className="text-stone-400">{icon}</span>
+                <span className={disabled ? 'text-stone-300 dark:text-stone-600' : 'text-stone-400'}>{icon}</span>
                 {label}
               </button>
             ))}

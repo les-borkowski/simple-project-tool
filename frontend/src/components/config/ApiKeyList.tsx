@@ -66,8 +66,8 @@ export function ApiKeyList() {
     <div>
       <div className="flex justify-end mb-4">
         <button
-          onClick={() => setShowCreate(true)}
-          className="px-4 py-2 text-sm accent-bg rounded-md"
+          disabled
+          className="px-4 py-2 text-sm bg-stone-200 dark:bg-stone-700 text-stone-400 dark:text-stone-500 rounded-md cursor-not-allowed"
         >
           {t('api_keys.create')}
         </button>
@@ -92,8 +92,8 @@ export function ApiKeyList() {
                 </p>
               </div>
               <button
-                onClick={() => setRevokeId(key.id)}
-                className="text-sm text-red-500 hover:text-red-700 shrink-0"
+                disabled
+                className="text-sm text-stone-300 dark:text-stone-600 shrink-0 cursor-not-allowed"
               >
                 {t('api_keys.revoke')}
               </button>
