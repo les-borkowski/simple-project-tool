@@ -48,8 +48,7 @@ async def get_weekly_trends(db: AsyncSession) -> dict[str, list[dict]]:
             )
         )
         result[table_name] = [
-            {"week": row.week.strftime("%Y-%m-%d"), "count": int(row.count)}
-            for row in rows
+            {"week": row.week.strftime("%Y-%m-%d"), "count": int(row.count)} for row in rows
         ]
 
     return result

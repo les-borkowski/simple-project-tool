@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.pagination import decode_cursor, encode_cursor
 from app.api.schemas.common import PaginatedResponse
-from app.api.utils import escape_like
 from app.api.schemas.task import (
     TaskCreate,
     TaskReorderRequest,
@@ -16,6 +15,7 @@ from app.api.schemas.task import (
 )
 from app.api.services.project_status_service import get_default_status_slug, validate_status_slug
 from app.api.services.story_service import get_default_story
+from app.api.utils import escape_like
 from app.auth.permissions import require_manager, require_project_access, resolve_role
 from app.db.base import PriorityEnum
 from app.db.models import Project, Sprint, StatusHistory, Story, Task, User
@@ -94,10 +94,9 @@ async def create_task(
     if data.sprint_id is not None:
         await _validate_sprint(data.sprint_id, story.project_id, db)
 
-    # Best-effort position: concurrent creates may produce duplicates; reorder endpoint normalizes positions.
-    pos_result = await db.execute(
-        select(func.max(Task.position)).where(Task.story_id == story_id)
-    )
+    # Best-effort position: concurrent creates may produce duplicates; reorder endpoint normalizes
+    # positions.
+    pos_result = await db.execute(select(func.max(Task.position)).where(Task.story_id == story_id))
     max_pos = pos_result.scalar() or 0
 
     task = Task(
@@ -149,7 +148,8 @@ async def create_task_for_project(
     if data.sprint_id is not None:
         await _validate_sprint(data.sprint_id, project_id, db)
 
-    # Best-effort position: concurrent creates may produce duplicates; reorder endpoint normalizes positions.
+    # Best-effort position: concurrent creates may produce duplicates; reorder endpoint normalizes
+    # positions.
     pos_result = await db.execute(
         select(func.max(Task.position)).where(Task.story_id == backlog.id)
     )

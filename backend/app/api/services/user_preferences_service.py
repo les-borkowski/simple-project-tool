@@ -1,11 +1,14 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.schemas.user_preferences import UserProjectPreferencesResponse, UserProjectPreferencesUpdate
+from app.api.schemas.user_preferences import (
+    UserProjectPreferencesResponse,
+    UserProjectPreferencesUpdate,
+)
 from app.auth.permissions import require_project_access
 from app.db.models import User, UserProjectPreferences
 
@@ -32,8 +35,8 @@ async def get_preferences(
             project_id=project_id,
             tab_order=["board", "stories", "sprints", "timeline", "members"],
             hidden_tabs=[],
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
 
     return UserProjectPreferencesResponse.model_validate(prefs)

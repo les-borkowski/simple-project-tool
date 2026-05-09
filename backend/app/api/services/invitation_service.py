@@ -3,8 +3,8 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import and_, select
-from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.api.schemas.invitation import InvitationCreate, InvitationResponse
 from app.auth.permissions import require_manager, require_project_access

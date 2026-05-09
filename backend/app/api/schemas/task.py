@@ -36,8 +36,8 @@ class TaskReorderItem(BaseModel):
 class TaskReorderRequest(BaseModel):
     tasks: list[TaskReorderItem]
 
-    @model_validator(mode='after')
-    def no_duplicate_task_ids(self) -> 'TaskReorderRequest':
+    @model_validator(mode="after")
+    def no_duplicate_task_ids(self) -> "TaskReorderRequest":
         seen = set()
         for item in self.tasks:
             if item.task_id in seen:

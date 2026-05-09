@@ -41,8 +41,7 @@ async def list_comments_on_project(
 
     author_ids = {item.author_id for item in items}
     authors = {
-        u.id: u
-        for u in (await db.scalars(select(User).where(User.id.in_(author_ids)))).all()
+        u.id: u for u in (await db.scalars(select(User).where(User.id.in_(author_ids)))).all()
     }
     result = [
         CommentResponse(
@@ -93,8 +92,7 @@ async def list_comments_on_story(
 
     author_ids = {item.author_id for item in items}
     authors = {
-        u.id: u
-        for u in (await db.scalars(select(User).where(User.id.in_(author_ids)))).all()
+        u.id: u for u in (await db.scalars(select(User).where(User.id.in_(author_ids)))).all()
     }
     result = [
         CommentResponse(
@@ -146,8 +144,7 @@ async def list_comments_on_task(
 
     author_ids = {item.author_id for item in items}
     authors = {
-        u.id: u
-        for u in (await db.scalars(select(User).where(User.id.in_(author_ids)))).all()
+        u.id: u for u in (await db.scalars(select(User).where(User.id.in_(author_ids)))).all()
     }
     result = [
         CommentResponse(

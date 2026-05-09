@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.pagination import decode_cursor, encode_cursor
 from app.api.schemas.common import PaginatedResponse
-from app.api.utils import escape_like
 from app.api.schemas.project import (
     MemberAdd,
     MemberResponse,
@@ -15,6 +14,7 @@ from app.api.schemas.project import (
     ProjectResponse,
     ProjectUpdate,
 )
+from app.api.utils import escape_like
 from app.auth.permissions import require_manager, require_project_access
 from app.db.base import PriorityEnum, RoleEnum
 from app.db.models import Project, ProjectMember, StatusHistory, Story, User

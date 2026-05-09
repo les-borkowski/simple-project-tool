@@ -4,7 +4,13 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.common import PaginatedResponse
-from app.api.schemas.task import TaskCreate, TaskReorderRequest, TaskReorderResponse, TaskResponse, TaskUpdate
+from app.api.schemas.task import (
+    TaskCreate,
+    TaskReorderRequest,
+    TaskReorderResponse,
+    TaskResponse,
+    TaskUpdate,
+)
 from app.api.services import task_service
 from app.auth.dependencies import get_current_user
 from app.db.base import PriorityEnum
@@ -31,7 +37,17 @@ async def list_project_tasks(
     """List tasks under a project (optionally only those with no story)."""
     priority_val = str(priority.value) if priority else None
     return await task_service.list_project_tasks(
-        project_id, user, db, cursor, limit, status, priority_val, assignee_id, q, unassigned, sprint_id
+        project_id,
+        user,
+        db,
+        cursor,
+        limit,
+        status,
+        priority_val,
+        assignee_id,
+        q,
+        unassigned,
+        sprint_id,
     )
 
 

@@ -23,4 +23,6 @@ class UserProjectPreferences(TimestampMixin, Base):
     )
     hidden_tabs: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
 
-    __table_args__ = (UniqueConstraint("user_id", "project_id", name="uq_user_project_preferences"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "project_id", name="uq_user_project_preferences"),
+    )

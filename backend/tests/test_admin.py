@@ -1,7 +1,6 @@
 import uuid
 from datetime import UTC, datetime
 
-import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -51,9 +50,7 @@ async def test_admin_login_page_ok(api_client: AsyncClient):
 
 
 async def test_admin_login_wrong_credentials(api_client: AsyncClient):
-    resp = await api_client.post(
-        "/admin/login", data={"username": "wrong", "password": "wrong"}
-    )
+    resp = await api_client.post("/admin/login", data={"username": "wrong", "password": "wrong"})
     assert resp.status_code == 401
     assert b"Invalid credentials" in resp.content
 

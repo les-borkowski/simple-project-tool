@@ -12,7 +12,10 @@ from app.api.schemas.project import (
     ProjectResponse,
     ProjectUpdate,
 )
-from app.api.schemas.user_preferences import UserProjectPreferencesResponse, UserProjectPreferencesUpdate
+from app.api.schemas.user_preferences import (
+    UserProjectPreferencesResponse,
+    UserProjectPreferencesUpdate,
+)
 from app.api.services import project_service, user_preferences_service
 from app.auth.dependencies import get_current_user
 from app.db.base import PriorityEnum

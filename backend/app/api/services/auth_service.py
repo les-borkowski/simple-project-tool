@@ -5,7 +5,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.user import UserCreate, UserResponse
-from app.core.config import settings
 from app.auth.security import (
     create_access_token,
     create_password_reset_token,
@@ -14,6 +13,7 @@ from app.auth.security import (
     verify_password,
     verify_password_reset_token,
 )
+from app.core.config import settings
 from app.db.base import LocaleEnum, RoleEnum, ThemeEnum
 from app.db.models import User, UserConfig
 
