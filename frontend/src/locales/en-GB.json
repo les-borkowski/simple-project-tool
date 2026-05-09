@@ -124,6 +124,7 @@
   "auth.logging_in": "Logging in…",
   "auth.registering": "Registering…",
   "auth.confirm_password": "Confirm password",
+  "auth.logout": "Log out",
 
   "errors.generic": "Something went wrong. Please try again.",
   "errors.password_mismatch": "Passwords do not match.",
@@ -179,6 +180,15 @@
   "config.density": "Density",
   "config.api_keys_desc": "Use keys to access the SPT API from scripts and integrations. Keep them secret.",
   "config.security_placeholder": "Password change coming in v2.",
+  "config.change_password": "Change password",
+  "config.current_password": "Current password",
+  "config.new_password": "New password",
+  "config.confirm_new_password": "Confirm new password",
+  "config.update_password": "Update password",
+  "config.password_changed_title": "Password changed",
+  "config.password_changed_body": "Your password has been updated successfully.",
+  "config.stay_logged_in": "Stay logged in",
+  "config.current_password_incorrect": "Current password is incorrect",
 
   "auth.welcome_back": "Welcome back.",
   "auth.sign_in_subtitle": "Sign in to continue to your workspace.",

@@ -134,6 +134,7 @@
   "auth.logging_in": "Logowanie…",
   "auth.registering": "Rejestrowanie…",
   "auth.confirm_password": "Potwierdź hasło",
+  "auth.logout": "Wyloguj się",
 
   "errors.generic": "Coś poszło nie tak. Spróbuj ponownie.",
   "errors.password_mismatch": "Hasła nie są zgodne.",
@@ -189,6 +190,15 @@
   "config.density": "Gęstość",
   "config.api_keys_desc": "Użyj kluczy, aby uzyskać dostęp do API SPT ze skryptów i integracji. Trzymaj je w tajemnicy.",
   "config.security_placeholder": "Zmiana hasła dostępna w wersji 2.",
+  "config.change_password": "Zmień hasło",
+  "config.current_password": "Aktualne hasło",
+  "config.new_password": "Nowe hasło",
+  "config.confirm_new_password": "Potwierdź nowe hasło",
+  "config.update_password": "Zaktualizuj hasło",
+  "config.password_changed_title": "Hasło zmienione",
+  "config.password_changed_body": "Twoje hasło zostało pomyślnie zaktualizowane.",
+  "config.stay_logged_in": "Pozostań zalogowany",
+  "config.current_password_incorrect": "Aktualne hasło jest nieprawidłowe",
 
   "auth.welcome_back": "Witaj ponownie.",
   "auth.sign_in_subtitle": "Zaloguj się, aby kontynuować pracę.",
