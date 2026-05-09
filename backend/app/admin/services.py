@@ -3,6 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Project, Story, Task, User
 
+ALLOWED_TREND_TABLES = frozenset(("users", "projects", "stories", "tasks"))
+
 
 async def get_totals(db: AsyncSession) -> dict:
     users = await db.scalar(select(func.count()).select_from(User))
@@ -23,6 +25,7 @@ async def get_totals(db: AsyncSession) -> dict:
 async def get_weekly_trends(db: AsyncSession) -> dict[str, list[dict]]:
     result = {}
     for table_name in ("users", "projects", "stories", "tasks"):
+        assert table_name in ALLOWED_TREND_TABLES, f"Unexpected table: {table_name}"
         rows = await db.execute(
             text(
                 f"""

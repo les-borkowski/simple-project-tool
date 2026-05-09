@@ -89,6 +89,8 @@ app.add_middleware(
     secret_key=settings.ADMIN_SECRET,
     https_only=False,
     same_site="lax",
+    # Note: Starlette's SessionMiddleware sets HttpOnly=True on the session cookie
+    # by default (the httponly flag is not an exposed parameter). No change needed.
 )
 app.add_middleware(
     CORSMiddleware,

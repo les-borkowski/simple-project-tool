@@ -24,8 +24,8 @@ class Settings(BaseSettings):
 
     # Admin panel
     ADMIN_USERNAME: str = "admin"
-    ADMIN_PASSWORD: str = "changeme"
-    ADMIN_SECRET: str = "change-this-admin-secret-32-chars"
+    ADMIN_PASSWORD: str
+    ADMIN_SECRET: str
 
     @property
     def cors_origins_list(self) -> list[str]:
