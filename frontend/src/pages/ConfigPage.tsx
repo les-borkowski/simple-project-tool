@@ -161,7 +161,7 @@ export function ConfigPage() {
                 onClick={() => {
                   if (!disabled) {
                     setTab(key)
-                    if (key !== 'security') setPwChanged(false)
+                    setPwChanged(false)
                   }
                 }}
                 disabled={disabled}
