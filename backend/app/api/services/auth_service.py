@@ -141,6 +141,7 @@ async def change_password(
 async def confirm_email(token: str, db: AsyncSession) -> None:
     """Mark user email as confirmed using a JWT confirmation token."""
     from app.auth.security import verify_email_confirmation_token
+
     user_id = verify_email_confirmation_token(token)
     user = await db.get(User, user_id)
     if not user:
