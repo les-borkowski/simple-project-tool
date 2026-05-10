@@ -226,3 +226,25 @@ async def test_confirm_email_allows_login(api_client: AsyncClient, api_db):
     )
     assert login_resp.status_code == 200
     assert "access_token" in login_resp.json()
+
+
+@pytest.mark.asyncio
+async def test_password_reset_sends_email(api_client: AsyncClient, api_db):
+    from sqlalchemy import update
+
+    email = f"reset_{uuid.uuid4().hex[:8]}@example.com"
+    with patch("app.core.email.send_email", new=AsyncMock()):
+        await api_client.post(
+            "/api/v1/auth/register",
+            json={"email": email, "name": "Reset User", "password": "oldpassword"},
+        )
+    await api_db.execute(update(User).where(User.email == email).values(email_confirmed=True))
+    await api_db.flush()
+
+    with patch("app.core.email.send_password_reset_email", new=AsyncMock()) as mock_send:
+        resp = await api_client.post("/api/v1/auth/password-reset", json={"email": email})
+    assert resp.status_code == 200
+    mock_send.assert_called_once()
+    args = mock_send.call_args[0]
+    assert args[0] == email
+    assert args[2]

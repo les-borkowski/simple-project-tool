@@ -102,18 +102,18 @@ async def get_me(user: User) -> UserResponse:
 
 
 async def request_password_reset(email: str, db: AsyncSession, background_tasks=None) -> str:
-    """Create a password reset token. Returns the token (email sending not implemented)."""
+    """Create a password reset token and send it via email."""
+    from app.core.email import send_password_reset_email
+
     stmt = select(User).where(User.email == email)
     user = await db.scalar(stmt)
 
-    if not user:
-        # Don't reveal whether email exists
-        return "reset_token_sent"
-
-    token = create_password_reset_token(user.id)
-    if settings.DEBUG:
-        return token
-    # TODO: send token via email
+    if user:
+        token = create_password_reset_token(user.id)
+        if background_tasks is not None:
+            background_tasks.add_task(send_password_reset_email, user.email, user.name, token)
+        if settings.DEBUG:
+            return token
     return "reset_token_sent"
 
 
