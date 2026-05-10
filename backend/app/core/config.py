@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     ADMIN_PASSWORD: str
     ADMIN_SECRET: str
 
+    # Email — Mailgun
+    MAILGUN_API_KEY: str = ""
+    MAILGUN_DOMAIN: str = ""
+    MAILGUN_FROM_EMAIL: str = ""
+    MAILGUN_FROM_NAME: str = "Simple Project Tool"
+    FRONTEND_URL: str = "http://localhost:5173"
+    ADMIN_EMAIL: str = ""
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
