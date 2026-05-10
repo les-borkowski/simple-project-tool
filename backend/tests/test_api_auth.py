@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
@@ -34,12 +35,16 @@ async def test_register_duplicate_email(api_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_login_success(api_client: AsyncClient):
+async def test_login_success(api_client: AsyncClient, api_db: AsyncSession):
+    from sqlalchemy import update as sa_update
+
     email = f"login_{uuid.uuid4().hex[:8]}@example.com"
     await api_client.post(
         "/api/v1/auth/register",
         json={"email": email, "name": "Carol", "password": "mypassword"},
     )
+    await api_db.execute(sa_update(User).where(User.email == email).values(email_confirmed=True))
+    await api_db.flush()
     resp = await api_client.post(
         "/api/v1/auth/login",
         json={"email": email, "password": "mypassword"},
@@ -94,6 +99,8 @@ async def test_me_unauthenticated(api_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_login_sets_last_login(api_client: AsyncClient, api_db: AsyncSession):
+    from sqlalchemy import update as sa_update
+
     email = f"lastlogin_{uuid.uuid4().hex[:8]}@example.com"
     await api_client.post(
         "/api/v1/auth/register",
@@ -102,6 +109,9 @@ async def test_login_sets_last_login(api_client: AsyncClient, api_db: AsyncSessi
 
     user = await api_db.scalar(select(User).where(User.email == email))
     assert user.last_login is None
+
+    await api_db.execute(sa_update(User).where(User.email == email).values(email_confirmed=True))
+    await api_db.flush()
 
     await api_client.post(
         "/api/v1/auth/login",
@@ -144,13 +154,19 @@ async def test_change_password_unauthenticated(api_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_change_password_new_password_works(api_client: AsyncClient, auth_headers: dict):
+async def test_change_password_new_password_works(
+    api_client: AsyncClient, auth_headers: dict, api_db: AsyncSession
+):
     """After changing password, user can log in with the new one."""
+    from sqlalchemy import update as sa_update
+
     email = f"changepw_{__import__('uuid').uuid4().hex[:8]}@example.com"
     await api_client.post(
         "/api/v1/auth/register",
         json={"email": email, "name": "PwTest", "password": "oldpassword123"},
     )
+    await api_db.execute(sa_update(User).where(User.email == email).values(email_confirmed=True))
+    await api_db.flush()
     login_resp = await api_client.post(
         "/api/v1/auth/login",
         json={"email": email, "password": "oldpassword123"},
@@ -169,3 +185,66 @@ async def test_change_password_new_password_works(api_client: AsyncClient, auth_
         json={"email": email, "password": "brandnew789"},
     )
     assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_login_blocked_when_email_not_confirmed(api_client: AsyncClient):
+    email = f"unconf_{uuid.uuid4().hex[:8]}@example.com"
+    with patch("app.core.email.send_email", new=AsyncMock()):
+        await api_client.post(
+            "/api/v1/auth/register",
+            json={"email": email, "name": "Unconfirmed", "password": "secret123"},
+        )
+    resp = await api_client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": "secret123"},
+    )
+    assert resp.status_code == 403
+    assert resp.json()["error"]["code"] == "EMAIL_NOT_CONFIRMED"
+
+
+@pytest.mark.asyncio
+async def test_confirm_email_allows_login(api_client: AsyncClient, api_db):
+    from app.auth.security import create_email_confirmation_token
+    from app.db.models import User
+
+    email = f"conf_{uuid.uuid4().hex[:8]}@example.com"
+    with patch("app.core.email.send_email", new=AsyncMock()):
+        await api_client.post(
+            "/api/v1/auth/register",
+            json={"email": email, "name": "Conf User", "password": "secret123"},
+        )
+    user = await api_db.scalar(select(User).where(User.email == email))
+    token = create_email_confirmation_token(user.id)
+
+    resp = await api_client.post("/api/v1/auth/confirm-email", json={"token": token})
+    assert resp.status_code == 200
+
+    login_resp = await api_client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": "secret123"},
+    )
+    assert login_resp.status_code == 200
+    assert "access_token" in login_resp.json()
+
+
+@pytest.mark.asyncio
+async def test_password_reset_sends_email(api_client: AsyncClient, api_db):
+    from sqlalchemy import update
+
+    email = f"reset_{uuid.uuid4().hex[:8]}@example.com"
+    with patch("app.core.email.send_email", new=AsyncMock()):
+        await api_client.post(
+            "/api/v1/auth/register",
+            json={"email": email, "name": "Reset User", "password": "oldpassword"},
+        )
+    await api_db.execute(update(User).where(User.email == email).values(email_confirmed=True))
+    await api_db.flush()
+
+    with patch("app.core.email.send_password_reset_email", new=AsyncMock()) as mock_send:
+        resp = await api_client.post("/api/v1/auth/password-reset", json={"email": email})
+    assert resp.status_code == 200
+    mock_send.assert_called_once()
+    args = mock_send.call_args[0]
+    assert args[0] == email
+    assert args[2]

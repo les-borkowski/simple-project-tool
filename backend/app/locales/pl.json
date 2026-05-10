@@ -20,5 +20,6 @@
   "INVALID_EMAIL": "Nieprawidłowy adres email",
   "INVALID_UUID": "Nieprawidłowy format ID",
   "STATUS_UNCHANGED": "Status się nie zmienił",
-  "INVALID_INVITATION_STATUS": "Email zaproszenia nie pasuje do Twojego konta"
+  "INVALID_INVITATION_STATUS": "Email zaproszenia nie pasuje do Twojego konta",
+  "EMAIL_NOT_CONFIRMED": "Proszę potwierdzić adres e-mail przed zalogowaniem."
 }

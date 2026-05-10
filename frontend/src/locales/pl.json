@@ -266,5 +266,20 @@
   "timeline.source_history": "Historia statusów",
 
   "common.save": "Zapisz",
-  "common.saving": "Zapisywanie…"
+  "common.saving": "Zapisywanie…",
+
+  "auth.check_email_title": "Sprawdź swoją skrzynkę",
+  "auth.check_email_subtitle": "Wysłaliśmy link potwierdzający na adres {{email}}. Kliknij go, aby aktywować konto.",
+  "auth.confirming_email": "Potwierdzanie adresu e-mail…",
+  "auth.email_confirmed": "E-mail potwierdzony!",
+  "auth.email_confirmed_subtitle": "Twoje konto jest teraz aktywne. Możesz się zalogować.",
+  "auth.confirm_email_failed": "Potwierdzenie nie powiodło się",
+  "auth.confirm_email_failed_subtitle": "Link jest nieprawidłowy lub wygasł. Zarejestruj się ponownie.",
+  "auth.reset_password": "Resetowanie hasła",
+  "auth.reset_password_subtitle": "Wpisz nowe hasło poniżej.",
+  "auth.new_password": "Nowe hasło",
+  "auth.reset_password_submit": "Ustaw nowe hasło",
+  "auth.reset_password_success": "Hasło zostało zaktualizowane! Możesz się teraz zalogować.",
+  "auth.reset_password_failed": "Link jest nieprawidłowy lub wygasł.",
+  "auth.resetting": "Aktualizowanie…"
 }

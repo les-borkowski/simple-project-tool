@@ -1,5 +1,11 @@
+import uuid
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import update as sa_update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.models import User
 
 
 @pytest.mark.asyncio
@@ -100,16 +106,19 @@ async def test_delete_project_status(
 
 @pytest.mark.asyncio
 async def test_contributor_cannot_create_status(
-    api_client: AsyncClient, auth_headers: dict, test_project: dict, manager_headers: dict
+    api_client: AsyncClient,
+    auth_headers: dict,
+    test_project: dict,
+    manager_headers: dict,
+    api_db: AsyncSession,
 ):
     pid = test_project["id"]
-    # Add contributor to project first
-    import uuid
-
     # Register contributor
     email = f"contrib_{uuid.uuid4().hex[:6]}@test.com"
     register_payload = {"email": email, "name": "C", "password": "pass1234!"}
     await api_client.post("/api/v1/auth/register", json=register_payload)
+    await api_db.execute(sa_update(User).where(User.email == email).values(email_confirmed=True))
+    await api_db.flush()
     login_payload = {"email": email, "password": "pass1234!"}
     login = await api_client.post("/api/v1/auth/login", json=login_payload)
     token = login.json()["access_token"]

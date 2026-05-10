@@ -241,3 +241,27 @@ def test_verify_password_reset_token_valid():
     token = create_password_reset_token(user_id)
     result = verify_password_reset_token(token)
     assert result == user_id
+
+
+# --- Email confirmation tokens ---
+
+
+def test_create_and_verify_email_confirmation_token():
+    """create_email_confirmation_token + verify_email_confirmation_token returns user_id."""
+    from app.auth.security import create_email_confirmation_token, verify_email_confirmation_token
+
+    user_id = uuid.uuid4()
+    token = create_email_confirmation_token(user_id)
+    result = verify_email_confirmation_token(token)
+    assert result == user_id
+
+
+def test_verify_email_confirmation_token_rejects_wrong_type():
+    """verify_email_confirmation_token with password_reset token raises HTTPException 400."""
+    from app.auth.security import verify_email_confirmation_token
+
+    user_id = uuid.uuid4()
+    token = create_password_reset_token(user_id)
+    with pytest.raises(HTTPException) as exc_info:
+        verify_email_confirmation_token(token)
+    assert exc_info.value.status_code == 400

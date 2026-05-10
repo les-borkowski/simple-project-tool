@@ -1,13 +1,10 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAuth } from '../context/AuthContext'
 import { authApi } from '../services/api'
 
 export function RegisterPage() {
   const { t } = useTranslation()
-  const { login } = useAuth()
-  const navigate = useNavigate()
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -15,6 +12,8 @@ export function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [registered, setRegistered] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,8 +25,8 @@ export function RegisterPage() {
     setLoading(true)
     try {
       await authApi.register(email, name, password)
-      await login(email, password)
-      navigate('/projects', { replace: true })
+      setRegisteredEmail(email)
+      setRegistered(true)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: { message?: string } } } })
         ?.response?.data?.error?.message
@@ -35,6 +34,23 @@ export function RegisterPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (registered) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 px-4">
+        <div className="w-full max-w-sm">
+          <div className="flex items-center gap-2 mb-8">
+            <span className="w-7 h-7 rounded-md accent-bg flex items-center justify-center text-[12px] font-semibold">SP</span>
+            <span className="text-[15px] font-semibold">Simple Project Tool</span>
+          </div>
+          <div className="bg-white dark:bg-stone-900 rounded-xl shadow-sm border border-stone-200 dark:border-stone-800 p-8 text-center">
+            <p className="text-[20px] font-semibold tracking-tight mb-2">{t('auth.check_email_title')}</p>
+            <p className="text-[13px] text-stone-500">{t('auth.check_email_subtitle', { email: registeredEmail })}</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

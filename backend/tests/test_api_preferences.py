@@ -16,7 +16,11 @@ async def _make_contributor_headers(api_client: AsyncClient, api_db: AsyncSessio
         "/api/v1/auth/register",
         json={"email": email, "name": "Contributor", "password": "testpassword123"},
     )
-    await api_db.execute(update(User).where(User.email == email).values(role=RoleEnum.contributor))
+    await api_db.execute(
+        update(User)
+        .where(User.email == email)
+        .values(role=RoleEnum.contributor, email_confirmed=True)
+    )
     await api_db.flush()
     resp = await api_client.post(
         "/api/v1/auth/login",
