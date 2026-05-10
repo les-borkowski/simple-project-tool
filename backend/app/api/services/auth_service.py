@@ -32,6 +32,7 @@ async def register(data: UserCreate, db: AsyncSession) -> UserResponse:
         name=data.name,
         password_hash=hash_password(data.password),
         role=RoleEnum.manager,
+        email_confirmed=False,
     )
     db.add(user)
     await db.flush()  # Get ID
@@ -58,6 +59,9 @@ async def login(email: str, password: str, db: AsyncSession) -> dict:
 
     if not user or not verify_password(password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    if not user.email_confirmed:
+        raise HTTPException(status_code=403, detail="EMAIL_NOT_CONFIRMED")
 
     user.last_login = datetime.now(UTC).replace(tzinfo=None)
     await db.commit()
@@ -97,7 +101,7 @@ async def get_me(user: User) -> UserResponse:
     return UserResponse.model_validate(user)
 
 
-async def request_password_reset(email: str, db: AsyncSession) -> str:
+async def request_password_reset(email: str, db: AsyncSession, background_tasks=None) -> str:
     """Create a password reset token. Returns the token (email sending not implemented)."""
     stmt = select(User).where(User.email == email)
     user = await db.scalar(stmt)
@@ -131,4 +135,15 @@ async def change_password(
     if not verify_password(current_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     user.password_hash = hash_password(new_password)
+    await db.commit()
+
+
+async def confirm_email(token: str, db: AsyncSession) -> None:
+    """Mark user email as confirmed using a JWT confirmation token."""
+    from app.auth.security import verify_email_confirmation_token
+    user_id = verify_email_confirmation_token(token)
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=400, detail="INVALID_TOKEN")
+    user.email_confirmed = True
     await db.commit()

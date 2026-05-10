@@ -83,13 +83,20 @@ async def api_client(api_db) -> AsyncGenerator[AsyncClient, None]:
 
 
 @pytest_asyncio.fixture
-async def auth_token(api_client: AsyncClient) -> str:
+async def auth_token(api_client: AsyncClient, api_db: AsyncSession) -> str:
     """Register a unique contributor user and return a valid JWT access token."""
+    from sqlalchemy import update
+
+    from app.db.models import User
+
     email = f"testuser_{uuid.uuid4().hex[:8]}@example.com"
-    await api_client.post(
-        "/api/v1/auth/register",
-        json={"email": email, "name": "Test User", "password": "testpassword123"},
-    )
+    with patch("app.core.email.send_email", new=AsyncMock()):
+        await api_client.post(
+            "/api/v1/auth/register",
+            json={"email": email, "name": "Test User", "password": "testpassword123"},
+        )
+    await api_db.execute(update(User).where(User.email == email).values(email_confirmed=True))
+    await api_db.flush()
     resp = await api_client.post(
         "/api/v1/auth/login",
         json={"email": email, "password": "testpassword123"},
@@ -111,11 +118,14 @@ async def manager_auth_token(api_client: AsyncClient, api_db: AsyncSession) -> s
     from app.db.models import User
 
     email = f"manager_{uuid.uuid4().hex[:8]}@example.com"
-    await api_client.post(
-        "/api/v1/auth/register",
-        json={"email": email, "name": "Manager User", "password": "testpassword123"},
+    with patch("app.core.email.send_email", new=AsyncMock()):
+        await api_client.post(
+            "/api/v1/auth/register",
+            json={"email": email, "name": "Manager User", "password": "testpassword123"},
+        )
+    await api_db.execute(
+        update(User).where(User.email == email).values(role=RoleEnum.manager, email_confirmed=True)
     )
-    await api_db.execute(update(User).where(User.email == email).values(role=RoleEnum.manager))
     await api_db.flush()
     resp = await api_client.post(
         "/api/v1/auth/login",

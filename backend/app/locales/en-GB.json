@@ -20,5 +20,6 @@
   "INVALID_EMAIL": "Invalid email address",
   "INVALID_UUID": "Invalid ID format",
   "STATUS_UNCHANGED": "Status did not change",
-  "INVALID_INVITATION_STATUS": "Invitation email does not match your account"
+  "INVALID_INVITATION_STATUS": "Invitation email does not match your account",
+  "EMAIL_NOT_CONFIRMED": "Please confirm your email address before signing in."
 }
