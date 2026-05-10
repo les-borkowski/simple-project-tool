@@ -257,7 +257,7 @@ def test_create_and_verify_email_confirmation_token():
 
 def test_verify_email_confirmation_token_rejects_wrong_type():
     """verify_email_confirmation_token with password_reset token raises HTTPException 400."""
-    from app.auth.security import create_email_confirmation_token, verify_email_confirmation_token
+    from app.auth.security import verify_email_confirmation_token
     user_id = uuid.uuid4()
     token = create_password_reset_token(user_id)
     with pytest.raises(HTTPException) as exc_info:
