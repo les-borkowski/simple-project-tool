@@ -6,6 +6,8 @@ import { ProtectedRoute } from './components/layout/ProtectedRoute'
 import { AppShell } from './components/layout/AppShell'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
+import { ConfirmEmailPage } from './pages/ConfirmEmailPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { ProjectsPage } from './pages/ProjectsPage'
 import { ProjectDetailPage } from './pages/ProjectDetailPage'
 import { StoryDetailPage } from './pages/StoryDetailPage'
@@ -34,6 +36,8 @@ function ThemedApp() {
           {/* Public */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/auth/confirm-email" element={<ConfirmEmailPage />} />
+          <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
 
           {/* Protected */}
           <Route element={<ProtectedLayout />}>

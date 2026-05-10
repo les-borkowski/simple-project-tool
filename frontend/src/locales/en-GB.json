@@ -256,5 +256,20 @@
   "timeline.source_history": "Status history",
 
   "common.save": "Save",
-  "common.saving": "Saving…"
+  "common.saving": "Saving…",
+
+  "auth.check_email_title": "Check your email",
+  "auth.check_email_subtitle": "We sent a confirmation link to {{email}}. Click it to activate your account.",
+  "auth.confirming_email": "Confirming your email…",
+  "auth.email_confirmed": "Email confirmed!",
+  "auth.email_confirmed_subtitle": "Your account is now active. You can sign in.",
+  "auth.confirm_email_failed": "Confirmation failed",
+  "auth.confirm_email_failed_subtitle": "This link is invalid or has expired. Please register again.",
+  "auth.reset_password": "Reset password",
+  "auth.reset_password_subtitle": "Enter your new password below.",
+  "auth.new_password": "New password",
+  "auth.reset_password_submit": "Set new password",
+  "auth.reset_password_success": "Password updated! You can now sign in.",
+  "auth.reset_password_failed": "This link is invalid or has expired.",
+  "auth.resetting": "Updating…"
 }
