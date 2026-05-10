@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -22,6 +22,7 @@ class User(TimestampMixin, Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[RoleEnum] = mapped_column(default=RoleEnum.manager, nullable=False)
     last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    email_confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Relationships
     config: Mapped["UserConfig"] = relationship(
