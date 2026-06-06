@@ -189,10 +189,12 @@ async def move_story(
     role = await require_project_access(user, new_project_id, db)
     require_manager(role)
 
+    default_slug = await get_default_status_slug(new_project_id, db)
     story.project_id = new_project_id
+    story.status = default_slug
     story.updated_by = user.id
     await db.execute(
-        update(Task).where(Task.story_id == story_id).values(project_id=new_project_id)
+        update(Task).where(Task.story_id == story_id).values(project_id=new_project_id, status=default_slug)
     )
     await db.commit()
 

@@ -129,6 +129,62 @@ async def test_move_story_non_member_global_manager_forbidden(
 
 
 @pytest.mark.asyncio
+async def test_move_story_resets_task_statuses_to_target_default(
+    api_client: AsyncClient,
+    manager_headers: dict,
+    test_project: dict,
+):
+    """Moving a story to another project resets its tasks' statuses to the target project's default."""
+    pid = test_project["id"]
+
+    # Create a story and a task in the source project
+    story_resp = await api_client.post(
+        f"/api/v1/projects/{pid}/stories",
+        json={"title": "Story to Move With Tasks"},
+        headers=manager_headers,
+    )
+    assert story_resp.status_code == 201
+    sid = story_resp.json()["id"]
+
+    task_resp = await api_client.post(
+        f"/api/v1/stories/{sid}/tasks",
+        json={"title": "Task in Story"},
+        headers=manager_headers,
+    )
+    assert task_resp.status_code == 201
+    task_id = task_resp.json()["id"]
+
+    # Move the task to "in_progress" in the source project
+    await api_client.patch(
+        f"/api/v1/tasks/{task_id}",
+        json={"status": "in_progress"},
+        headers=manager_headers,
+    )
+
+    # Create target project (gets its own default statuses, first is "to_do")
+    target_resp = await api_client.post(
+        "/api/v1/projects",
+        json={"name": "Target Project for Move"},
+        headers=manager_headers,
+    )
+    assert target_resp.status_code == 201
+    target_pid = target_resp.json()["id"]
+
+    # Move the story
+    move_resp = await api_client.post(
+        f"/api/v1/stories/{sid}/move",
+        json={"project_id": target_pid},
+        headers=manager_headers,
+    )
+    assert move_resp.status_code == 200
+
+    # Verify the task's status was reset to the target project's default ("to_do")
+    task_get = await api_client.get(f"/api/v1/tasks/{task_id}", headers=manager_headers)
+    assert task_get.status_code == 200
+    assert task_get.json()["status"] == "to_do"
+
+
+@pytest.mark.asyncio
 async def test_move_story_cannot_move_backlog(
     api_client: AsyncClient,
     manager_headers: dict,

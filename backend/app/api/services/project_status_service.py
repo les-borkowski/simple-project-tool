@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.project_status import (
@@ -12,6 +12,8 @@ from app.api.schemas.project_status import (
 from app.auth.permissions import require_manager, require_project_access
 from app.db.models import User
 from app.db.models.project_status import ProjectStatus
+from app.db.models.story import Story as StoryModel
+from app.db.models.task import Task
 
 DEFAULT_STATUSES = [
     {"slug": "to_do", "name": "To Do", "colour": "#6b7280", "order": 0},
@@ -125,6 +127,22 @@ async def delete_project_status(
     status = await db.get(ProjectStatus, status_id)
     if not status or status.project_id != project_id:
         raise HTTPException(status_code=404, detail="Status not found")
+
+    task_count = await db.scalar(
+        select(func.count()).where(Task.project_id == project_id, Task.status == status.slug)
+    )
+    story_count = await db.scalar(
+        select(func.count()).where(
+            StoryModel.project_id == project_id,
+            StoryModel.status == status.slug,
+            StoryModel.is_default.is_(False),
+        )
+    )
+    if (task_count or 0) + (story_count or 0) > 0:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Status '{status.slug}' is in use by {task_count} task(s) and {story_count} story/stories. Reassign them first.",
+        )
 
     await db.delete(status)
     await db.commit()

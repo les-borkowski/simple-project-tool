@@ -9,6 +9,66 @@ from app.db.models import User
 
 
 @pytest.mark.asyncio
+async def test_delete_status_in_use_by_task_rejected(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict, test_story: dict
+):
+    """Deleting a status that's referenced by a task must return 422."""
+    pid = test_project["id"]
+    sid = test_story["id"]
+
+    # Create a task using the default "to_do" status
+    task_resp = await api_client.post(
+        f"/api/v1/stories/{sid}/tasks",
+        json={"title": "Blocked Task"},
+        headers=manager_headers,
+    )
+    assert task_resp.status_code == 201
+
+    # Get statuses; "to_do" is first and is the default — task uses it
+    statuses_resp = await api_client.get(
+        f"/api/v1/projects/{pid}/statuses", headers=manager_headers
+    )
+    statuses = statuses_resp.json()
+    to_do_status = next(s for s in statuses if s["slug"] == "to_do")
+
+    resp = await api_client.delete(
+        f"/api/v1/projects/{pid}/statuses/{to_do_status['id']}",
+        headers=manager_headers,
+    )
+    assert resp.status_code == 422
+    assert "to_do" in resp.json()["error"]["code"]
+
+
+@pytest.mark.asyncio
+async def test_delete_status_in_use_by_story_rejected(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict
+):
+    """Deleting a status that's referenced by a non-default story must return 422."""
+    pid = test_project["id"]
+
+    # Create a story — it defaults to "to_do"
+    story_resp = await api_client.post(
+        f"/api/v1/projects/{pid}/stories",
+        json={"title": "Story Using Status"},
+        headers=manager_headers,
+    )
+    assert story_resp.status_code == 201
+
+    statuses_resp = await api_client.get(
+        f"/api/v1/projects/{pid}/statuses", headers=manager_headers
+    )
+    statuses = statuses_resp.json()
+    to_do_status = next(s for s in statuses if s["slug"] == "to_do")
+
+    resp = await api_client.delete(
+        f"/api/v1/projects/{pid}/statuses/{to_do_status['id']}",
+        headers=manager_headers,
+    )
+    assert resp.status_code == 422
+    assert "to_do" in resp.json()["error"]["code"]
+
+
+@pytest.mark.asyncio
 async def test_list_project_statuses_has_defaults(
     api_client: AsyncClient, manager_headers: dict, test_project: dict
 ):
