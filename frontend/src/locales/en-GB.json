@@ -51,6 +51,8 @@
   "invitations.expires": "Expires",
   "invitations.invited_by": "Invited by",
   "invitations.role_offered": "Role",
+  "invitations.accepted": "Invitation accepted",
+  "invitations.declined": "Invitation declined",
 
   "config.title": "Settings",
   "config.profile": "Profile",

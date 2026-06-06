@@ -12,6 +12,7 @@ import { ProjectStatusManager } from '../components/config/ProjectStatusManager'
 import { useRole } from '../hooks/useRole'
 import { useToast } from '../context/ToastContext'
 import { initials as getInitials } from '../utils/initials'
+import { getApiErrorCode } from '../utils/errors'
 
 const ACCENT_COLORS: Record<AccentColor, string> = {
   indigo: '#6366f1',
@@ -112,7 +113,7 @@ export function ConfigPage() {
       setConfirmPw('')
       setPwChanged(true)
     } catch (err: unknown) {
-      const code = (err as { response?: { data?: { error?: { code?: string } } } })?.response?.data?.error?.code
+      const code = getApiErrorCode(err)
       if (code === 'Current password is incorrect') {
         setPwError({ field: 'current', message: t('config.current_password_incorrect') })
       } else {

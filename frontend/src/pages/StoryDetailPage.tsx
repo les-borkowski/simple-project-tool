@@ -68,17 +68,22 @@ export function StoryDetailPage() {
 
   useEffect(() => {
     if (!storyId) return
+    let cancelled = false
+    setLoading(true)
     const fetches: Promise<unknown>[] = [
       storiesApi.get(storyId).then((res) => {
-        setStory(res.data)
-        setDesc(res.data.description ?? '')
+        if (!cancelled) {
+          setStory(res.data)
+          setDesc(res.data.description ?? '')
+        }
       }),
     ]
     if (projectId) {
-      fetches.push(projectsApi.get(projectId).then((p) => setProjectName(p.data.name)))
-      fetches.push(projectsApi.listMembers(projectId).then((m) => setMembers(m.data)))
+      fetches.push(projectsApi.get(projectId).then((p) => { if (!cancelled) setProjectName(p.data.name) }))
+      fetches.push(projectsApi.listMembers(projectId).then((m) => { if (!cancelled) setMembers(m.data) }))
     }
-    Promise.all(fetches).finally(() => setLoading(false))
+    Promise.all(fetches).finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [storyId, projectId])
 
   const handleStatusChange = async (status: Status) => {

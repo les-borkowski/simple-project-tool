@@ -12,3 +12,11 @@ export function getApiErrorMessage(err: unknown): string | undefined {
     undefined
   )
 }
+
+/**
+ * Extract the error code from an Axios error response (for control-flow use).
+ */
+export function getApiErrorCode(err: unknown): string | undefined {
+  if (!axios.isAxiosError(err)) return undefined
+  return err.response?.data?.error?.code ?? undefined
+}

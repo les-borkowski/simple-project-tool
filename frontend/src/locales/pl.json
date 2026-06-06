@@ -53,6 +53,8 @@
   "invitations.expires": "Wygasa",
   "invitations.invited_by": "Zaproszono przez",
   "invitations.role_offered": "Rola",
+  "invitations.accepted": "Zaproszenie zaakceptowane",
+  "invitations.declined": "Zaproszenie odrzucone",
 
   "config.title": "Ustawienia",
   "config.profile": "Profil",

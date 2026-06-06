@@ -37,7 +37,7 @@ export function InvitationsPage() {
   const handleAccept = async (id: string) => {
     try {
       await invitationsApi.accept(id)
-      addToast('Invitation accepted')
+      addToast(t('invitations.accepted'), 'success')
       load()
     } catch {
       addToast(t('errors.generic'), 'error')
@@ -47,7 +47,7 @@ export function InvitationsPage() {
   const handleDecline = async (id: string) => {
     try {
       await invitationsApi.decline(id)
-      addToast('Invitation declined')
+      addToast(t('invitations.declined'), 'success')
       load()
     } catch {
       addToast(t('errors.generic'), 'error')
