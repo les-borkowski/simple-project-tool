@@ -10,8 +10,6 @@ import {
 import type { UserResponse } from '../services/api'
 import i18n from '../i18n'
 
-const REFRESH_TOKEN_KEY = 'spt_refresh_token'
-
 interface AuthState {
   user: UserResponse | null
   accessToken: string | null
@@ -21,7 +19,7 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   refreshToken: () => Promise<string | null>
 }
 
@@ -76,15 +74,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshToken = (): Promise<string | null> => {
     if (pendingRefreshRef.current) return pendingRefreshRef.current
     pendingRefreshRef.current = (async () => {
-      const stored = localStorage.getItem(REFRESH_TOKEN_KEY)
-      if (!stored) return null
       try {
-        const res = await authApi.refresh(stored)
+        const res = await authApi.refresh()
         const newToken = res.data.access_token
         setAccessToken(newToken)
         return newToken
       } catch {
-        localStorage.removeItem(REFRESH_TOKEN_KEY)
         setState({ user: null, accessToken: null, isAuthenticated: false, isLoading: false })
         return null
       }
@@ -97,27 +92,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenAccessor(() => accessTokenRef.current)
     setRefreshFn(refreshToken)
     setOnUnauthorized(() => {
-      localStorage.removeItem(REFRESH_TOKEN_KEY)
+      accessTokenRef.current = null
       setState({ user: null, accessToken: null, isAuthenticated: false, isLoading: false })
     })
   }, [])
 
-  // Silent restore on mount
+  // Silent restore on mount — cookie present = still logged in
   useEffect(() => {
-    const stored = localStorage.getItem(REFRESH_TOKEN_KEY)
-    if (!stored) {
-      setState((s) => ({ ...s, isLoading: false }))
-      return
-    }
     ;(async () => {
       try {
-        const res = await authApi.refresh(stored)
+        const res = await authApi.refresh()
         const token = res.data.access_token
         accessTokenRef.current = token
         const user = await loadUserConfig(token)
         setState({ user, accessToken: token, isAuthenticated: true, isLoading: false })
       } catch {
-        localStorage.removeItem(REFRESH_TOKEN_KEY)
         setState({ user: null, accessToken: null, isAuthenticated: false, isLoading: false })
       }
     })()
@@ -125,15 +114,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const res = await authApi.login(email, password)
-    const { access_token, refresh_token } = res.data
-    localStorage.setItem(REFRESH_TOKEN_KEY, refresh_token)
+    const { access_token } = res.data
     accessTokenRef.current = access_token
     const user = await loadUserConfig(access_token)
     setState({ user, accessToken: access_token, isAuthenticated: true, isLoading: false })
   }
 
-  const logout = () => {
-    localStorage.removeItem(REFRESH_TOKEN_KEY)
+  const logout = async () => {
+    try { await authApi.logout() } catch { /* best effort */ }
     accessTokenRef.current = null
     setState({ user: null, accessToken: null, isAuthenticated: false, isLoading: false })
   }

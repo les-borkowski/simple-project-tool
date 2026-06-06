@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, HTTPException, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,19 +35,37 @@ class LoginRequest(BaseModel):
 
 
 @router.post("/login")
-async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
-    """Login and get tokens."""
-    return await auth_service.login(data.email, data.password, db)
-
-
-class RefreshRequest(BaseModel):
-    refresh_token: str
+async def login(data: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
+    """Login and get tokens. Refresh token is set as an httpOnly cookie."""
+    result = await auth_service.login(data.email, data.password, db)
+    response.set_cookie(
+        key="spt_refresh",
+        value=result["refresh_token"],
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        path="/api/v1/auth/refresh",
+    )
+    return {"access_token": result["access_token"], "token_type": "bearer"}
 
 
 @router.post("/refresh")
-async def refresh(data: RefreshRequest, db: AsyncSession = Depends(get_db)):
-    """Refresh access token."""
-    return await auth_service.refresh_token_fn(data.refresh_token, db)
+async def refresh(
+    spt_refresh: str | None = Cookie(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Refresh access token using httpOnly cookie."""
+    if not spt_refresh:
+        raise HTTPException(status_code=401, detail="No refresh token")
+    return await auth_service.refresh_token_fn(spt_refresh, db)
+
+
+@router.post("/logout")
+async def logout(response: Response):
+    """Clear the refresh token cookie."""
+    response.delete_cookie(key="spt_refresh", path="/api/v1/auth/refresh")
+    return {"message": "Logged out"}
 
 
 @router.get("/me", response_model=UserResponse)

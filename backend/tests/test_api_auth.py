@@ -52,8 +52,10 @@ async def test_login_success(api_client: AsyncClient, api_db: AsyncSession):
     assert resp.status_code == 200
     data = resp.json()
     assert "access_token" in data
-    assert "refresh_token" in data
+    assert "refresh_token" not in data
     assert data["token_type"] == "bearer"
+    # Refresh token is now in an httpOnly cookie, not the response body
+    assert "spt_refresh" in resp.cookies
 
 
 @pytest.mark.asyncio
@@ -324,6 +326,10 @@ async def test_refresh_blocked_for_unconfirmed_user(api_client: AsyncClient, api
     user = await api_db.scalar(select(User).where(User.email == email))
     refresh_token = create_refresh_token(user.id)
 
-    resp = await api_client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+    # Refresh token is now sent via httpOnly cookie
+    resp = await api_client.post(
+        "/api/v1/auth/refresh",
+        cookies={"spt_refresh": refresh_token},
+    )
     assert resp.status_code == 403
     assert resp.json()["error"]["code"] == "EMAIL_NOT_CONFIRMED"

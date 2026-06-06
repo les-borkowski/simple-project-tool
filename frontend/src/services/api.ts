@@ -176,8 +176,7 @@ export interface PaginatedResponse<T> {
 
 export interface TokenResponse {
   access_token: string
-  refresh_token: string
-  token_type: string
+  token_type?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -205,6 +204,7 @@ export function setOnUnauthorized(fn: () => void) {
 const api = axios.create({
   baseURL: '/api/v1',
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 })
 
 api.interceptors.request.use((config) => {
@@ -242,8 +242,10 @@ export const authApi = {
   register: (email: string, name: string, password: string) =>
     api.post<TokenResponse>('/auth/register', { email, name, password }),
   me: () => api.get<UserResponse>('/auth/me'),
-  refresh: (refresh_token: string) =>
-    api.post<TokenResponse>('/auth/refresh', { refresh_token }),
+  refresh: () =>
+    api.post<TokenResponse>('/auth/refresh'),
+  logout: () =>
+    api.post<{ message: string }>('/auth/logout'),
   changePassword: (currentPassword: string, newPassword: string) =>
     api.post<{ message: string }>('/auth/change-password', {
       current_password: currentPassword,
