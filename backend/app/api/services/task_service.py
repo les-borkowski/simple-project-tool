@@ -16,7 +16,7 @@ from app.api.schemas.task import (
 from app.api.services.project_status_service import get_default_status_slug, validate_status_slug
 from app.api.services.story_service import get_default_story
 from app.api.utils import escape_like
-from app.auth.permissions import require_manager, require_project_access, resolve_role
+from app.auth.permissions import require_manager, require_project_access
 from app.db.base import PriorityEnum
 from app.db.models import Project, Sprint, StatusHistory, Story, Task, User
 
@@ -302,7 +302,7 @@ async def delete_task(task_id: uuid.UUID, user: User, db: AsyncSession) -> None:
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    role = await resolve_role(user, task.project_id, db)
+    role = await require_project_access(user, task.project_id, db)
     require_manager(role)
 
     await db.delete(task)

@@ -159,9 +159,7 @@ async def delete_story(story_id: uuid.UUID, user: User, db: AsyncSession) -> Non
     if story.is_default:
         raise HTTPException(status_code=400, detail="Cannot delete the default Backlog story")
 
-    from app.auth.permissions import resolve_role
-
-    role = await resolve_role(user, story.project_id, db)
+    role = await require_project_access(user, story.project_id, db)
     require_manager(role)
 
     await db.delete(story)
@@ -176,10 +174,11 @@ async def move_story(
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
 
-    from app.auth.permissions import resolve_role
+    if story.is_default:
+        raise HTTPException(status_code=400, detail="Cannot move the default Backlog story")
 
     # Check access to current project
-    role = await resolve_role(user, story.project_id, db)
+    role = await require_project_access(user, story.project_id, db)
     require_manager(role)
 
     # Check access to new project
@@ -187,7 +186,7 @@ async def move_story(
     if not new_project:
         raise HTTPException(status_code=404, detail="Target project not found")
 
-    role = await resolve_role(user, new_project_id, db)
+    role = await require_project_access(user, new_project_id, db)
     require_manager(role)
 
     story.project_id = new_project_id
