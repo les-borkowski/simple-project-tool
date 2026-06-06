@@ -29,7 +29,17 @@ async def list_stories(
 
     await require_project_access(user, project_id, db)
 
-    stmt = select(Story).where(Story.project_id == project_id)
+    # Always fetch the Backlog story separately so it always appears on page 1
+    backlog_stmt = select(Story).where(
+        Story.project_id == project_id, Story.is_default.is_(True)
+    )
+    backlog = await db.scalar(backlog_stmt)
+
+    # Paginate only non-default stories
+    stmt = select(Story).where(
+        Story.project_id == project_id,
+        Story.is_default.is_(False),
+    )
 
     if status:
         stmt = stmt.where(Story.status == status)
@@ -42,18 +52,22 @@ async def list_stories(
         cursor_ts, cursor_id = decode_cursor(cursor)
         stmt = stmt.where(tuple_(Story.created_at, Story.id) < tuple_(cursor_ts, cursor_id))
 
-    stmt = stmt.order_by(Story.is_default.asc(), Story.created_at.desc(), Story.id.desc()).limit(
-        limit + 1
-    )
-    items = (await db.scalars(stmt)).all()
+    stmt = stmt.order_by(Story.created_at.desc(), Story.id.desc()).limit(limit + 1)
+    items = list((await db.scalars(stmt)).all())
 
     next_cursor = None
     if len(items) > limit:
         items = items[:limit]
         next_cursor = encode_cursor(items[-1].created_at, items[-1].id)
 
+    # Prepend Backlog on first page only (no cursor = first page)
+    all_items = []
+    if not cursor and backlog:
+        all_items.append(backlog)
+    all_items.extend(items)
+
     return PaginatedResponse(
-        items=[StoryResponse.model_validate(item) for item in items],
+        items=[StoryResponse.model_validate(item) for item in all_items],
         next_cursor=next_cursor,
     )
 

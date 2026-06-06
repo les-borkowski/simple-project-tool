@@ -1,5 +1,8 @@
+import logging
 import uuid
 from datetime import UTC, datetime
+
+_logger = logging.getLogger(__name__)
 
 from fastapi import HTTPException
 from sqlalchemy import and_, or_, select, tuple_
@@ -234,20 +237,21 @@ async def list_members(project_id: uuid.UUID, user: User, db: AsyncSession) -> l
     stmt = select(ProjectMember).where(ProjectMember.project_id == project_id)
     members = (await db.scalars(stmt)).all()
 
-    result = []
-    for member in members:
-        member_user = await db.get(User, member.user_id)
-        if member_user:
-            result.append(
-                MemberResponse(
-                    user_id=member.user_id,
-                    role=member.role,
-                    joined_at=member.joined_at,
-                    name=member_user.name,
-                    email=member_user.email,
-                )
-            )
+    if not members:
+        return []
 
+    # Batch-load all member users in one query
+    user_ids = [m.user_id for m in members]
+    users_result = await db.scalars(select(User).where(User.id.in_(user_ids)))
+    users_by_id = {u.id: u for u in users_result.all()}
+
+    result = []
+    for m in members:
+        member_user = users_by_id.get(m.user_id)
+        if member_user is None:
+            _logger.warning("ProjectMember %s references missing user %s", m.project_id, m.user_id)
+            continue
+        result.append(MemberResponse(user_id=m.user_id, role=m.role, joined_at=m.joined_at, name=member_user.name, email=member_user.email))
     return result
 
 

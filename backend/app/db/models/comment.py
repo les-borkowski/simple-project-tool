@@ -1,7 +1,7 @@
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, ForeignKey, Text
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -18,6 +18,9 @@ class Comment(TimestampMixin, Base):
             "num_nonnulls(project_id, story_id, task_id) = 1",
             name="ck_comment_single_parent",
         ),
+        Index("ix_comment_project_id", "project_id"),
+        Index("ix_comment_story_id", "story_id"),
+        Index("ix_comment_task_id", "task_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
