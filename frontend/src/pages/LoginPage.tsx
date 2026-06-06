@@ -2,13 +2,15 @@ import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
+import { getApiErrorMessage } from '../utils/errors'
 
 export function LoginPage() {
   const { t } = useTranslation()
   const { login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const next = (location.state as { next?: string })?.next ?? '/projects'
+  const rawNext = (location.state as { next?: string })?.next
+  const next = rawNext?.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/projects'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -23,9 +25,7 @@ export function LoginPage() {
       await login(email, password)
       navigate(next, { replace: true })
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: { message?: string } } } })
-        ?.response?.data?.error?.message
-      setError(msg ?? t('errors.generic'))
+      setError(getApiErrorMessage(err) ?? t('errors.generic'))
     } finally {
       setLoading(false)
     }

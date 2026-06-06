@@ -16,7 +16,6 @@ export function useRole(projectId?: string): RoleInfo {
 
   useEffect(() => {
     if (!projectId || !user) {
-      // Fallback to global role
       setIsManager(user?.role === 'manager')
       setIsLoading(false)
       return
@@ -24,18 +23,13 @@ export function useRole(projectId?: string): RoleInfo {
 
     projectsApi.listMembers(projectId).then((res) => {
       const member = res.data.find((m) => m.user_id === user.id)
-      if (member) {
-        setIsManager(member.role === 'manager')
-      } else {
-        // owner is always manager; fall back to global role
-        setIsManager(user.role === 'manager')
-      }
+      setIsManager(member?.role === 'manager' ?? false)
     }).catch(() => {
-      setIsManager(user.role === 'manager')
+      setIsManager(false)  // safe default on error — never elevate
     }).finally(() => {
       setIsLoading(false)
     })
-  }, [projectId, user])
+  }, [projectId, user?.id])
 
   return { isManager, canDelete: isManager, canInvite: isManager, isLoading }
 }

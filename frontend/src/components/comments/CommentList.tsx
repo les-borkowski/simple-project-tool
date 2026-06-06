@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { commentsApi } from '../../services/api'
 import type { CommentResponse } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
+import { useToast } from '../../context/ToastContext'
 import { EmptyState } from '../common/EmptyState'
 import { formatDate } from '../../utils/format'
 import i18n from '../../i18n'
@@ -17,6 +18,7 @@ interface Props {
 export function CommentList({ itemType, itemId }: Props) {
   const { t } = useTranslation()
   const { user } = useAuth()
+  const { addToast } = useToast()
   const [comments, setComments] = useState<CommentResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [newBody, setNewBody] = useState('')
@@ -24,21 +26,24 @@ export function CommentList({ itemType, itemId }: Props) {
   const [editId, setEditId] = useState<string | null>(null)
   const [editBody, setEditBody] = useState('')
 
-  const load = async () => {
-    try {
-      let res
-      if (itemType === 'project') res = await commentsApi.listForProject(itemId)
-      else if (itemType === 'story') res = await commentsApi.listForStory(itemId)
-      else res = await commentsApi.listForTask(itemId)
-      setComments(res.data.items)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
+    let cancelled = false
     setLoading(true)
-    load()
+    const doLoad = async () => {
+      try {
+        let res
+        if (itemType === 'project') res = await commentsApi.listForProject(itemId)
+        else if (itemType === 'story') res = await commentsApi.listForStory(itemId)
+        else res = await commentsApi.listForTask(itemId)
+        if (!cancelled) setComments(res.data.items)
+      } catch {
+        if (!cancelled) addToast(t('errors.generic'), 'error')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    doLoad()
+    return () => { cancelled = true }
   }, [itemId, itemType])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,14 +63,22 @@ export function CommentList({ itemType, itemId }: Props) {
   }
 
   const handleEdit = async (id: string) => {
-    await commentsApi.update(id, editBody)
-    setComments((prev) => prev.map((c) => c.id === id ? { ...c, body: editBody } : c))
-    setEditId(null)
+    try {
+      await commentsApi.update(id, editBody)
+      setComments((prev) => prev.map((c) => c.id === id ? { ...c, body: editBody } : c))
+      setEditId(null)
+    } catch {
+      addToast(t('errors.generic'), 'error')
+    }
   }
 
   const handleDelete = async (id: string) => {
-    await commentsApi.delete(id)
-    setComments((prev) => prev.filter((c) => c.id !== id))
+    try {
+      await commentsApi.delete(id)
+      setComments((prev) => prev.filter((c) => c.id !== id))
+    } catch {
+      addToast(t('errors.generic'), 'error')
+    }
   }
 
   if (loading) return <div className="animate-pulse h-10 bg-stone-100 dark:bg-stone-700 rounded" />

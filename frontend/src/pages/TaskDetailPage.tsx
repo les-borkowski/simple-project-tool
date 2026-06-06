@@ -48,6 +48,7 @@ export function TaskDetailPage() {
     if (!taskId) return
     let cancelled = false
     tasksApi.get(taskId).then(async (res) => {
+      if (cancelled) return
       setTask(res.data)
       setDesc(res.data.description ?? '')
       setTitleDraft(res.data.title)
@@ -59,21 +60,26 @@ export function TaskDetailPage() {
       try {
         if (res.data.story_id) {
           const storyRes = await storiesApi.get(res.data.story_id)
+          if (cancelled) return
           setStory(storyRes.data)
           const mRes = await projectsApi.listMembers(storyRes.data.project_id)
+          if (cancelled) return
           setMembers(mRes.data)
           const pRes = await projectsApi.get(storyRes.data.project_id)
+          if (cancelled) return
           setProjectName(pRes.data.name)
         } else {
           const mRes = await projectsApi.listMembers(res.data.project_id)
+          if (cancelled) return
           setMembers(mRes.data)
           const pRes = await projectsApi.get(res.data.project_id)
+          if (cancelled) return
           setProjectName(pRes.data.name)
         }
       } catch {
         // non-critical
       }
-    }).finally(() => setLoading(false))
+    }).finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [taskId])
 

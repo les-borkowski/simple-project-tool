@@ -83,18 +83,26 @@ export function StoryDetailPage() {
 
   const handleStatusChange = async (status: Status) => {
     if (!storyId) return
-    const res = await storiesApi.update(storyId, { status })
-    setStory(res.data)
-    setEditingStatus(false)
-    addToast('Status updated')
+    try {
+      const res = await storiesApi.update(storyId, { status })
+      setStory(res.data)
+      setEditingStatus(false)
+      addToast('Status updated')
+    } catch {
+      addToast(t('errors.generic'), 'error')
+    }
   }
 
   const handlePriorityChange = async (priority: Priority) => {
     if (!storyId) return
-    const res = await storiesApi.update(storyId, { priority })
-    setStory(res.data)
-    setEditingPriority(false)
-    addToast('Priority updated')
+    try {
+      const res = await storiesApi.update(storyId, { priority })
+      setStory(res.data)
+      setEditingPriority(false)
+      addToast('Priority updated')
+    } catch {
+      addToast(t('errors.generic'), 'error')
+    }
   }
 
   const handleSaveDesc = async () => {

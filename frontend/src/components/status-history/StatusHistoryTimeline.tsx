@@ -21,19 +21,23 @@ export function StatusHistoryTimeline({ itemType, itemId, statuses }: Props) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let cancelled = false
     setLoading(true)
-    const fetch = async () => {
+    const doFetch = async () => {
       try {
         let res
         if (itemType === 'project') res = await timeTrackingApi.historyForProject(itemId)
         else if (itemType === 'story') res = await timeTrackingApi.historyForStory(itemId)
         else res = await timeTrackingApi.historyForTask(itemId)
-        setHistory(res.data)
+        if (!cancelled) setHistory(res.data)
+      } catch {
+        // silently ignore — timeline is non-critical
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
-    fetch()
+    doFetch()
+    return () => { cancelled = true }
   }, [itemId, itemType])
 
   if (loading) return <div className="animate-pulse h-16 bg-stone-100 dark:bg-stone-700 rounded" />

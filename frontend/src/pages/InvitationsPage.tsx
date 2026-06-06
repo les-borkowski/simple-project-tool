@@ -35,15 +35,23 @@ export function InvitationsPage() {
   useEffect(() => { load() }, [])
 
   const handleAccept = async (id: string) => {
-    await invitationsApi.accept(id)
-    addToast('Invitation accepted')
-    load()
+    try {
+      await invitationsApi.accept(id)
+      addToast('Invitation accepted')
+      load()
+    } catch {
+      addToast(t('errors.generic'), 'error')
+    }
   }
 
   const handleDecline = async (id: string) => {
-    await invitationsApi.decline(id)
-    addToast('Invitation declined')
-    load()
+    try {
+      await invitationsApi.decline(id)
+      addToast('Invitation declined')
+      load()
+    } catch {
+      addToast(t('errors.generic'), 'error')
+    }
   }
 
   return (

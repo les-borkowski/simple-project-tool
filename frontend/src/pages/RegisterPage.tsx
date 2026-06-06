@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { authApi } from '../services/api'
+import { getApiErrorMessage } from '../utils/errors'
 
 export function RegisterPage() {
   const { t } = useTranslation()
@@ -28,9 +29,7 @@ export function RegisterPage() {
       setRegisteredEmail(email)
       setRegistered(true)
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: { message?: string } } } })
-        ?.response?.data?.error?.message
-      setError(msg ?? t('errors.generic'))
+      setError(getApiErrorMessage(err) ?? t('errors.generic'))
     } finally {
       setLoading(false)
     }
