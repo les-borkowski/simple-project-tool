@@ -14,13 +14,17 @@ if TYPE_CHECKING:
 
 class APIKey(Base):
     __tablename__ = "api_keys"
-    __table_args__ = (Index("ix_api_key_user_revoked", "user_id", "revoked_at"),)
+    __table_args__ = (
+        Index("ix_api_key_user_revoked", "user_id", "revoked_at"),
+        Index("ix_api_key_prefix_revoked", "key_prefix", "revoked_at"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     key_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    key_prefix: Mapped[str] = mapped_column(String(16), nullable=False, default="")
     label: Mapped[str] = mapped_column(String(255), nullable=False)
     scopes: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
     last_used_at: Mapped[datetime | None] = mapped_column(nullable=True)

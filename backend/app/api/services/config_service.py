@@ -66,11 +66,12 @@ async def list_api_keys(user: User, db: AsyncSession) -> list[APIKeyResponse]:
 
 async def create_api_key(data: APIKeyCreate, user: User, db: AsyncSession) -> APIKeyCreatedResponse:
     """Create a new API key."""
-    raw_key, key_hash = generate_api_key()
+    raw_key, key_hash, key_prefix = generate_api_key()
 
     key = APIKey(
         user_id=user.id,
         key_hash=key_hash,
+        key_prefix=key_prefix,
         label=data.label,
         scopes=data.scopes,
     )

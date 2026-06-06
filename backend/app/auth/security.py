@@ -112,12 +112,15 @@ def verify_email_confirmation_token(token: str) -> uuid.UUID:
 
 # --- API key generation ---
 
+PREFIX_LENGTH = 8
 
-def generate_api_key() -> tuple[str, str]:
-    """Generate a new API key. Returns (raw_key, key_hash)."""
+
+def generate_api_key() -> tuple[str, str, str]:
+    """Generate a new API key. Returns (raw_key, key_hash, key_prefix)."""
     raw_key = secrets.token_urlsafe(32)
+    key_prefix = raw_key[:PREFIX_LENGTH]
     key_hash = bcrypt.hashpw(raw_key.encode(), bcrypt.gensalt(rounds=12)).decode()
-    return raw_key, key_hash
+    return raw_key, key_hash, key_prefix
 
 
 # --- Scope checking ---

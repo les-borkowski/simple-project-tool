@@ -50,15 +50,17 @@ async def get_current_user_or_api_key(
     if api_key_header:
         from sqlalchemy import select
 
+        from app.auth.security import PREFIX_LENGTH
         from app.db.models.api_key import APIKey
         from app.db.models.user import User
 
-        # TODO(v2): This scans all non-revoked keys and bcrypt-checks each one — O(n) and slow.
-        # Fix: add a plaintext `key_prefix` column (first 8 chars of raw key) to APIKey
-        # and filter by prefix before doing the bcrypt comparison, reducing to O(1) lookups.
-        stmt = select(APIKey).where(APIKey.revoked_at.is_(None))
-        keys = (await db.scalars(stmt)).all()
-        for key_record in keys:
+        prefix = api_key_header[:PREFIX_LENGTH]
+        stmt = select(APIKey).where(
+            APIKey.key_prefix == prefix,
+            APIKey.revoked_at.is_(None),
+        )
+        candidates = (await db.scalars(stmt)).all()
+        for key_record in candidates:
             if bcrypt.checkpw(api_key_header.encode(), key_record.key_hash.encode()):
                 key_record.last_used_at = datetime.now(UTC)
                 request.state.api_key = key_record

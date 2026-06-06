@@ -111,20 +111,20 @@ def test_invalid_token_raises_401():
 
 def test_generate_api_key_raw_not_equal_hash():
     """generate_api_key returns raw key that differs from the hash."""
-    raw_key, key_hash = generate_api_key()
+    raw_key, key_hash, key_prefix = generate_api_key()
     assert raw_key != key_hash
 
 
 def test_generate_api_key_bcrypt_verify():
     """bcrypt.checkpw verifies the raw key against the hash."""
-    raw_key, key_hash = generate_api_key()
+    raw_key, key_hash, key_prefix = generate_api_key()
     assert bcrypt.checkpw(raw_key.encode(), key_hash.encode()) is True
 
 
 def test_generate_api_key_unique():
     """Two calls generate different keys."""
-    raw1, _ = generate_api_key()
-    raw2, _ = generate_api_key()
+    raw1, _, _prefix1 = generate_api_key()
+    raw2, _, _prefix2 = generate_api_key()
     assert raw1 != raw2
 
 
