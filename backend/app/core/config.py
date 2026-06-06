@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
 
     # Admin panel
-    ADMIN_USERNAME: str = "admin"
+    ADMIN_USERNAME: str  # required — set via ADMIN_USERNAME env var, no default
     ADMIN_PASSWORD: str
     ADMIN_SECRET: str
 

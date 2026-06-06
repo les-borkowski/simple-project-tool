@@ -87,7 +87,7 @@ app = FastAPI(
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.ADMIN_SECRET,
-    https_only=False,
+    https_only=not settings.DEBUG,
     same_site="lax",
     # Note: Starlette's SessionMiddleware sets HttpOnly=True on the session cookie
     # by default (the httponly flag is not an exposed parameter). No change needed.

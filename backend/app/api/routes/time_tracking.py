@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.status_history import StatusHistoryResponse, TimeMetricsResponse
@@ -89,4 +89,6 @@ async def get_user_time_report(
     db: AsyncSession = Depends(get_db),
 ):
     """Get time report for a user's assigned work."""
+    if user.id != user_id:
+        raise HTTPException(status_code=403, detail="You can only view your own time report")
     return await time_tracking_service.get_user_time_report(user_id, user, db)

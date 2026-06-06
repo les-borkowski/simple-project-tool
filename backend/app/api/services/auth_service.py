@@ -19,6 +19,16 @@ from app.db.models import User, UserConfig
 
 _logger = logging.getLogger(__name__)
 
+_DUMMY_HASH: str = ""
+
+
+def _get_dummy_hash() -> str:
+    """Lazily initialise the dummy hash on first use to avoid startup cost."""
+    global _DUMMY_HASH
+    if not _DUMMY_HASH:
+        _DUMMY_HASH = hash_password("timing-oracle-prevention-dummy-constant")
+    return _DUMMY_HASH
+
 
 async def register(data: UserCreate, db: AsyncSession) -> UserResponse:
     """Register a new user."""
@@ -59,7 +69,10 @@ async def login(email: str, password: str, db: AsyncSession) -> dict:
     stmt = select(User).where(User.email == email)
     user = await db.scalar(stmt)
 
-    if not user or not verify_password(password, user.password_hash):
+    if not user:
+        verify_password(password, _get_dummy_hash())  # constant-time: prevent user enumeration
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not verify_password(password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     if not user.email_confirmed:

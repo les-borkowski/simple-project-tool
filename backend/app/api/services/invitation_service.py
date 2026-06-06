@@ -99,7 +99,11 @@ async def cancel_invitation(invitation_id: uuid.UUID, user: User, db: AsyncSessi
 
 async def accept_invitation(invitation_id: uuid.UUID, user: User, db: AsyncSession) -> None:
     """Accept an invitation."""
-    invitation = await db.get(Invitation, invitation_id)
+    from sqlalchemy import select as sa_select
+
+    # Lock the invitation row to prevent double-accept race condition
+    stmt = sa_select(Invitation).where(Invitation.id == invitation_id).with_for_update()
+    invitation = await db.scalar(stmt)
     if not invitation:
         raise HTTPException(status_code=404, detail="Invitation not found")
 
@@ -112,11 +116,18 @@ async def accept_invitation(invitation_id: uuid.UUID, user: User, db: AsyncSessi
     if datetime.now(UTC).replace(tzinfo=None) > invitation.expires_at:
         raise HTTPException(status_code=400, detail="Invitation has expired")
 
-    # Create ProjectMember
-    member = ProjectMember(project_id=invitation.project_id, user_id=user.id, role=invitation.role)
-    db.add(member)
+    # Idempotency: don't insert a duplicate ProjectMember
+    existing_stmt = sa_select(ProjectMember).where(
+        ProjectMember.project_id == invitation.project_id,
+        ProjectMember.user_id == user.id,
+    )
+    existing_member = await db.scalar(existing_stmt)
+    if not existing_member:
+        member = ProjectMember(
+            project_id=invitation.project_id, user_id=user.id, role=invitation.role
+        )
+        db.add(member)
 
-    # Update invitation status
     invitation.status = InvitationStatusEnum.accepted
     await db.commit()
 

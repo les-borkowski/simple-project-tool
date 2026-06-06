@@ -47,6 +47,15 @@ async def create_invitation(
     return inv
 
 
+@router.get("/invitations/mine", response_model=list[InvitationResponse])
+async def list_my_invitations(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List my pending invitations."""
+    return await invitation_service.list_my_invitations(user, db)
+
+
 @router.delete("/invitations/{invitation_id}", status_code=204)
 async def cancel_invitation(
     invitation_id: uuid.UUID,
@@ -75,12 +84,3 @@ async def decline_invitation(
 ):
     """Decline an invitation."""
     await invitation_service.decline_invitation(invitation_id, user, db)
-
-
-@router.get("/invitations/mine", response_model=list[InvitationResponse])
-async def list_my_invitations(
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """List my pending invitations."""
-    return await invitation_service.list_my_invitations(user, db)

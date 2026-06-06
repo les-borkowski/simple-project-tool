@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from app.db.base import RoleEnum
 
@@ -9,7 +9,7 @@ from app.db.base import RoleEnum
 class UserCreate(BaseModel):
     email: EmailStr
     name: str
-    password: str
+    password: str = Field(min_length=8)
 
 
 class UserUpdate(BaseModel):
