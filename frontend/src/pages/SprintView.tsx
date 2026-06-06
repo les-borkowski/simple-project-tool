@@ -156,8 +156,6 @@ function SprintCard({
   sortable,
   locale,
   onDelete,
-  isDragging,
-  onDrop,
 }: {
   sprint: SprintResponse
   tasks: TaskResponse[]
@@ -167,12 +165,9 @@ function SprintCard({
   sortable: boolean
   locale: string
   onDelete: (id: string) => void
-  isDragging: boolean
-  onDrop: (taskId: string) => void
 }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(true)
-  const [isOver, setIsOver] = useState(false)
 
   const isOverCapacity =
     sprint.capacity !== null && sprint.total_effort > sprint.capacity
