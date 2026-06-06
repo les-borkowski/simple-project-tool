@@ -1,12 +1,13 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.db.base import PriorityEnum
 
 
 class TaskCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     title: str
     description: str | None = None
     status: str | None = None
@@ -29,11 +30,13 @@ class TaskUpdate(BaseModel):
 
 
 class TaskReorderItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     task_id: UUID
     position: int = Field(ge=0)
 
 
 class TaskReorderRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     tasks: list[TaskReorderItem]
 
     @model_validator(mode="after")

@@ -1,10 +1,11 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 class SprintCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     name: str
     start_date: date
     end_date: date

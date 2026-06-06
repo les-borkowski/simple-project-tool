@@ -1,10 +1,11 @@
 import re
 from uuid import UUID
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class ProjectStatusCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     slug: str
     name: str
     colour: str

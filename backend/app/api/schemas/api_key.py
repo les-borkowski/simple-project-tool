@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.auth.security import SCOPE_HIERARCHY
 
@@ -11,6 +11,7 @@ VALID_SCOPES = set(SCOPE_HIERARCHY.keys()) | {
 
 
 class APIKeyCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     label: str
     scopes: list[str]
 

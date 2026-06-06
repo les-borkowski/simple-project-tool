@@ -49,19 +49,12 @@ async def update_config(data: UserConfigUpdate, user: User, db: AsyncSession) ->
 
 async def list_api_keys(user: User, db: AsyncSession) -> list[APIKeyResponse]:
     """List API keys for the current user."""
-    stmt = select(APIKey).where(APIKey.user_id == user.id)
+    stmt = select(APIKey).where(
+        APIKey.user_id == user.id,
+        APIKey.revoked_at.is_(None),
+    ).order_by(APIKey.created_at.desc())
     keys = (await db.scalars(stmt)).all()
-
-    return [
-        APIKeyResponse(
-            id=key.id,
-            label=key.label,
-            scopes=key.scopes,
-            last_used_at=key.last_used_at,
-            created_at=key.created_at,
-        )
-        for key in keys
-    ]
+    return [APIKeyResponse.model_validate(k) for k in keys]
 
 
 async def create_api_key(data: APIKeyCreate, user: User, db: AsyncSession) -> APIKeyCreatedResponse:

@@ -1,12 +1,13 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.db.base import PriorityEnum, RoleEnum
 
 
 class ProjectCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     name: str
     description: str | None = None
     status: str | None = None
@@ -38,6 +39,7 @@ class ProjectResponse(BaseModel):
 
 
 class MemberAdd(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     user_id: UUID
     role: RoleEnum
 

@@ -1,12 +1,13 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.db.base import RoleEnum
 
 
 class UserCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     email: EmailStr
     name: str
     password: str = Field(min_length=8)

@@ -1,12 +1,13 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 from app.db.base import InvitationStatusEnum, RoleEnum
 
 
 class InvitationCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     invitee_email: EmailStr
 
 

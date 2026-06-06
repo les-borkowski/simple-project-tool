@@ -1,12 +1,13 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.db.base import PriorityEnum
 
 
 class StoryCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     title: str
     description: str | None = None
     status: str | None = None
@@ -36,4 +37,5 @@ class StoryResponse(BaseModel):
 
 
 class StoryMoveRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     project_id: UUID

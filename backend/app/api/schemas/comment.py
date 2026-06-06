@@ -1,10 +1,11 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class CommentCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     body: str
 
 
