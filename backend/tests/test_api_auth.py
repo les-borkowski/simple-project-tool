@@ -248,3 +248,82 @@ async def test_password_reset_sends_email(api_client: AsyncClient, api_db):
     args = mock_send.call_args[0]
     assert args[0] == email
     assert args[2]
+
+
+@pytest.mark.asyncio
+async def test_password_reset_does_not_return_token(api_client: AsyncClient, api_db):
+    """POST /auth/password-reset must never expose the reset token in the response."""
+    from sqlalchemy import update
+
+    email = f"noleak_{uuid.uuid4().hex[:8]}@example.com"
+    with patch("app.core.email.send_email", new=AsyncMock()):
+        await api_client.post(
+            "/api/v1/auth/register",
+            json={"email": email, "name": "No Leak", "password": "secret123"},
+        )
+    await api_db.execute(update(User).where(User.email == email).values(email_confirmed=True))
+    await api_db.flush()
+
+    with patch("app.core.email.send_password_reset_email", new=AsyncMock()):
+        resp = await api_client.post("/api/v1/auth/password-reset", json={"email": email})
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "reset_token" not in data
+    assert "message" in data
+
+
+@pytest.mark.asyncio
+async def test_password_reset_token_is_single_use(api_client: AsyncClient, api_db):
+    """Using a password-reset token a second time must fail with 400."""
+    from sqlalchemy import update
+
+    from app.auth.security import create_password_reset_token
+
+    email = f"singleuse_{uuid.uuid4().hex[:8]}@example.com"
+    with patch("app.core.email.send_email", new=AsyncMock()):
+        await api_client.post(
+            "/api/v1/auth/register",
+            json={"email": email, "name": "Single Use", "password": "oldpassword"},
+        )
+    await api_db.execute(update(User).where(User.email == email).values(email_confirmed=True))
+    await api_db.flush()
+
+    user = await api_db.scalar(select(User).where(User.email == email))
+    token = create_password_reset_token(user.id, user.password_changed_at)
+
+    # First use — should succeed
+    resp1 = await api_client.post(
+        "/api/v1/auth/password-reset/confirm",
+        json={"token": token, "new_password": "newpassword1"},
+    )
+    assert resp1.status_code == 200
+
+    # Second use with the same token — must be rejected
+    resp2 = await api_client.post(
+        "/api/v1/auth/password-reset/confirm",
+        json={"token": token, "new_password": "newpassword2"},
+    )
+    assert resp2.status_code == 400
+    assert "already been used" in resp2.json()["error"]["code"]
+
+
+@pytest.mark.asyncio
+async def test_refresh_blocked_for_unconfirmed_user(api_client: AsyncClient, api_db):
+    """Refresh token for a user that has not confirmed email must return 403."""
+    from app.auth.security import create_refresh_token
+
+    email = f"unconf_refresh_{uuid.uuid4().hex[:8]}@example.com"
+    # Register but do NOT confirm email
+    with patch("app.core.email.send_email", new=AsyncMock()):
+        await api_client.post(
+            "/api/v1/auth/register",
+            json={"email": email, "name": "Unconfirmed Refresh", "password": "secret123"},
+        )
+
+    user = await api_db.scalar(select(User).where(User.email == email))
+    refresh_token = create_refresh_token(user.id)
+
+    resp = await api_client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+    assert resp.status_code == 403
+    assert resp.json()["error"]["code"] == "EMAIL_NOT_CONFIRMED"

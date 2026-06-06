@@ -61,21 +61,28 @@ def decode_token(token: str) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
-def create_password_reset_token(user_id: uuid.UUID) -> str:
+def create_password_reset_token(user_id: uuid.UUID, password_changed_at: datetime | None) -> str:
     """Create a short-lived JWT token for password reset (1 hour expiry)."""
     payload = {
         "sub": str(user_id),
         "type": "password_reset",
+        "pw_ts": password_changed_at.isoformat() if password_changed_at else "",
         "exp": datetime.now(UTC) + timedelta(hours=1),
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
 
 
-def verify_password_reset_token(token: str) -> uuid.UUID:
+def verify_password_reset_token(
+    token: str, current_password_changed_at: datetime | None
+) -> uuid.UUID:
     """Verify a password reset token and return the user ID."""
     payload = decode_token(token)
     if payload.get("type") != "password_reset":
         raise HTTPException(status_code=400, detail="Invalid token type")
+    token_pw_ts = payload.get("pw_ts", "")
+    current_ts = current_password_changed_at.isoformat() if current_password_changed_at else ""
+    if token_pw_ts != current_ts:
+        raise HTTPException(status_code=400, detail="Reset token has already been used")
     try:
         return uuid.UUID(payload["sub"])
     except (KeyError, ValueError) as exc:

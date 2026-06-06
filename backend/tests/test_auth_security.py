@@ -214,7 +214,7 @@ def test_verify_password_reset_token_wrong_type_raises_400():
     # Create an access token (type="access") and try to use it as a reset token
     access_token = create_access_token(user_id, RoleEnum.contributor)
     with pytest.raises(HTTPException) as exc_info:
-        verify_password_reset_token(access_token)
+        verify_password_reset_token(access_token, None)
     assert exc_info.value.status_code == 400
 
 
@@ -225,22 +225,36 @@ def test_verify_password_reset_token_expired_raises_401():
         {
             "sub": str(user_id),
             "type": "password_reset",
+            "pw_ts": "",
             "exp": datetime.now(UTC) - timedelta(seconds=10),
         },
         settings.SECRET_KEY,
         algorithm="HS256",
     )
     with pytest.raises(HTTPException) as exc_info:
-        verify_password_reset_token(expired_reset_token)
+        verify_password_reset_token(expired_reset_token, None)
     assert exc_info.value.status_code == 401
 
 
 def test_verify_password_reset_token_valid():
     """verify_password_reset_token with valid token returns correct UUID."""
     user_id = uuid.uuid4()
-    token = create_password_reset_token(user_id)
-    result = verify_password_reset_token(token)
+    token = create_password_reset_token(user_id, None)
+    result = verify_password_reset_token(token, None)
     assert result == user_id
+
+
+def test_verify_password_reset_token_single_use():
+    """verify_password_reset_token raises 400 when pw_ts does not match current timestamp."""
+    user_id = uuid.uuid4()
+    password_changed_at = datetime.now(UTC).replace(tzinfo=None)
+    token = create_password_reset_token(user_id, password_changed_at)
+    # Simulate that the password has since changed (different timestamp)
+    new_timestamp = datetime(2020, 1, 1, 0, 0, 0)
+    with pytest.raises(HTTPException) as exc_info:
+        verify_password_reset_token(token, new_timestamp)
+    assert exc_info.value.status_code == 400
+    assert "already been used" in exc_info.value.detail
 
 
 # --- Email confirmation tokens ---
@@ -261,7 +275,7 @@ def test_verify_email_confirmation_token_rejects_wrong_type():
     from app.auth.security import verify_email_confirmation_token
 
     user_id = uuid.uuid4()
-    token = create_password_reset_token(user_id)
+    token = create_password_reset_token(user_id, None)
     with pytest.raises(HTTPException) as exc_info:
         verify_email_confirmation_token(token)
     assert exc_info.value.status_code == 400

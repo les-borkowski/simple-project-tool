@@ -23,6 +23,7 @@ class User(TimestampMixin, Base):
     role: Mapped[RoleEnum] = mapped_column(default=RoleEnum.manager, nullable=False)
     last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     email_confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    password_changed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     config: Mapped["UserConfig"] = relationship(

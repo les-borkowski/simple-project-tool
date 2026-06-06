@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from fastapi import HTTPException
@@ -13,9 +14,10 @@ from app.auth.security import (
     verify_password,
     verify_password_reset_token,
 )
-from app.core.config import settings
 from app.db.base import LocaleEnum, RoleEnum, ThemeEnum
 from app.db.models import User, UserConfig
+
+_logger = logging.getLogger(__name__)
 
 
 async def register(data: UserCreate, db: AsyncSession) -> UserResponse:
@@ -89,6 +91,9 @@ async def refresh_token_fn(refresh_token_str: str, db: AsyncSession) -> dict:
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
+    if not user.email_confirmed:
+        raise HTTPException(status_code=403, detail="EMAIL_NOT_CONFIRMED")
+
     access_token = create_access_token(user.id, user.role)
     return {
         "access_token": access_token,
@@ -101,7 +106,7 @@ async def get_me(user: User) -> UserResponse:
     return UserResponse.model_validate(user)
 
 
-async def request_password_reset(email: str, db: AsyncSession, background_tasks=None) -> str:
+async def request_password_reset(email: str, db: AsyncSession, background_tasks=None) -> None:
     """Create a password reset token and send it via email."""
     from app.core.email import send_password_reset_email
 
@@ -109,22 +114,32 @@ async def request_password_reset(email: str, db: AsyncSession, background_tasks=
     user = await db.scalar(stmt)
 
     if user:
-        token = create_password_reset_token(user.id)
+        token = create_password_reset_token(user.id, user.password_changed_at)
         if background_tasks is not None:
             background_tasks.add_task(send_password_reset_email, user.email, user.name, token)
-        if settings.DEBUG:
-            return token
-    return "reset_token_sent"
+        _logger.debug("Password reset token for %s: %s", email, token)
 
 
 async def confirm_password_reset(token: str, new_password: str, db: AsyncSession) -> None:
     """Verify a password reset token and update the user's password."""
-    user_id = verify_password_reset_token(token)
+    from datetime import UTC
+    from datetime import datetime as dt
+
+    from app.auth.security import decode_token
+
+    payload = decode_token(token)
+    if payload.get("type") != "password_reset":
+        raise HTTPException(status_code=400, detail="Invalid token type")
+    import uuid as _uuid
+
+    user_id = _uuid.UUID(payload["sub"])
     user = await db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=400, detail="User not found")
-
+    # Full verification including single-use check
+    verify_password_reset_token(token, user.password_changed_at)
     user.password_hash = hash_password(new_password)
+    user.password_changed_at = dt.now(UTC).replace(tzinfo=None)
     await db.commit()
 
 

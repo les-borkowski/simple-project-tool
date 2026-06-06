@@ -78,8 +78,8 @@ async def request_password_reset(
     db: AsyncSession = Depends(get_db),
 ):
     """Request password reset. Sends reset link via email."""
-    result = await auth_service.request_password_reset(data.email, db, background_tasks)
-    return {"reset_token": result}
+    await auth_service.request_password_reset(data.email, db, background_tasks)
+    return {"message": "If that email is registered, a reset link has been sent"}
 
 
 class ConfirmPasswordResetRequest(BaseModel):
