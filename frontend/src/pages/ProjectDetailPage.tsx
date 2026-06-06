@@ -349,7 +349,7 @@ export function ProjectDetailPage() {
     const res = await projectsApi.update(id, { status })
     setProject(res.data)
     setEditingStatus(false)
-    addToast('Status updated')
+    addToast(t('projects.status_updated'))
   }
 
   const handlePriorityChange = async (priority: Priority) => {
@@ -357,17 +357,17 @@ export function ProjectDetailPage() {
     const res = await projectsApi.update(id, { priority })
     setProject(res.data)
     setEditingPriority(false)
-    addToast('Priority updated')
+    addToast(t('projects.priority_updated'))
   }
 
   const handleArchive = async () => {
     if (!id) return
     if (project?.archived_at) {
       await projectsApi.restore(id)
-      addToast('Project restored')
+      addToast(t('projects.restored'))
     } else {
       await projectsApi.archive(id)
-      addToast('Project archived')
+      addToast(t('projects.archived_toast'))
     }
     const res = await projectsApi.get(id)
     setProject(res.data)
@@ -376,7 +376,7 @@ export function ProjectDetailPage() {
   const handleDeleteProject = async () => {
     if (!id) return
     await projectsApi.delete(id)
-    addToast('Project deleted')
+    addToast(t('projects.deleted'))
     navigate('/projects')
   }
 
@@ -397,7 +397,7 @@ export function ProjectDetailPage() {
       setNewStoryStatus('to_do')
       setNewStoryPriority('medium')
       storiesHook.refresh()
-      addToast('Story created')
+      addToast(t('stories.created'))
     } finally {
       setCreatingStory(false)
     }
@@ -411,7 +411,7 @@ export function ProjectDetailPage() {
       await invitationsApi.create(id, { invitee_email: inviteEmail, role: inviteRole })
       setShowInvite(false)
       setInviteEmail('')
-      addToast('Invitation sent')
+      addToast(t('invitations.sent'))
     } finally {
       setInviting(false)
     }
@@ -425,7 +425,7 @@ export function ProjectDetailPage() {
       await storiesApi.update(editStory.id, { title: editStory.title, description: editStory.description || undefined })
       setEditStory(null)
       storiesHook.refresh()
-      addToast('Story updated')
+      addToast(t('stories.updated'))
     } finally {
       setSavingStory(false)
     }
@@ -435,7 +435,7 @@ export function ProjectDetailPage() {
     if (!id) return
     await projectsApi.removeMember(id, userId)
     setMembers((prev) => prev.filter((m) => m.user_id !== userId))
-    addToast('Member removed')
+    addToast(t('members.removed'))
   }
 
   const statuses: Status[] = ['to_do', 'in_progress', 'in_review', 'in_testing', 'done']
@@ -1283,7 +1283,7 @@ export function ProjectDetailPage() {
             await storiesApi.delete(deleteStoryId)
             setDeleteStoryId(null)
             storiesHook.refresh()
-            addToast('Story deleted')
+            addToast(t('stories.deleted'))
           }}
           onCancel={() => setDeleteStoryId(null)}
           confirmLabel={t('actions.delete')}

@@ -88,7 +88,7 @@ export function TaskDetailPage() {
     try {
       const res = await tasksApi.update(taskId, { status })
       setTask(res.data)
-      addToast('Status updated')
+      addToast(t('tasks.status_updated'))
     } catch {
       addToast(t('errors.save_failed'), 'error')
     } finally {
@@ -101,7 +101,7 @@ export function TaskDetailPage() {
     try {
       const res = await tasksApi.update(taskId, { priority })
       setTask(res.data)
-      addToast('Priority updated')
+      addToast(t('tasks.priority_updated'))
     } catch {
       addToast(t('errors.save_failed'), 'error')
     } finally {
@@ -114,7 +114,7 @@ export function TaskDetailPage() {
     try {
       const res = await tasksApi.update(taskId, { assignee_id: assignee_id || null })
       setTask(res.data)
-      addToast('Assignee updated')
+      addToast(t('tasks.assignee_updated'))
     } catch {
       addToast(t('errors.save_failed'), 'error')
     }
@@ -175,7 +175,7 @@ export function TaskDetailPage() {
     try {
       const res = await tasksApi.update(taskId, { title: titleDraft.trim() })
       setTask(res.data)
-      addToast('Title updated')
+      addToast(t('tasks.title_updated'))
     } catch {
       addToast(t('errors.save_failed'), 'error')
     } finally {
@@ -188,7 +188,7 @@ export function TaskDetailPage() {
     try {
       const res = await tasksApi.update(taskId, { description: desc })
       setTask(res.data)
-      addToast('Description saved')
+      addToast(t('tasks.description_saved'))
     } catch {
       addToast(t('errors.save_failed'), 'error')
     } finally {

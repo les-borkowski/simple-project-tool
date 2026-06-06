@@ -90,7 +90,7 @@ export function ProjectsPage() {
       setNewName('')
       setNewDesc('')
       refresh()
-      addToast('Project created')
+      addToast(t('projects.created'))
     } finally {
       setCreating(false)
     }
@@ -102,7 +102,7 @@ export function ProjectsPage() {
     await projectsApi.delete(deleteId)
     setDeleteId(null)
     refresh()
-    addToast('Project deleted')
+    addToast(t('projects.deleted'))
   }
 
   const [editProject, setEditProject] = useState<{ id: string; name: string; description: string } | null>(null)
@@ -115,7 +115,7 @@ export function ProjectsPage() {
       await projectsApi.update(editProject.id, { name: editProject.name, description: editProject.description || undefined })
       setEditProject(null)
       refresh()
-      addToast('Project updated')
+      addToast(t('projects.updated'))
     } finally {
       setSaving(false)
     }

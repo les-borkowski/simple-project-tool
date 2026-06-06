@@ -317,7 +317,7 @@ export function SprintView({ projectId }: { projectId: string }) {
         setEffortUnit(projectRes.data.effort_unit ?? null)
       })
       .catch(() => {
-        addToast('Failed to load sprint data', 'error')
+        addToast(t('sprints.failed_load'), 'error')
         setAllTasks([])
       })
       .finally(() => setTasksLoading(false))
@@ -339,7 +339,7 @@ export function SprintView({ projectId }: { projectId: string }) {
       setNewEndDate('')
       setNewCapacity('')
       refresh()
-      addToast('Sprint created', 'success')
+      addToast(t('sprints.created'), 'success')
     } finally {
       setCreating(false)
     }
@@ -351,7 +351,7 @@ export function SprintView({ projectId }: { projectId: string }) {
       await sprintsApi.delete(deleteSprintId)
       refresh()
     } catch {
-      addToast('Failed to delete sprint', 'error')
+      addToast(t('sprints.failed_delete'), 'error')
     } finally {
       setDeleteSprintId(null)
     }
@@ -412,7 +412,7 @@ export function SprintView({ projectId }: { projectId: string }) {
         })
         .catch(() => {
           setAllTasks(snapshot)
-          addToast('Failed to move task', 'error')
+          addToast(t('sprints.failed_move'), 'error')
         })
     }
   }

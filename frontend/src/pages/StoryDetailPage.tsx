@@ -92,7 +92,7 @@ export function StoryDetailPage() {
       const res = await storiesApi.update(storyId, { status })
       setStory(res.data)
       setEditingStatus(false)
-      addToast('Status updated')
+      addToast(t('stories.status_updated'))
     } catch {
       addToast(t('errors.generic'), 'error')
     }
@@ -104,7 +104,7 @@ export function StoryDetailPage() {
       const res = await storiesApi.update(storyId, { priority })
       setStory(res.data)
       setEditingPriority(false)
-      addToast('Priority updated')
+      addToast(t('stories.priority_updated'))
     } catch {
       addToast(t('errors.generic'), 'error')
     }
@@ -115,7 +115,7 @@ export function StoryDetailPage() {
     const res = await storiesApi.update(storyId, { description: desc })
     setStory(res.data)
     setEditingDesc(false)
-    addToast('Description saved')
+    addToast(t('stories.description_saved'))
   }
 
   const handleTaskFieldChange = async (taskId: string, field: 'status' | 'priority', value: string) => {
@@ -138,7 +138,7 @@ export function StoryDetailPage() {
       await tasksApi.update(editTask.id, { title: editTask.title, description: editTask.description || undefined })
       setEditTask(null)
       tasksHook.refresh()
-      addToast('Task updated')
+      addToast(t('tasks.updated'))
     } finally {
       setSavingTask(false)
     }
@@ -439,7 +439,7 @@ export function StoryDetailPage() {
             await tasksApi.delete(deleteTaskId)
             setDeleteTaskId(null)
             tasksHook.refresh()
-            addToast('Task deleted')
+            addToast(t('tasks.deleted'))
           }}
           onCancel={() => setDeleteTaskId(null)}
           confirmLabel={t('actions.delete')}

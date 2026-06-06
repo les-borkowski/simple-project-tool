@@ -319,7 +319,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
           {/* Search results */}
           {query !== '' && isSearching && (
-            <div className="px-4 py-3 text-[12.5px] text-stone-400 italic">Searching…</div>
+            <div className="px-4 py-3 text-[12.5px] text-stone-400 italic">{t('search.searching')}</div>
           )}
 
           {query !== '' && !isSearching && results.length === 0 && (

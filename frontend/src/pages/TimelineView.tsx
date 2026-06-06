@@ -59,7 +59,7 @@ interface Group {
 }
 
 // Group tasks by sprint_id; unassigned tasks go last
-function buildGroups(items: TimelineTask[], sprintNames: Map<string, string>): Group[] {
+function buildGroups(items: TimelineTask[], sprintNames: Map<string, string>, unassignedLabel: string): Group[] {
   const bySprintId = new Map<string | null, TimelineTask[]>()
   for (const item of items) {
     const key = item.sprint_id
@@ -73,7 +73,7 @@ function buildGroups(items: TimelineTask[], sprintNames: Map<string, string>): G
     }
   }
   const unassigned = bySprintId.get(null)
-  if (unassigned) groups.push({ label: 'Unassigned', tasks: unassigned })
+  if (unassigned) groups.push({ label: unassignedLabel, tasks: unassigned })
   return groups
 }
 
@@ -121,7 +121,7 @@ export function TimelineView({ projectId }: { projectId: string }) {
       }
       setSprintNames(nameMap)
     } catch {
-      addToast('Failed to load timeline', 'error')
+      addToast(t('timeline.failed_load'), 'error')
     } finally {
       setLoading(false)
     }
@@ -151,7 +151,7 @@ export function TimelineView({ projectId }: { projectId: string }) {
     return ticks
   }, [rangeStart, rangeEnd])
 
-  const groups = useMemo(() => buildGroups(items, sprintNames), [items, sprintNames])
+  const groups = useMemo(() => buildGroups(items, sprintNames, t('common.unassigned')), [items, sprintNames, t])
 
   if (loading) {
     return <div className="p-6 text-[13px] text-stone-400">Loading…</div>

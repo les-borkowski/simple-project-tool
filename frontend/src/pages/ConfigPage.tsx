@@ -92,7 +92,7 @@ export function ConfigPage() {
         effort_unit: effortEnabled ? (effortUnit.trim() || 'sp') : null,
       })
     } catch {
-      addToast('Failed to save effort settings', 'error')
+      addToast(t('effort.save_failed'), 'error')
     } finally {
       setSavingEffort(false)
     }
