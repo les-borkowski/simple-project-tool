@@ -3,9 +3,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import update
-from sqlalchemy.ext.asyncio import AsyncSession
-
 
 @pytest.mark.asyncio
 async def test_create_story(api_client: AsyncClient, manager_headers: dict, test_project: dict):
@@ -75,35 +72,10 @@ async def test_delete_story(api_client: AsyncClient, manager_headers: dict, test
 # --- IDOR / Backlog security tests ---
 
 
-async def _create_global_manager_headers(
-    api_client: AsyncClient, api_db: AsyncSession
-) -> dict:
-    """Register a new global-manager user not added to any project, return auth headers."""
-    from app.db.base import RoleEnum
-    from app.db.models import User
-
-    email = f"outsider_{uuid.uuid4().hex[:8]}@example.com"
-    with patch("app.core.email.send_email", new=AsyncMock()):
-        await api_client.post(
-            "/api/v1/auth/register",
-            json={"email": email, "name": "Outsider Manager", "password": "testpassword123"},
-        )
-    await api_db.execute(
-        update(User).where(User.email == email).values(role=RoleEnum.manager, email_confirmed=True)
-    )
-    await api_db.flush()
-    resp = await api_client.post(
-        "/api/v1/auth/login",
-        json={"email": email, "password": "testpassword123"},
-    )
-    token = resp.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
-
-
 @pytest.mark.asyncio
 async def test_delete_story_non_member_global_manager_forbidden(
     api_client: AsyncClient,
-    api_db: AsyncSession,
+    global_manager_headers: dict,
     manager_headers: dict,
     test_project: dict,
 ):
@@ -117,15 +89,14 @@ async def test_delete_story_non_member_global_manager_forbidden(
     assert create.status_code == 201
     sid = create.json()["id"]
 
-    outsider_headers = await _create_global_manager_headers(api_client, api_db)
-    resp = await api_client.delete(f"/api/v1/stories/{sid}", headers=outsider_headers)
+    resp = await api_client.delete(f"/api/v1/stories/{sid}", headers=global_manager_headers)
     assert resp.status_code == 403
 
 
 @pytest.mark.asyncio
 async def test_move_story_non_member_global_manager_forbidden(
     api_client: AsyncClient,
-    api_db: AsyncSession,
+    global_manager_headers: dict,
     manager_headers: dict,
     test_project: dict,
 ):
@@ -140,11 +111,10 @@ async def test_move_story_non_member_global_manager_forbidden(
     sid = create.json()["id"]
 
     # Outsider creates their own project as the target
-    outsider_headers = await _create_global_manager_headers(api_client, api_db)
     target_proj = await api_client.post(
         "/api/v1/projects",
         json={"name": "Outsider Project"},
-        headers=outsider_headers,
+        headers=global_manager_headers,
     )
     assert target_proj.status_code == 201
     target_pid = target_proj.json()["id"]
@@ -153,7 +123,7 @@ async def test_move_story_non_member_global_manager_forbidden(
     resp = await api_client.post(
         f"/api/v1/stories/{sid}/move",
         json={"project_id": target_pid},
-        headers=outsider_headers,
+        headers=global_manager_headers,
     )
     assert resp.status_code == 403
 

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.pagination import decode_cursor, encode_cursor
 from app.api.schemas.comment import CommentResponse
 from app.api.schemas.common import PaginatedResponse
-from app.auth.permissions import require_manager, require_project_access, resolve_role
+from app.auth.permissions import require_manager, require_project_access
 from app.db.models import Comment, Project, Story, Task, User
 
 
@@ -264,20 +264,20 @@ async def delete_comment(comment_id: uuid.UUID, user: User, db: AsyncSession) ->
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    # Only author or manager on the parent can delete
+    # Only author or project member with manager role can delete
     if comment.author_id != user.id:
-        # Check if user is manager on the parent
         if comment.project_id:
-            role = await resolve_role(user, comment.project_id, db)
+            project_id = comment.project_id
         elif comment.story_id:
             story = await db.get(Story, comment.story_id)
-            role = await resolve_role(user, story.project_id, db)
+            project_id = story.project_id
         elif comment.task_id:
             task = await db.get(Task, comment.task_id)
-            role = await resolve_role(user, task.project_id, db)
+            project_id = task.project_id
         else:
             raise HTTPException(status_code=400, detail="Invalid comment")
 
+        role = await require_project_access(user, project_id, db)
         require_manager(role)
 
     await db.delete(comment)

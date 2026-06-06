@@ -3,9 +3,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import update
-from sqlalchemy.ext.asyncio import AsyncSession
-
 
 @pytest.mark.asyncio
 async def test_create_task(api_client: AsyncClient, manager_headers: dict, test_story: dict):
@@ -472,35 +469,10 @@ async def test_task_position_increments_sequentially(
 # --- IDOR security tests ---
 
 
-async def _create_global_manager_headers(
-    api_client: AsyncClient, api_db: AsyncSession
-) -> dict:
-    """Register a new global-manager user not added to any project, return auth headers."""
-    from app.db.base import RoleEnum
-    from app.db.models import User
-
-    email = f"outsider_{uuid.uuid4().hex[:8]}@example.com"
-    with patch("app.core.email.send_email", new=AsyncMock()):
-        await api_client.post(
-            "/api/v1/auth/register",
-            json={"email": email, "name": "Outsider Manager", "password": "testpassword123"},
-        )
-    await api_db.execute(
-        update(User).where(User.email == email).values(role=RoleEnum.manager, email_confirmed=True)
-    )
-    await api_db.flush()
-    resp = await api_client.post(
-        "/api/v1/auth/login",
-        json={"email": email, "password": "testpassword123"},
-    )
-    token = resp.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
-
-
 @pytest.mark.asyncio
 async def test_delete_task_non_member_global_manager_forbidden(
     api_client: AsyncClient,
-    api_db: AsyncSession,
+    global_manager_headers: dict,
     manager_headers: dict,
     test_story: dict,
 ):
@@ -516,6 +488,5 @@ async def test_delete_task_non_member_global_manager_forbidden(
     tid = create.json()["id"]
 
     # Attempt to delete as an outsider global manager (not a project member)
-    outsider_headers = await _create_global_manager_headers(api_client, api_db)
-    resp = await api_client.delete(f"/api/v1/tasks/{tid}", headers=outsider_headers)
+    resp = await api_client.delete(f"/api/v1/tasks/{tid}", headers=global_manager_headers)
     assert resp.status_code == 403

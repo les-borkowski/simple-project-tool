@@ -83,3 +83,33 @@ async def test_list_task_comments_returns_author_names(
     items = resp.json()["items"]
     assert len(items) == 2
     assert all(c["author_name"] for c in items)
+
+
+# --- IDOR security tests ---
+
+
+@pytest.mark.asyncio
+async def test_delete_comment_non_member_global_manager_forbidden(
+    api_client: AsyncClient,
+    global_manager_headers: dict,
+    manager_headers: dict,
+    test_project: dict,
+):
+    """A global manager who is NOT a project member must get 403 when deleting another user's comment."""
+    project_id = test_project["id"]
+
+    # Project owner creates a comment
+    create_resp = await api_client.post(
+        f"/api/v1/projects/{project_id}/comments",
+        json={"body": "IDOR target comment"},
+        headers=manager_headers,
+    )
+    assert create_resp.status_code == 201
+    comment_id = create_resp.json()["id"]
+
+    # Global manager (not a project member) attempts to delete the comment
+    del_resp = await api_client.delete(
+        f"/api/v1/comments/{comment_id}",
+        headers=global_manager_headers,
+    )
+    assert del_resp.status_code == 403
