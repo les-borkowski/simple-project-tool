@@ -130,7 +130,6 @@ async def request_password_reset(email: str, db: AsyncSession, background_tasks=
         token = create_password_reset_token(user.id, user.password_changed_at)
         if background_tasks is not None:
             background_tasks.add_task(send_password_reset_email, user.email, user.name, token)
-        _logger.debug("Password reset token for %s: %s", email, token)
 
 
 async def confirm_password_reset(token: str, new_password: str, db: AsyncSession) -> None:
