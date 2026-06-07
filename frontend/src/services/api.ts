@@ -145,6 +145,12 @@ export interface TimelineTask {
   source: 'deadline' | 'sprint' | 'status_history'
 }
 
+export interface TimelineResponse {
+  items: TimelineTask[]
+  /** true when the project has > 500 tasks and the list was capped server-side */
+  truncated: boolean
+}
+
 export interface TimeMetrics {
   total_seconds: number
   by_status: Record<Status, number>
@@ -334,7 +340,7 @@ export const sprintsApi = {
 
 export const timelineApi = {
   get: (projectId: string) =>
-    api.get<TimelineTask[]>(`/projects/${projectId}/timeline`),
+    api.get<TimelineResponse>(`/projects/${projectId}/timeline`),
 }
 
 // ---------------------------------------------------------------------------

@@ -10,6 +10,10 @@ import {
 import type { UserResponse } from '../services/api'
 import i18n from '../i18n'
 
+// Persists across tabs (localStorage) so a new tab after login still tries to restore
+// the session from the httpOnly refresh cookie.  Cleared on explicit logout.
+const SESSION_FLAG = 'spt_logged_in'
+
 interface AuthState {
   user: UserResponse | null
   accessToken: string | null
@@ -97,8 +101,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  // Silent restore on mount — cookie present = still logged in
+  // Silent restore on mount — only attempt if the user was previously logged in.
+  // Skipping when the flag is absent avoids a spurious 401 on every cold unauthenticated load.
   useEffect(() => {
+    if (!localStorage.getItem(SESSION_FLAG)) {
+      setState((s) => ({ ...s, isLoading: false }))
+      return
+    }
     ;(async () => {
       try {
         const res = await authApi.refresh()
@@ -107,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const user = await loadUserConfig(token)
         setState({ user, accessToken: token, isAuthenticated: true, isLoading: false })
       } catch {
+        localStorage.removeItem(SESSION_FLAG)
         setState({ user: null, accessToken: null, isAuthenticated: false, isLoading: false })
       }
     })()
@@ -115,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     const res = await authApi.login(email, password)
     const { access_token } = res.data
+    localStorage.setItem(SESSION_FLAG, '1')
     accessTokenRef.current = access_token
     const user = await loadUserConfig(access_token)
     setState({ user, accessToken: access_token, isAuthenticated: true, isLoading: false })
@@ -122,6 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try { await authApi.logout() } catch { /* best effort */ }
+    localStorage.removeItem(SESSION_FLAG)
     accessTokenRef.current = null
     setState({ user: null, accessToken: null, isAuthenticated: false, isLoading: false })
   }

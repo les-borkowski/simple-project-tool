@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 @pytest.mark.asyncio
 async def test_create_story(api_client: AsyncClient, manager_headers: dict, test_project: dict):
@@ -215,3 +216,46 @@ async def test_move_story_cannot_move_backlog(
     )
     assert resp.status_code == 400
     assert "Backlog" in resp.json()["error"]["message"]
+
+
+@pytest.mark.asyncio
+async def test_move_story_to_project_with_no_statuses_returns_422(
+    api_client: AsyncClient,
+    api_db: AsyncSession,
+    manager_headers: dict,
+    test_project: dict,
+    test_story: dict,
+):
+    """Issue #3: moving a story to a project whose statuses were all deleted must return 422.
+
+    get_default_status_slug raises HTTP 500 in the current code; it should be 422
+    so the client receives an actionable error rather than a generic server fault.
+    """
+    from sqlalchemy import delete
+    from app.db.models.project_status import ProjectStatus
+
+    # Create a target project (gets default statuses on creation)
+    proj2_resp = await api_client.post(
+        "/api/v1/projects",
+        json={"name": "No-Status Target"},
+        headers=manager_headers,
+    )
+    assert proj2_resp.status_code == 201
+    target_pid = proj2_resp.json()["id"]
+
+    # Wipe all statuses from the target project directly in the DB
+    import uuid as _uuid
+    await api_db.execute(
+        delete(ProjectStatus).where(ProjectStatus.project_id == _uuid.UUID(target_pid))
+    )
+    await api_db.flush()
+
+    # Moving the story to the status-less project must return 422, not 500
+    resp = await api_client.post(
+        f"/api/v1/stories/{test_story['id']}/move",
+        json={"project_id": target_pid},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 422, (
+        f"Expected 422 for project with no statuses, got {resp.status_code}: {resp.json()}"
+    )

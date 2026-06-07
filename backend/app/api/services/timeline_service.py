@@ -5,7 +5,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.schemas.timeline import TimelineTaskResponse
+from app.api.schemas.timeline import TimelineResponse, TimelineTaskResponse
 from app.auth.permissions import require_project_access
 from app.db.models import StatusHistory, Task, User
 from app.db.models.sprint import Sprint
@@ -15,20 +15,21 @@ TIMELINE_TASK_LIMIT = 500
 
 async def get_timeline(
     project_id: uuid.UUID, user: User, db: AsyncSession
-) -> list[TimelineTaskResponse]:
+) -> TimelineResponse:
     await require_project_access(user, project_id, db)
 
     tasks_stmt = select(Task).where(Task.project_id == project_id).limit(TIMELINE_TASK_LIMIT + 1)
     tasks = list((await db.scalars(tasks_stmt)).all())
 
-    if len(tasks) > TIMELINE_TASK_LIMIT:
+    truncated = len(tasks) > TIMELINE_TASK_LIMIT
+    if truncated:
         tasks = tasks[:TIMELINE_TASK_LIMIT]
         logging.getLogger(__name__).warning(
             "Timeline for project %s truncated at %d tasks", project_id, TIMELINE_TASK_LIMIT
         )
 
     if not tasks:
-        return []
+        return TimelineResponse(items=[], truncated=False)
 
     task_ids = [t.id for t in tasks]
 
@@ -97,4 +98,4 @@ async def get_timeline(
             )
         )
 
-    return results
+    return TimelineResponse(items=results, truncated=truncated)

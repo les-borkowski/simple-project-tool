@@ -48,15 +48,17 @@ async def get_current_user_or_api_key(
     # 2. Try X-API-Key header
     api_key_header = request.headers.get("X-API-Key")
     if api_key_header:
-        from sqlalchemy import select
+        from sqlalchemy import or_, select
 
         from app.auth.security import PREFIX_LENGTH
         from app.db.models.api_key import APIKey
         from app.db.models.user import User
 
         prefix = api_key_header[:PREFIX_LENGTH]
+        # Also match key_prefix='' to support rows created before the prefix migration
+        # (server_default='').  Remove this fallback once all legacy keys are rotated.
         stmt = select(APIKey).where(
-            APIKey.key_prefix == prefix,
+            or_(APIKey.key_prefix == prefix, APIKey.key_prefix == ""),
             APIKey.revoked_at.is_(None),
         )
         candidates = (await db.scalars(stmt)).all()

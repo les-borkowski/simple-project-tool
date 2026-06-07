@@ -57,7 +57,7 @@ async def validate_status_slug(project_id: uuid.UUID, slug: str, db: AsyncSessio
 async def get_default_status_slug(project_id: uuid.UUID, db: AsyncSession) -> str:
     statuses = await get_project_statuses_ordered(project_id, db)
     if not statuses:
-        raise HTTPException(status_code=500, detail="Project has no statuses configured")
+        raise HTTPException(status_code=422, detail="Project has no statuses configured")
     return statuses[0].slug
 
 

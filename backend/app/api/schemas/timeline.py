@@ -17,3 +17,8 @@ class TimelineTaskResponse(BaseModel):
     bar_start: date
     bar_end: date
     source: Literal["deadline", "sprint", "status_history"]
+
+
+class TimelineResponse(BaseModel):
+    items: list[TimelineTaskResponse]
+    truncated: bool

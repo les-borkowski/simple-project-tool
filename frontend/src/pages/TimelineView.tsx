@@ -103,6 +103,7 @@ export function TimelineView({ projectId }: { projectId: string }) {
   const { addToast } = useToast()
 
   const [items, setItems] = useState<TimelineTask[]>([])
+  const [truncated, setTruncated] = useState(false)
   const [sprintNames, setSprintNames] = useState<Map<string, string>>(new Map())
   const [loading, setLoading] = useState(true)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -114,7 +115,8 @@ export function TimelineView({ projectId }: { projectId: string }) {
         timelineApi.get(projectId),
         sprintsApi.list(projectId),
       ])
-      setItems(tlResp.data)
+      setItems(tlResp.data.items)
+      setTruncated(tlResp.data.truncated)
       const nameMap = new Map<string, string>()
       for (const s of sprintsResp.data) {
         nameMap.set(s.id, s.name)
@@ -165,6 +167,11 @@ export function TimelineView({ projectId }: { projectId: string }) {
   return (
     <div className="p-6">
       <h2 className="text-[15px] font-semibold mb-4">{t('timeline.title')}</h2>
+      {truncated && (
+        <div className="mb-3 px-3 py-2 text-[12px] rounded-md bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800">
+          {t('timeline.truncated_warning')}
+        </div>
+      )}
       <div className="overflow-x-auto border border-stone-200 dark:border-stone-800 rounded-lg">
         <div style={{ minWidth: LEFT_COL + canvasWidth }}>
           {/* Date axis */}

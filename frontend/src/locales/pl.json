@@ -293,6 +293,7 @@
   "timeline.source_sprint": "Sprint",
   "timeline.source_history": "Historia statusów",
   "timeline.failed_load": "Nie udało się wczytać osi czasu",
+  "timeline.truncated_warning": "Ten projekt ma więcej niż 500 zadań. Na osi czasu widoczne jest tylko pierwsze 500.",
 
   "common.save": "Zapisz",
   "common.saving": "Zapisywanie…",
