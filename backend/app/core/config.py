@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     # Database configuration
     DATABASE_URL: str
     SYNC_DATABASE_URL: str
-    TEST_DATABASE_URL: str
+    TEST_DATABASE_URL: str = ""
 
     # Authentication
     SECRET_KEY: str
