@@ -263,6 +263,8 @@ export const authApi = {
     api.post<{ message: string }>('/auth/password-reset', { email }),
   confirmPasswordReset: (token: string, new_password: string) =>
     api.post<{ message: string }>('/auth/password-reset/confirm', { token, new_password }),
+  resendConfirmation: (email: string) =>
+    api.post<{ message: string }>('/auth/resend-confirmation', { email }),
 }
 
 // ---------------------------------------------------------------------------

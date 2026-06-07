@@ -119,6 +119,19 @@ async def get_me(user: User) -> UserResponse:
     return UserResponse.model_validate(user)
 
 
+async def resend_confirmation(email: str, db: AsyncSession, background_tasks) -> None:
+    """Resend confirmation email if the account exists and is not yet confirmed."""
+    from app.auth.security import create_email_confirmation_token
+    from app.core.email import send_confirmation_email
+
+    stmt = select(User).where(User.email == email)
+    user = await db.scalar(stmt)
+
+    if user and not user.email_confirmed:
+        token = create_email_confirmation_token(user.id)
+        background_tasks.add_task(send_confirmation_email, user.email, user.name, token)
+
+
 async def request_password_reset(email: str, db: AsyncSession, background_tasks=None) -> None:
     """Create a password reset token and send it via email."""
     from app.core.email import send_password_reset_email

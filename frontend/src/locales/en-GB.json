@@ -294,6 +294,9 @@
 
   "auth.check_email_title": "Check your email",
   "auth.check_email_subtitle": "We sent a confirmation link to {{email}}. Click it to activate your account.",
+  "auth.resend_email": "Resend confirmation email",
+  "auth.resend_email_sent": "A new confirmation link has been sent.",
+  "auth.email_not_confirmed": "Please confirm your email before signing in.",
   "auth.confirming_email": "Confirming your email…",
   "auth.email_confirmed": "Email confirmed!",
   "auth.email_confirmed_subtitle": "Your account is now active. You can sign in.",

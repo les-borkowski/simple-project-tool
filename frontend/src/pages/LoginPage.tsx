@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
+import { authApi } from '../services/api'
 import { getApiErrorMessage } from '../utils/errors'
 
 export function LoginPage() {
@@ -16,18 +17,38 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [emailNotConfirmed, setEmailNotConfirmed] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendSent, setResendSent] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setEmailNotConfirmed(false)
+    setResendSent(false)
     setLoading(true)
     try {
       await login(email, password)
       navigate(next, { replace: true })
     } catch (err: unknown) {
-      setError(getApiErrorMessage(err) ?? t('errors.generic'))
+      const msg = getApiErrorMessage(err)
+      if (msg === 'EMAIL_NOT_CONFIRMED') {
+        setEmailNotConfirmed(true)
+      } else {
+        setError(msg ?? t('errors.generic'))
+      }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResend = async () => {
+    setResendLoading(true)
+    try {
+      await authApi.resendConfirmation(email)
+      setResendSent(true)
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -69,6 +90,23 @@ export function LoginPage() {
               />
             </div>
             {error && <p className="text-[12.5px] text-rose-600 dark:text-rose-400">{error}</p>}
+            {emailNotConfirmed && (
+              <div className="text-[12.5px] text-amber-600 dark:text-amber-400 space-y-1">
+                <p>{t('auth.email_not_confirmed')}</p>
+                {resendSent ? (
+                  <p className="text-emerald-600 dark:text-emerald-400">{t('auth.resend_email_sent')}</p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resendLoading}
+                    className="accent-text hover:underline disabled:opacity-50"
+                  >
+                    {t('auth.resend_email')}
+                  </button>
+                )}
+              </div>
+            )}
             <button
               type="submit"
               disabled={loading}

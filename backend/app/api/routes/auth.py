@@ -85,6 +85,21 @@ async def confirm_email(data: ConfirmEmailRequest, db: AsyncSession = Depends(ge
     return {"message": "Email confirmed"}
 
 
+class ResendConfirmationRequest(BaseModel):
+    email: EmailStr
+
+
+@router.post("/resend-confirmation")
+async def resend_confirmation(
+    data: ResendConfirmationRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    """Resend confirmation email. Always returns 200 to avoid leaking account existence."""
+    await auth_service.resend_confirmation(data.email, db, background_tasks)
+    return {"message": "If that email is registered and unconfirmed, a new link has been sent"}
+
+
 class PasswordResetRequest(BaseModel):
     email: EmailStr
 

@@ -15,6 +15,8 @@ export function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [registered, setRegistered] = useState(false)
   const [registeredEmail, setRegisteredEmail] = useState('')
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendSent, setResendSent] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,6 +37,16 @@ export function RegisterPage() {
     }
   }
 
+  const handleResend = async () => {
+    setResendLoading(true)
+    try {
+      await authApi.resendConfirmation(registeredEmail)
+      setResendSent(true)
+    } finally {
+      setResendLoading(false)
+    }
+  }
+
   if (registered) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 px-4">
@@ -46,6 +58,19 @@ export function RegisterPage() {
           <div className="bg-white dark:bg-stone-900 rounded-xl shadow-sm border border-stone-200 dark:border-stone-800 p-8 text-center">
             <p className="text-[20px] font-semibold tracking-tight mb-2">{t('auth.check_email_title')}</p>
             <p className="text-[13px] text-stone-500">{t('auth.check_email_subtitle', { email: registeredEmail })}</p>
+            <div className="mt-5">
+              {resendSent ? (
+                <p className="text-[12.5px] text-emerald-600 dark:text-emerald-400">{t('auth.resend_email_sent')}</p>
+              ) : (
+                <button
+                  onClick={handleResend}
+                  disabled={resendLoading}
+                  className="text-[12.5px] accent-text hover:underline disabled:opacity-50"
+                >
+                  {t('auth.resend_email')}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

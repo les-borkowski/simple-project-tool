@@ -304,6 +304,9 @@
 
   "auth.check_email_title": "Sprawdź swoją skrzynkę",
   "auth.check_email_subtitle": "Wysłaliśmy link potwierdzający na adres {{email}}. Kliknij go, aby aktywować konto.",
+  "auth.resend_email": "Wyślij ponownie e-mail potwierdzający",
+  "auth.resend_email_sent": "Nowy link potwierdzający został wysłany.",
+  "auth.email_not_confirmed": "Potwierdź swój adres e-mail przed zalogowaniem.",
   "auth.confirming_email": "Potwierdzanie adresu e-mail…",
   "auth.email_confirmed": "E-mail potwierdzony!",
   "auth.email_confirmed_subtitle": "Twoje konto jest teraz aktywne. Możesz się zalogować.",
