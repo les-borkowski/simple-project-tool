@@ -42,8 +42,6 @@ Neon PostgreSQL
 
 ### 1.1 Neon (Database)
 
-Neon uses a **branching model**: each branch has its own compute endpoint and connection URL. Use the `main` branch for production and create a separate `staging` branch — don't just create two databases on the same branch.
-
 #### Create the Neon project
 
 1. Sign up at [neon.tech](https://neon.tech) and click **New project**
@@ -68,32 +66,6 @@ Neon uses a **branching model**: each branch has its own compute endpoint and co
    postgresql+asyncpg://user:pass@ep-abc123.us-east-2.aws.neon.tech/neondb?sslmode=require
    postgresql+psycopg2://user:pass@ep-abc123.us-east-2.aws.neon.tech/neondb?sslmode=require
    ```
-
-#### Create the staging branch
-
-1. In the dashboard sidebar, click **Branches → New branch**
-2. Name: `staging` — leave **Branch from** as `main` (copies the current schema)
-3. Click **Create branch** — Neon provisions a new compute endpoint with a different host (e.g. `ep-xyz789...`)
-4. Select the `staging` branch → **Connection Details**, copy the string, and build the same two URL variants as above using the staging host
-
-   ```
-   postgresql+asyncpg://user:pass@ep-xyz789.us-east-2.aws.neon.tech/neondb?sslmode=require
-   postgresql+psycopg2://user:pass@ep-xyz789.us-east-2.aws.neon.tech/neondb?sslmode=require
-   ```
-
-#### Run migrations on staging (first time)
-
-The Procfile runs `alembic upgrade head` automatically on each Railway deploy, but you may want to migrate staging manually before the first deploy:
-
-```bash
-cd backend
-SYNC_DATABASE_URL="postgresql+psycopg2://user:pass@ep-xyz789.us-east-2.aws.neon.tech/neondb?sslmode=require" \
-  uv run alembic upgrade head
-```
-
-#### Two Railway services (production + staging)
-
-Create two services in the same Railway project, both pointing to the same GitHub repo. Give each service its own set of environment variables — the production service uses the `main` branch URLs, and the staging service uses the `staging` branch URLs.
 
 ### 1.2 Railway (Backend)
 
@@ -153,16 +125,6 @@ Railway auto-detects the `Procfile` in `backend/` and uses it as the start comma
 3. Copy this URL — you'll need it for:
    - `CORS_ORIGINS` and `FRONTEND_URL` (set in Railway itself, update if the domain changes)
    - `VITE_API_URL` in Vercel (see Section 1.3)
-
-#### Set up a staging service
-
-1. In the same Railway project, click **+ New → GitHub Repo** and select the same repo again
-2. Name this service `backend-staging`
-3. Configure identically (same Root Directory = `backend`, same Start Command)
-4. In **Variables**, use the Neon `staging` branch URLs instead of production ones, and generate fresh `SECRET_KEY` / `ADMIN_SECRET` values
-5. Generate a second domain for staging under **Settings → Networking**
-
-Railway will now deploy both services on every push to `main`. If you want staging to deploy from a different branch (e.g. `develop`), change the branch under **Settings → Source → Branch**.
 
 #### Check deploy logs
 
