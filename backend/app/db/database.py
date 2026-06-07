@@ -8,16 +8,16 @@ from app.core.config import settings
 
 
 def _asyncpg_url(url: str) -> tuple[str, dict]:
-    """Strip sslmode from URL and convert to asyncpg connect_args.
+    """Strip all libpq query params from URL; asyncpg rejects them with TypeError.
 
-    asyncpg uses ssl= not sslmode=, so passing sslmode in the URL raises
-    TypeError: connect() got an unexpected keyword argument 'sslmode'.
+    Neon URLs include params like sslmode=require&channel_binding=require that
+    are libpq-only. asyncpg uses connect_args instead.
     """
     parsed = urlparse(url)
     params = {k: v[0] for k, v in parse_qs(parsed.query).items()}
-    sslmode = params.pop("sslmode", None)
-    clean_url = urlunparse(parsed._replace(query=urlencode(params)))
-    connect_args = {"ssl": "require"} if sslmode == "require" else {}
+    requires_ssl = params.get("sslmode") == "require"
+    clean_url = urlunparse(parsed._replace(query=""))
+    connect_args = {"ssl": "require"} if requires_ssl else {}
     return clean_url, connect_args
 
 
