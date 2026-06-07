@@ -23,7 +23,7 @@ export function useRole(projectId?: string): RoleInfo {
 
     projectsApi.listMembers(projectId).then((res) => {
       const member = res.data.find((m) => m.user_id === user.id)
-      setIsManager(member?.role === 'manager' ?? false)
+      setIsManager(member?.role === 'manager')
     }).catch(() => {
       setIsManager(false)  // safe default on error — never elevate
     }).finally(() => {
