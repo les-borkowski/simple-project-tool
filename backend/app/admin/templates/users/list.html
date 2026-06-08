@@ -1,0 +1,117 @@
+{% extends "layout.html" %}
+{% block title %}Users{% endblock %}
+
+{% block head %}
+<style>
+  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+  .btn { display: inline-block; padding: 0.4rem 0.9rem; border-radius: 4px; font-size: 0.82rem; font-weight: 500; cursor: pointer; border: none; text-decoration: none; }
+  .btn-primary { background: #a78bfa; color: #fff; }
+  .btn-primary:hover { background: #8b5cf6; }
+  .flash { padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; }
+  .flash-success { background: #d1fae5; color: #065f46; }
+  .flash-error { background: #fee2e2; color: #991b1b; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  th { background: #f8f8fc; text-align: left; padding: 0.65rem 1rem; font-size: 0.78rem; color: #666; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid #eee; }
+  td { padding: 0.7rem 1rem; font-size: 0.88rem; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafafa; }
+  .badge { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 99px; font-size: 0.75rem; font-weight: 600; }
+  .badge-green { background: #d1fae5; color: #065f46; }
+  .badge-yellow { background: #fef3c7; color: #92400e; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-gray { background: #f3f4f6; color: #6b7280; }
+  .actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .actions form { margin: 0; }
+  .btn-sm { padding: 0.25rem 0.6rem; font-size: 0.78rem; border-radius: 3px; cursor: pointer; border: 1px solid transparent; }
+  .btn-outline { background: transparent; border-color: #d1d5db; color: #374151; }
+  .btn-outline:hover { background: #f9fafb; }
+  .btn-danger { background: transparent; border-color: #fca5a5; color: #991b1b; }
+  .btn-danger:hover { background: #fee2e2; }
+  .btn-warn { background: transparent; border-color: #fcd34d; color: #92400e; }
+  .btn-warn:hover { background: #fef3c7; }
+  .empty { text-align: center; padding: 3rem; color: #888; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Users</h1>
+  <a href="/admin/users/new" class="btn btn-primary">+ New user</a>
+</div>
+
+{% if flash_success %}
+  <div class="flash flash-success">{{ flash_success }}</div>
+{% endif %}
+{% if flash_error %}
+  <div class="flash flash-error">{{ flash_error }}</div>
+{% endif %}
+
+{% if users %}
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Email</th>
+      <th>Role</th>
+      <th>Verified</th>
+      <th>Blocked</th>
+      <th>Last login</th>
+      <th>Created</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for user in users %}
+    <tr>
+      <td>{{ user.name }}</td>
+      <td>{{ user.email }}</td>
+      <td><span class="badge badge-gray">{{ user.role.value }}</span></td>
+      <td>
+        {% if user.email_confirmed %}
+          <span class="badge badge-green">Verified</span>
+        {% else %}
+          <span class="badge badge-yellow">Unverified</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if user.is_blocked %}
+          <span class="badge badge-red">Blocked</span>
+        {% else %}
+          <span class="badge badge-green">Active</span>
+        {% endif %}
+      </td>
+      <td>{{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else '—' }}</td>
+      <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+      <td>
+        <div class="actions">
+          {% if not user.email_confirmed %}
+          <form method="post" action="/admin/users/{{ user.id }}/verify">
+            <button class="btn-sm btn-outline" type="submit">Verify</button>
+          </form>
+          {% endif %}
+          {% if user.is_blocked %}
+          <form method="post" action="/admin/users/{{ user.id }}/unblock">
+            <button class="btn-sm btn-outline" type="submit">Unblock</button>
+          </form>
+          {% else %}
+          <form method="post" action="/admin/users/{{ user.id }}/block">
+            <button class="btn-sm btn-warn" type="submit">Block</button>
+          </form>
+          {% endif %}
+          <form method="post" action="/admin/users/{{ user.id }}/reset-password">
+            <button class="btn-sm btn-outline" type="submit">Reset pwd</button>
+          </form>
+          <form method="post" action="/admin/users/{{ user.id }}/delete"
+                onsubmit="return confirm('Permanently delete {{ user.name }}? This cannot be undone.')">
+            <button class="btn-sm btn-danger" type="submit">Delete</button>
+          </form>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+  <div class="empty">No users found.</div>
+{% endif %}
+{% endblock %}

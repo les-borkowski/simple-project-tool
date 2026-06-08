@@ -77,6 +77,8 @@ async def login(email: str, password: str, db: AsyncSession) -> dict:
 
     if not user.email_confirmed:
         raise HTTPException(status_code=403, detail="EMAIL_NOT_CONFIRMED")
+    if user.is_blocked:
+        raise HTTPException(status_code=403, detail="ACCOUNT_BLOCKED")
 
     user.last_login = datetime.now(UTC).replace(tzinfo=None)
     await db.commit()
@@ -106,6 +108,8 @@ async def refresh_token_fn(refresh_token_str: str, db: AsyncSession) -> dict:
 
     if not user.email_confirmed:
         raise HTTPException(status_code=403, detail="EMAIL_NOT_CONFIRMED")
+    if user.is_blocked:
+        raise HTTPException(status_code=403, detail="ACCOUNT_BLOCKED")
 
     access_token = create_access_token(user.id, user.role)
     return {

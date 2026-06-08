@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+{% block title %}New user{% endblock %}
+
+{% block head %}
+<style>
+  .form-card { background: #fff; border-radius: 8px; padding: 2rem; max-width: 480px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .field { margin-bottom: 1.25rem; }
+  label { display: block; font-size: 0.85rem; font-weight: 500; color: #374151; margin-bottom: 0.35rem; }
+  input, select { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.9rem; background: #fff; }
+  input:focus, select:focus { outline: 2px solid #a78bfa; border-color: #a78bfa; }
+  .actions { display: flex; gap: 0.75rem; align-items: center; margin-top: 1.5rem; }
+  .btn { padding: 0.5rem 1.25rem; border-radius: 4px; font-size: 0.9rem; font-weight: 500; cursor: pointer; border: none; }
+  .btn-primary { background: #a78bfa; color: #fff; }
+  .btn-primary:hover { background: #8b5cf6; }
+  .btn-cancel { background: transparent; color: #6b7280; text-decoration: none; font-size: 0.9rem; }
+  .flash { padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; }
+  .flash-error { background: #fee2e2; color: #991b1b; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>New user</h1>
+
+{% if flash_error %}
+  <div class="flash flash-error">{{ flash_error }}</div>
+{% endif %}
+
+<div class="form-card">
+  <form method="post" action="/admin/users">
+    <div class="field">
+      <label for="name">Name</label>
+      <input type="text" id="name" name="name" required placeholder="Full name">
+    </div>
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" required placeholder="user@example.com">
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required minlength="8" placeholder="Min. 8 characters">
+    </div>
+    <div class="field">
+      <label for="role">Role</label>
+      <select id="role" name="role">
+        <option value="manager">Manager</option>
+        <option value="contributor">Contributor</option>
+      </select>
+    </div>
+    <div class="actions">
+      <button type="submit" class="btn btn-primary">Create account</button>
+      <a href="/admin/users" class="btn-cancel">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

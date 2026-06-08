@@ -7,9 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin.auth import is_admin_session, verify_admin_credentials
 from app.admin.services import get_totals, get_weekly_trends
+from app.admin.users_router import router as users_router
 from app.db.database import get_db
 
 router = APIRouter()
+router.include_router(users_router)
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
 

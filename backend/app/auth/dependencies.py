@@ -32,6 +32,8 @@ async def get_current_user(
     user = await db.get(User, user_id)
     if not user:
         raise HTTPException(401, "User not found")
+    if user.is_blocked:
+        raise HTTPException(403, "ACCOUNT_BLOCKED")
     return user
 
 

@@ -22,9 +22,13 @@
   <nav>
     <span class="brand">simple-project-tool <span>Admin</span></span>
     {% if logged_in %}
-    <form method="post" action="/admin/logout">
-      <button type="submit">Log out</button>
-    </form>
+    <div style="display:flex;align-items:center;gap:1.25rem;">
+      <a href="/admin" style="color:#d8b4fe;font-size:0.88rem;text-decoration:none;">Dashboard</a>
+      <a href="/admin/users" style="color:#d8b4fe;font-size:0.88rem;text-decoration:none;">Users</a>
+      <form method="post" action="/admin/logout">
+        <button type="submit">Log out</button>
+      </form>
+    </div>
     {% endif %}
   </nav>
   <main>
