@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.admin.auth import is_admin_session, verify_admin_credentials
+from app.admin.auth import is_admin_session, require_admin_session, verify_admin_credentials
 from app.admin.services import get_totals, get_weekly_trends
 from app.admin.users_router import router as users_router
 from app.db.database import get_db
@@ -36,10 +36,8 @@ async def login_submit(
     )
 
 
-@router.get("", response_class=HTMLResponse)
+@router.get("", response_class=HTMLResponse, dependencies=[Depends(require_admin_session)])
 async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
-    if not is_admin_session(request):
-        return RedirectResponse(url="/admin/login", status_code=302)
     totals = await get_totals(db)
     trends = await get_weekly_trends(db)
     return templates.TemplateResponse(

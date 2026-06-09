@@ -102,7 +102,7 @@
             <button class="btn-sm btn-outline" type="submit">Reset pwd</button>
           </form>
           <form method="post" action="/admin/users/{{ user.id }}/delete"
-                onsubmit="return confirm('Permanently delete {{ user.name }}? This cannot be undone.')">
+                onsubmit="return confirm('Permanently delete {{ user.name }}? This also deletes every project, story, task, comment and history entry they created. This cannot be undone.')">
             <button class="btn-sm btn-danger" type="submit">Delete</button>
           </form>
         </div>

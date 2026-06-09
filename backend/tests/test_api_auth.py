@@ -378,3 +378,74 @@ async def test_refresh_blocked_for_unconfirmed_user(api_client: AsyncClient, api
     )
     assert resp.status_code == 403
     assert resp.json()["error"]["code"] == "EMAIL_NOT_CONFIRMED"
+
+
+@pytest.mark.asyncio
+async def test_change_password_invalidates_outstanding_reset_token(
+    api_client: AsyncClient, api_db: AsyncSession
+):
+    """Changing a password normally must invalidate any outstanding reset token."""
+    from sqlalchemy import update
+
+    from app.auth.security import create_password_reset_token
+
+    email = f"pwchange_{uuid.uuid4().hex[:8]}@example.com"
+    with patch("app.core.email.send_email", new=AsyncMock()):
+        await api_client.post(
+            "/api/v1/auth/register",
+            json={"email": email, "name": "PW Change", "password": "oldpassword"},
+        )
+    await api_db.execute(update(User).where(User.email == email).values(email_confirmed=True))
+    await api_db.flush()
+
+    user = await api_db.scalar(select(User).where(User.email == email))
+    # Issue a reset token BEFORE the password change.
+    reset_token = create_password_reset_token(user.id, user.password_changed_at)
+
+    # Change the password via the normal authenticated flow.
+    login = await api_client.post(
+        "/api/v1/auth/login", json={"email": email, "password": "oldpassword"}
+    )
+    access_token = login.json()["access_token"]
+    resp = await api_client.post(
+        "/api/v1/auth/change-password",
+        json={"current_password": "oldpassword", "new_password": "brandnewpassword"},
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    assert resp.status_code == 200
+
+    # The previously-issued reset token must now be rejected.
+    resp = await api_client.post(
+        "/api/v1/auth/password-reset/confirm",
+        json={"token": reset_token, "new_password": "attackerpassword"},
+    )
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_refresh_blocked_for_blocked_user(api_client: AsyncClient, api_db: AsyncSession):
+    """Refresh token for a blocked user must return 403 ACCOUNT_BLOCKED."""
+    from sqlalchemy import update
+
+    from app.auth.security import create_refresh_token
+
+    email = f"blocked_refresh_{uuid.uuid4().hex[:8]}@example.com"
+    with patch("app.core.email.send_email", new=AsyncMock()):
+        await api_client.post(
+            "/api/v1/auth/register",
+            json={"email": email, "name": "Blocked Refresh", "password": "secret123"},
+        )
+    await api_db.execute(
+        update(User).where(User.email == email).values(email_confirmed=True, is_blocked=True)
+    )
+    await api_db.flush()
+
+    user = await api_db.scalar(select(User).where(User.email == email))
+    refresh_token = create_refresh_token(user.id)
+
+    resp = await api_client.post(
+        "/api/v1/auth/refresh",
+        cookies={"spt_refresh": refresh_token},
+    )
+    assert resp.status_code == 403
+    assert resp.json()["error"]["code"] == "ACCOUNT_BLOCKED"

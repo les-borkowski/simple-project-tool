@@ -176,9 +176,14 @@ async def change_password(
     current_password: str, new_password: str, user: User, db: AsyncSession
 ) -> None:
     """Verify current password and replace it with the new one."""
+    from datetime import UTC
+    from datetime import datetime as dt
+
     if not verify_password(current_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     user.password_hash = hash_password(new_password)
+    # Bump the change timestamp so any outstanding password-reset tokens are invalidated.
+    user.password_changed_at = dt.now(UTC).replace(tzinfo=None)
     await db.commit()
 
 

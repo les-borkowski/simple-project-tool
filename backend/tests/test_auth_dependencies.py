@@ -116,6 +116,7 @@ def test_get_current_user_valid_token():
     user_id, token = make_access_token()
     mock_user = MagicMock()
     mock_user.id = user_id
+    mock_user.is_blocked = False
 
     mock_db = make_mock_db(user=mock_user)
     app.dependency_overrides[get_db] = db_override(mock_db)
@@ -184,6 +185,7 @@ def test_get_current_user_or_api_key_valid_bearer():
     user_id, token = make_access_token()
     mock_user = MagicMock()
     mock_user.id = user_id
+    mock_user.is_blocked = False
 
     mock_db = make_mock_db(user=mock_user)
     app.dependency_overrides[get_db] = db_override(mock_db)
@@ -203,6 +205,7 @@ def test_get_current_user_or_api_key_valid_api_key():
 
     mock_user = MagicMock()
     mock_user.id = user_id
+    mock_user.is_blocked = False
 
     mock_api_key = MagicMock()
     mock_api_key.key_hash = key_hash
@@ -249,6 +252,7 @@ def test_optional_auth_valid_token():
     user_id, token = make_access_token()
     mock_user = MagicMock()
     mock_user.id = user_id
+    mock_user.is_blocked = False
 
     mock_db = make_mock_db(user=mock_user)
     app.dependency_overrides[get_db] = db_override(mock_db)
@@ -297,6 +301,7 @@ def test_require_scope_api_key_with_scope_passes():
 
     mock_user = MagicMock()
     mock_user.id = user_id
+    mock_user.is_blocked = False
 
     mock_api_key = MagicMock()
     mock_api_key.key_hash = key_hash
@@ -352,6 +357,7 @@ def test_require_scope_api_key_missing_scope_returns_403():
 
     mock_user = MagicMock()
     mock_user.id = user_id
+    mock_user.is_blocked = False
 
     mock_api_key = MagicMock()
     mock_api_key.key_hash = key_hash

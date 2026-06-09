@@ -6,11 +6,12 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
+from app.admin.auth import AdminAuthRequired
 from app.admin.router import router as admin_router
 from app.api.routes import (
     auth,
@@ -113,6 +114,12 @@ async def locale_middleware(request: Request, call_next):
 
 
 # Exception handlers
+
+
+@app.exception_handler(AdminAuthRequired)
+async def admin_auth_required_handler(request: Request, exc: AdminAuthRequired):
+    """Redirect unauthenticated admin-panel requests to the login page."""
+    return RedirectResponse(url="/admin/login", status_code=302)
 
 
 @app.exception_handler(StarletteHTTPException)

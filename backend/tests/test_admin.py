@@ -9,7 +9,6 @@ from app.admin.services import get_totals, get_weekly_trends
 from app.core.config import settings
 from app.db.models import User
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -129,19 +128,27 @@ async def test_create_user_auto_verified(api_client: AsyncClient, api_db: AsyncS
 
     resp = await api_client.post(
         "/admin/users",
-        data={"name": "New Person", "email": email, "password": "password123", "role": "contributor"},
+        data={
+            "name": "New Person",
+            "email": email,
+            "password": "password123",
+            "role": "contributor",
+        },
         follow_redirects=False,
     )
     assert resp.status_code == 302
 
     from sqlalchemy import select
+
     user = await api_db.scalar(select(User).where(User.email == email))
     assert user is not None
     assert user.email_confirmed is True
     assert user.is_blocked is False
 
 
-async def test_create_user_duplicate_email_redirects_with_error(api_client: AsyncClient, api_db: AsyncSession):
+async def test_create_user_duplicate_email_redirects_with_error(
+    api_client: AsyncClient, api_db: AsyncSession
+):
     await _admin_login(api_client)
     email = f"dup_{uuid.uuid4().hex[:8]}@example.com"
     await _create_user_via_admin(api_client, email)
@@ -231,9 +238,7 @@ async def test_blocked_user_api_rejected(api_client: AsyncClient, api_db: AsyncS
     await api_db.flush()
 
     # Existing token should now be rejected
-    resp = await api_client.get(
-        "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
-    )
+    resp = await api_client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 403
 
 
@@ -299,6 +304,35 @@ async def test_delete_user(api_client: AsyncClient, api_db: AsyncSession):
 
     gone = await api_db.scalar(select(User).where(User.email == email))
     assert gone is None
+
+
+async def test_delete_user_cascades_their_content(api_client: AsyncClient, api_db: AsyncSession):
+    """Deleting a user with content must succeed and cascade to what they created."""
+    from sqlalchemy import select
+
+    from app.db.models import Project, Task
+
+    await _admin_login(api_client)
+    email = f"owner_{uuid.uuid4().hex[:8]}@example.com"
+    await _create_user_via_admin(api_client, email, name="Content Owner")
+    user = await api_db.scalar(select(User).where(User.email == email))
+
+    # Give the user content: a project they own + a task they created.
+    project = Project(name="Doomed Project", owner_id=user.id, created_by=user.id)
+    api_db.add(project)
+    await api_db.flush()
+    task = Task(project_id=project.id, title="Doomed Task", created_by=user.id)
+    api_db.add(task)
+    await api_db.flush()
+    project_id, task_id = project.id, task.id
+
+    # Without ON DELETE rules this raises IntegrityError — the bug this guards against.
+    resp = await api_client.post(f"/admin/users/{user.id}/delete", follow_redirects=False)
+    assert resp.status_code == 302
+
+    assert await api_db.scalar(select(User).where(User.id == user.id)) is None
+    assert await api_db.scalar(select(Project).where(Project.id == project_id)) is None
+    assert await api_db.scalar(select(Task).where(Task.id == task_id)) is None
 
 
 # ---------------------------------------------------------------------------

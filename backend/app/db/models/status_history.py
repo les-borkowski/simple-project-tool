@@ -37,7 +37,7 @@ class StatusHistory(Base):
     from_status: Mapped[str | None] = mapped_column(String(100), nullable=True)
     to_status: Mapped[str] = mapped_column(String(100), nullable=False)
     changed_by: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     changed_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
 

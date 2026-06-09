@@ -26,7 +26,7 @@ class Sprint(TimestampMixin, Base):
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
     capacity: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
 
     project: Mapped["Project"] = relationship("Project", back_populates="sprints")

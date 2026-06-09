@@ -77,9 +77,9 @@ async def delete_user(db: AsyncSession, user_id: uuid.UUID) -> None:
     await db.commit()
 
 
-async def send_password_reset(db: AsyncSession, user_id: uuid.UUID) -> None:
+async def send_password_reset(db: AsyncSession, user_id: uuid.UUID, background_tasks) -> None:
     from app.core.email import send_password_reset_email
 
     user = await _get_user_or_404(db, user_id)
     token = create_password_reset_token(user.id, user.password_changed_at)
-    await send_password_reset_email(user.email, user.name, token)
+    background_tasks.add_task(send_password_reset_email, user.email, user.name, token)
