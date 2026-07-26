@@ -1,6 +1,9 @@
+import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { ToastProvider } from './context/ToastContext'
+import { ToastProvider, useToast } from './context/ToastContext'
 import { ThemeProvider, useTheme } from './context/ThemeContext'
+import { setOnDemoBlocked } from './services/api'
 import { ThemeStyle } from './components/layout/ThemeStyle'
 import { ProtectedRoute } from './components/layout/ProtectedRoute'
 import { AppShell } from './components/layout/AppShell'
@@ -28,6 +31,13 @@ function ProtectedLayout() {
 
 function ThemedApp() {
   const { accent } = useTheme()
+  const { addToast } = useToast()
+  const { t } = useTranslation()
+
+  useEffect(() => {
+    setOnDemoBlocked(() => addToast(t('demo.blocked'), 'error'))
+  }, [addToast, t])
+
   return (
     <>
       <ThemeStyle accent={accent} />

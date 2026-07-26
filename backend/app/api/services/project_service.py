@@ -18,7 +18,7 @@ from app.api.schemas.project import (
     ProjectUpdate,
 )
 from app.api.utils import escape_like
-from app.auth.permissions import require_manager, require_project_access
+from app.auth.permissions import require_manager, require_not_demo, require_project_access
 from app.db.base import PriorityEnum, RoleEnum
 from app.db.models import Project, ProjectMember, StatusHistory, Story, User
 
@@ -76,6 +76,7 @@ async def list_projects(
 
 async def create_project(data: ProjectCreate, user: User, db: AsyncSession) -> ProjectResponse:
     """Create a new project. Only managers can create projects."""
+    require_not_demo(user)
     require_manager(user.role)
 
     from app.api.services.project_status_service import (
@@ -146,6 +147,7 @@ async def update_project(
     project_id: uuid.UUID, data: ProjectUpdate, user: User, db: AsyncSession
 ) -> ProjectResponse:
     """Update a project. Only project managers can update."""
+    require_not_demo(user)
     project = await db.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -187,6 +189,7 @@ async def update_project(
 
 async def delete_project(project_id: uuid.UUID, user: User, db: AsyncSession) -> None:
     """Delete a project. Only project managers can delete."""
+    require_not_demo(user)
     project = await db.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -200,6 +203,7 @@ async def delete_project(project_id: uuid.UUID, user: User, db: AsyncSession) ->
 
 async def archive_project(project_id: uuid.UUID, user: User, db: AsyncSession) -> ProjectResponse:
     """Archive a project. Only managers can archive."""
+    require_not_demo(user)
     project = await db.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -214,6 +218,7 @@ async def archive_project(project_id: uuid.UUID, user: User, db: AsyncSession) -
 
 async def restore_project(project_id: uuid.UUID, user: User, db: AsyncSession) -> ProjectResponse:
     """Restore an archived project. Only managers can restore."""
+    require_not_demo(user)
     project = await db.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -259,6 +264,7 @@ async def add_member(
     project_id: uuid.UUID, data: MemberAdd, user: User, db: AsyncSession
 ) -> MemberResponse:
     """Add a member to a project. Only managers can add members."""
+    require_not_demo(user)
     project = await db.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -298,6 +304,7 @@ async def update_member_role(
     project_id: uuid.UUID, target_user_id: uuid.UUID, role: RoleEnum, user: User, db: AsyncSession
 ) -> MemberResponse:
     """Update a member's role in a project. Only managers can update."""
+    require_not_demo(user)
     project = await db.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -332,6 +339,7 @@ async def remove_member(
     project_id: uuid.UUID, target_user_id: uuid.UUID, user: User, db: AsyncSession
 ) -> None:
     """Remove a member from a project. Only managers can remove."""
+    require_not_demo(user)
     project = await db.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")

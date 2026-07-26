@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.sprint import SprintCreate, SprintResponse, SprintUpdate
-from app.auth.permissions import require_manager, require_project_access
+from app.auth.permissions import require_manager, require_not_demo, require_project_access
 from app.db.models import User
 from app.db.models.sprint import Sprint
 from app.db.models.task import Task
@@ -59,6 +59,7 @@ async def list_sprints(project_id: uuid.UUID, user: User, db: AsyncSession) -> l
 async def create_sprint(
     project_id: uuid.UUID, data: SprintCreate, user: User, db: AsyncSession
 ) -> SprintResponse:
+    require_not_demo(user)
     role = await require_project_access(user, project_id, db)
     require_manager(role)
     sprint = Sprint(
@@ -78,6 +79,7 @@ async def create_sprint(
 async def update_sprint(
     sprint_id: uuid.UUID, data: SprintUpdate, user: User, db: AsyncSession
 ) -> SprintResponse:
+    require_not_demo(user)
     sprint = await db.get(Sprint, sprint_id)
     if not sprint:
         raise HTTPException(status_code=404, detail="Sprint not found")
@@ -99,6 +101,7 @@ async def update_sprint(
 
 
 async def delete_sprint(sprint_id: uuid.UUID, user: User, db: AsyncSession) -> None:
+    require_not_demo(user)
     sprint = await db.get(Sprint, sprint_id)
     if not sprint:
         raise HTTPException(status_code=404, detail="Sprint not found")

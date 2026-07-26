@@ -17,6 +17,7 @@ export interface UserResponse {
   email: string
   name: string
   role: Role
+  is_demo: boolean
   created_at: string
   config?: UserConfigResponse
 }
@@ -192,6 +193,8 @@ export interface TokenResponse {
 let _getAccessToken: () => string | null = () => null
 let _refreshTokenFn: (() => Promise<string | null>) | null = null
 let _onUnauthorized: (() => void) | null = null
+let _isDemoAccount = false
+let _onDemoBlocked: (() => void) | null = null
 
 export function setTokenAccessor(fn: () => string | null) {
   _getAccessToken = fn
@@ -201,6 +204,16 @@ export function setRefreshFn(fn: () => Promise<string | null>) {
 }
 export function setOnUnauthorized(fn: () => void) {
   _onUnauthorized = fn
+}
+export function setDemoMode(value: boolean) {
+  _isDemoAccount = value
+}
+export function setOnDemoBlocked(fn: () => void) {
+  _onDemoBlocked = fn
+}
+
+export function isDemoBlockedError(e: unknown): boolean {
+  return !!(e && typeof e === 'object' && (e as Record<string, unknown>).isDemoBlocked)
 }
 
 // ---------------------------------------------------------------------------
@@ -214,6 +227,11 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
+  const method = config.method?.toLowerCase() ?? ''
+  if (_isDemoAccount && ['post', 'put', 'patch', 'delete'].includes(method)) {
+    _onDemoBlocked?.()
+    return Promise.reject(Object.assign(new Error('DEMO_BLOCKED'), { isDemoBlocked: true }))
+  }
   const token = _getAccessToken()
   if (token) config.headers.Authorization = `Bearer ${token}`
   config.headers['Accept-Language'] = i18n.language || 'en-GB'

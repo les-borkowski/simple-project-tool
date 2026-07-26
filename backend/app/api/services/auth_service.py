@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.user import UserCreate, UserResponse
+from app.auth.permissions import require_not_demo
 from app.auth.security import (
     create_access_token,
     create_password_reset_token,
@@ -176,6 +177,7 @@ async def change_password(
     current_password: str, new_password: str, user: User, db: AsyncSession
 ) -> None:
     """Verify current password and replace it with the new one."""
+    require_not_demo(user)
     from datetime import UTC
     from datetime import datetime as dt
 

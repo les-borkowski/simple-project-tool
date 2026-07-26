@@ -318,5 +318,6 @@
   "auth.reset_password_submit": "Ustaw nowe hasło",
   "auth.reset_password_success": "Hasło zostało zaktualizowane! Możesz się teraz zalogować.",
   "auth.reset_password_failed": "Link jest nieprawidłowy lub wygasł.",
-  "auth.resetting": "Aktualizowanie…"
+  "auth.resetting": "Aktualizowanie…",
+  "demo.blocked": "Tryb demo — zarejestruj się, aby wprowadzać zmiany"
 }

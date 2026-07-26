@@ -18,7 +18,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { preferencesApi } from '../../services/api'
+import { preferencesApi, isDemoBlockedError } from '../../services/api'
 
 interface TabConfigPanelProps {
   projectId: string
@@ -88,7 +88,8 @@ export function TabConfigPanel({ projectId, tabOrder, hiddenTabs, onPreferencesC
     saveTimerRef.current = setTimeout(() => {
       preferencesApi.update(projectId, { tab_order: order, hidden_tabs: hidden })
         .then(() => onPreferencesChange(order, hidden))
-        .catch(() => {
+        .catch((e: unknown) => {
+          if (isDemoBlockedError(e)) return
           setLocalOrder(prevOrder)
           setLocalHidden(prevHidden)
           addToast(t('errors.save_failed'), 'error')

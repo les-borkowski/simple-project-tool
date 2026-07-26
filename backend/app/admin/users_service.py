@@ -71,6 +71,18 @@ async def unblock_user(db: AsyncSession, user_id: uuid.UUID) -> None:
     await db.commit()
 
 
+async def enable_demo(db: AsyncSession, user_id: uuid.UUID) -> None:
+    user = await _get_user_or_404(db, user_id)
+    user.is_demo = True
+    await db.commit()
+
+
+async def disable_demo(db: AsyncSession, user_id: uuid.UUID) -> None:
+    user = await _get_user_or_404(db, user_id)
+    user.is_demo = False
+    await db.commit()
+
+
 async def delete_user(db: AsyncSession, user_id: uuid.UUID) -> None:
     user = await _get_user_or_404(db, user_id)
     await db.delete(user)

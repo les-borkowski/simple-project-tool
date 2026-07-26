@@ -23,6 +23,7 @@ class UserResponse(BaseModel):
     email: str
     name: str
     role: RoleEnum
+    is_demo: bool
     created_at: datetime
 
     class Config:

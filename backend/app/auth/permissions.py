@@ -46,6 +46,12 @@ def require_manager(role: RoleEnum) -> None:
         raise HTTPException(status_code=403, detail="Manager role required")
 
 
+def require_not_demo(user: "User") -> None:
+    """Raise HTTPException(403) if user is a demo account."""
+    if user.is_demo:
+        raise HTTPException(status_code=403, detail="DEMO_ACCOUNT")
+
+
 async def require_project_access(user: User, project_id: UUID, db: AsyncSession) -> RoleEnum:
     """Verify user can access the project. Returns resolved role.
 

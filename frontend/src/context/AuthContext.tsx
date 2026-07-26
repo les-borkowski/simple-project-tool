@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import {
   authApi,
   configApi,
+  setDemoMode,
   setTokenAccessor,
   setRefreshFn,
   setOnUnauthorized,
@@ -114,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const token = res.data.access_token
         accessTokenRef.current = token
         const user = await loadUserConfig(token)
+        setDemoMode(user.is_demo ?? false)
         setState({ user, accessToken: token, isAuthenticated: true, isLoading: false })
       } catch {
         localStorage.removeItem(SESSION_FLAG)
@@ -128,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(SESSION_FLAG, '1')
     accessTokenRef.current = access_token
     const user = await loadUserConfig(access_token)
+    setDemoMode(user.is_demo ?? false)
     setState({ user, accessToken: access_token, isAuthenticated: true, isLoading: false })
   }
 
@@ -135,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try { await authApi.logout() } catch { /* best effort */ }
     localStorage.removeItem(SESSION_FLAG)
     accessTokenRef.current = null
+    setDemoMode(false)
     setState({ user: null, accessToken: null, isAuthenticated: false, isLoading: false })
   }
 

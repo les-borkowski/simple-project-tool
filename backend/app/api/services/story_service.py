@@ -9,7 +9,7 @@ from app.api.schemas.common import PaginatedResponse
 from app.api.schemas.story import StoryCreate, StoryResponse, StoryUpdate
 from app.api.services.project_status_service import get_default_status_slug, validate_status_slug
 from app.api.utils import escape_like
-from app.auth.permissions import require_manager, require_project_access
+from app.auth.permissions import require_manager, require_not_demo, require_project_access
 from app.db.base import PriorityEnum
 from app.db.models import Project, StatusHistory, Story, Task, User
 
@@ -76,6 +76,7 @@ async def create_story(
     project_id: uuid.UUID, data: StoryCreate, user: User, db: AsyncSession
 ) -> StoryResponse:
     """Create a story in a project."""
+    require_not_demo(user)
     await require_project_access(user, project_id, db)
 
     if data.status is not None:
@@ -121,6 +122,7 @@ async def update_story(
     story_id: uuid.UUID, data: StoryUpdate, user: User, db: AsyncSession
 ) -> StoryResponse:
     """Update a story."""
+    require_not_demo(user)
     story = await db.get(Story, story_id)
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
@@ -166,6 +168,7 @@ async def get_default_story(project_id: uuid.UUID, db: AsyncSession) -> Story:
 
 async def delete_story(story_id: uuid.UUID, user: User, db: AsyncSession) -> None:
     """Delete a story. Only managers can delete. The default Backlog story cannot be deleted."""
+    require_not_demo(user)
     story = await db.get(Story, story_id)
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
@@ -184,6 +187,7 @@ async def move_story(
     story_id: uuid.UUID, new_project_id: uuid.UUID, user: User, db: AsyncSession
 ) -> StoryResponse:
     """Move a story to another project. Only managers can move."""
+    require_not_demo(user)
     story = await db.get(Story, story_id)
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")

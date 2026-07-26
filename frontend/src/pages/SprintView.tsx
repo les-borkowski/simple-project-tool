@@ -19,7 +19,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { sprintsApi, tasksApi, projectsApi } from '../services/api'
+import { sprintsApi, tasksApi, projectsApi, isDemoBlockedError } from '../services/api'
 import type { SprintResponse, TaskResponse, ProjectStatusResponse } from '../services/api'
 import { useProjectSprints } from '../hooks/useProjectSprints'
 import { useProjectStatuses } from '../hooks/useProjectStatuses'
@@ -350,7 +350,8 @@ export function SprintView({ projectId }: { projectId: string }) {
     try {
       await sprintsApi.delete(deleteSprintId)
       refresh()
-    } catch {
+    } catch (e) {
+      if (isDemoBlockedError(e)) return
       addToast(t('sprints.failed_delete'), 'error')
     } finally {
       setDeleteSprintId(null)
@@ -410,7 +411,8 @@ export function SprintView({ projectId }: { projectId: string }) {
             tasksApi.reorder(projectId, newSourceList.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
           }
         })
-        .catch(() => {
+        .catch((e: unknown) => {
+          if (isDemoBlockedError(e)) return
           setAllTasks(snapshot)
           addToast(t('sprints.failed_move'), 'error')
         })

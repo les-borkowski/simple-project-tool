@@ -26,6 +26,9 @@ class User(TimestampMixin, Base):
     is_blocked: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )
+    is_demo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     password_changed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships

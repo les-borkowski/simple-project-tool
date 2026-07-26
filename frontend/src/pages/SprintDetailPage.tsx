@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { sprintsApi, tasksApi, projectsApi } from '../services/api'
+import { sprintsApi, tasksApi, projectsApi, isDemoBlockedError } from '../services/api'
 import type { SprintResponse, TaskResponse } from '../services/api'
 import { useProjectStatuses } from '../hooks/useProjectStatuses'
 import { useRole } from '../hooks/useRole'
@@ -60,7 +60,8 @@ export function SprintDetailPage() {
       const res = await sprintsApi.update(sprintId, data)
       setSprint(res.data)
       addToast(toast)
-    } catch {
+    } catch (e) {
+      if (isDemoBlockedError(e)) return
       addToast(t('errors.save_failed'), 'error')
     }
   }

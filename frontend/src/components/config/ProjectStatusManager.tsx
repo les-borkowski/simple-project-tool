@@ -1,7 +1,7 @@
 // frontend/src/components/config/ProjectStatusManager.tsx
 import { useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { statusesApi } from '../../services/api'
+import { statusesApi, isDemoBlockedError } from '../../services/api'
 import type { ProjectStatusResponse } from '../../services/api'
 import { useProjectStatuses } from '../../hooks/useProjectStatuses'
 
@@ -169,6 +169,7 @@ function AddStatusRow({ projectId, nextOrder, onAdded, onCancel }: AddRowProps) 
       })
       onAdded()
     } catch (e: unknown) {
+      if (isDemoBlockedError(e)) return
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       setError(msg ?? 'Failed to create status')
     } finally {

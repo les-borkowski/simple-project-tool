@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.pagination import decode_cursor, encode_cursor
 from app.api.schemas.comment import CommentResponse
 from app.api.schemas.common import PaginatedResponse
-from app.auth.permissions import require_manager, require_project_access
+from app.auth.permissions import require_manager, require_not_demo, require_project_access
 from app.db.models import Comment, Project, Story, Task, User
 
 
@@ -165,6 +165,7 @@ async def create_comment_on_project(
     project_id: uuid.UUID, body: str, user: User, db: AsyncSession
 ) -> CommentResponse:
     """Create a comment on a project."""
+    require_not_demo(user)
     project = await db.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -189,6 +190,7 @@ async def create_comment_on_story(
     story_id: uuid.UUID, body: str, user: User, db: AsyncSession
 ) -> CommentResponse:
     """Create a comment on a story."""
+    require_not_demo(user)
     story = await db.get(Story, story_id)
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
@@ -213,6 +215,7 @@ async def create_comment_on_task(
     task_id: uuid.UUID, body: str, user: User, db: AsyncSession
 ) -> CommentResponse:
     """Create a comment on a task."""
+    require_not_demo(user)
     task = await db.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -237,6 +240,7 @@ async def update_comment(
     comment_id: uuid.UUID, body: str, user: User, db: AsyncSession
 ) -> CommentResponse:
     """Update a comment (author only)."""
+    require_not_demo(user)
     comment = await db.get(Comment, comment_id)
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
@@ -260,6 +264,7 @@ async def update_comment(
 
 async def delete_comment(comment_id: uuid.UUID, user: User, db: AsyncSession) -> None:
     """Delete a comment (author or manager only)."""
+    require_not_demo(user)
     comment = await db.get(Comment, comment_id)
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")

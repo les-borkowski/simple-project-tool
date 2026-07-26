@@ -6,7 +6,7 @@ import { useTheme, type AccentColor } from '../context/ThemeContext'
 import { LocaleSwitcher } from '../components/config/LocaleSwitcher'
 import { ThemeSwitcher } from '../components/config/ThemeSwitcher'
 import { ApiKeyList } from '../components/config/ApiKeyList'
-import { projectsApi, authApi } from '../services/api'
+import { projectsApi, authApi, isDemoBlockedError } from '../services/api'
 import type { ProjectResponse } from '../services/api'
 import { ProjectStatusManager } from '../components/config/ProjectStatusManager'
 import { useRole } from '../hooks/useRole'
@@ -91,7 +91,8 @@ export function ConfigPage() {
       await projectsApi.update(selectedProjectId, {
         effort_unit: effortEnabled ? (effortUnit.trim() || 'sp') : null,
       })
-    } catch {
+    } catch (e) {
+      if (isDemoBlockedError(e)) return
       addToast(t('effort.save_failed'), 'error')
     } finally {
       setSavingEffort(false)
@@ -113,6 +114,7 @@ export function ConfigPage() {
       setConfirmPw('')
       setPwChanged(true)
     } catch (err: unknown) {
+      if (isDemoBlockedError(err)) return
       const code = getApiErrorCode(err)
       if (code === 'Current password is incorrect') {
         setPwError({ field: 'current', message: t('config.current_password_incorrect') })

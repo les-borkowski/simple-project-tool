@@ -16,7 +16,7 @@ from app.api.schemas.task import (
 from app.api.services.project_status_service import get_default_status_slug, validate_status_slug
 from app.api.services.story_service import get_default_story
 from app.api.utils import escape_like
-from app.auth.permissions import require_manager, require_project_access
+from app.auth.permissions import require_manager, require_not_demo, require_project_access
 from app.db.base import PriorityEnum
 from app.db.models import Project, Sprint, StatusHistory, Story, Task, User
 
@@ -80,6 +80,7 @@ async def create_task(
     story_id: uuid.UUID, data: TaskCreate, user: User, db: AsyncSession
 ) -> TaskResponse:
     """Create a task in a story."""
+    require_not_demo(user)
     story = await db.get(Story, story_id)
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
@@ -132,6 +133,7 @@ async def create_task_for_project(
     project_id: uuid.UUID, data: TaskCreate, user: User, db: AsyncSession
 ) -> TaskResponse:
     """Create a task under a project; auto-assigns to the project's default Backlog story."""
+    require_not_demo(user)
     project = await db.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -254,6 +256,7 @@ async def update_task(
     task_id: uuid.UUID, data: TaskUpdate, user: User, db: AsyncSession
 ) -> TaskResponse:
     """Update a task."""
+    require_not_demo(user)
     task = await db.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -298,6 +301,7 @@ async def update_task(
 
 async def delete_task(task_id: uuid.UUID, user: User, db: AsyncSession) -> None:
     """Delete a task. Only managers can delete."""
+    require_not_demo(user)
     task = await db.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -313,6 +317,7 @@ async def reorder_tasks(
     project_id: uuid.UUID, data: TaskReorderRequest, user: User, db: AsyncSession
 ) -> TaskReorderResponse:
     """Bulk-update task positions within a project."""
+    require_not_demo(user)
     await require_project_access(user, project_id, db)
 
     task_ids = [item.task_id for item in data.tasks]

@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { tasksApi, projectsApi, storiesApi } from '../services/api'
+import { tasksApi, projectsApi, storiesApi, isDemoBlockedError } from '../services/api'
 import type { TaskResponse, MemberResponse, Status, Priority, StoryResponse } from '../services/api'
 import { useProjectStatuses } from '../hooks/useProjectStatuses'
 import { useProjectSprints } from '../hooks/useProjectSprints'
@@ -89,7 +89,8 @@ export function TaskDetailPage() {
       const res = await tasksApi.update(taskId, { status })
       setTask(res.data)
       addToast(t('tasks.status_updated'))
-    } catch {
+    } catch (e) {
+      if (isDemoBlockedError(e)) return
       addToast(t('errors.save_failed'), 'error')
     } finally {
       setEditingStatus(false)
@@ -102,7 +103,8 @@ export function TaskDetailPage() {
       const res = await tasksApi.update(taskId, { priority })
       setTask(res.data)
       addToast(t('tasks.priority_updated'))
-    } catch {
+    } catch (e) {
+      if (isDemoBlockedError(e)) return
       addToast(t('errors.save_failed'), 'error')
     } finally {
       setEditingPriority(false)
@@ -115,7 +117,8 @@ export function TaskDetailPage() {
       const res = await tasksApi.update(taskId, { assignee_id: assignee_id || null })
       setTask(res.data)
       addToast(t('tasks.assignee_updated'))
-    } catch {
+    } catch (e) {
+      if (isDemoBlockedError(e)) return
       addToast(t('errors.save_failed'), 'error')
     }
   }
@@ -137,7 +140,8 @@ export function TaskDetailPage() {
         setStory(null)
       }
       addToast(t('tasks.story_updated'))
-    } catch {
+    } catch (e) {
+      if (isDemoBlockedError(e)) return
       addToast(t('errors.save_failed'), 'error')
     }
   }
@@ -148,7 +152,8 @@ export function TaskDetailPage() {
       const res = await tasksApi.update(taskId, { sprint_id: sprint_id || null })
       setTask(res.data)
       addToast(t('tasks.sprint_updated'))
-    } catch {
+    } catch (e) {
+      if (isDemoBlockedError(e)) return
       addToast(t('errors.save_failed'), 'error')
     }
   }
@@ -162,7 +167,8 @@ export function TaskDetailPage() {
       setTask(res.data)
       setEffortDraft(String(parsed ?? ''))
       addToast(t('tasks.effort_updated'))
-    } catch {
+    } catch (e) {
+      if (isDemoBlockedError(e)) return
       addToast(t('errors.save_failed'), 'error')
     }
   }
@@ -176,7 +182,8 @@ export function TaskDetailPage() {
       const res = await tasksApi.update(taskId, { title: titleDraft.trim() })
       setTask(res.data)
       addToast(t('tasks.title_updated'))
-    } catch {
+    } catch (e) {
+      if (isDemoBlockedError(e)) return
       addToast(t('errors.save_failed'), 'error')
     } finally {
       setEditingTitle(false)
@@ -189,7 +196,8 @@ export function TaskDetailPage() {
       const res = await tasksApi.update(taskId, { description: desc })
       setTask(res.data)
       addToast(t('tasks.description_saved'))
-    } catch {
+    } catch (e) {
+      if (isDemoBlockedError(e)) return
       addToast(t('errors.save_failed'), 'error')
     } finally {
       setEditingDesc(false)

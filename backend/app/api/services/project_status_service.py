@@ -9,7 +9,7 @@ from app.api.schemas.project_status import (
     ProjectStatusResponse,
     ProjectStatusUpdate,
 )
-from app.auth.permissions import require_manager, require_project_access
+from app.auth.permissions import require_manager, require_not_demo, require_project_access
 from app.db.models import User
 from app.db.models.project_status import ProjectStatus
 from app.db.models.story import Story as StoryModel
@@ -72,6 +72,7 @@ async def list_project_statuses(
 async def create_project_status(
     project_id: uuid.UUID, data: ProjectStatusCreate, user: User, db: AsyncSession
 ) -> ProjectStatusResponse:
+    require_not_demo(user)
     role = await require_project_access(user, project_id, db)
     require_manager(role)
 
@@ -100,6 +101,7 @@ async def update_project_status(
     user: User,
     db: AsyncSession,
 ) -> ProjectStatusResponse:
+    require_not_demo(user)
     role = await require_project_access(user, project_id, db)
     require_manager(role)
 
@@ -121,6 +123,7 @@ async def update_project_status(
 async def delete_project_status(
     project_id: uuid.UUID, status_id: uuid.UUID, user: User, db: AsyncSession
 ) -> None:
+    require_not_demo(user)
     role = await require_project_access(user, project_id, db)
     require_manager(role)
 

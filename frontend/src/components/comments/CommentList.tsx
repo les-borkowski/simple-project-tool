@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { commentsApi } from '../../services/api'
+import { commentsApi, isDemoBlockedError } from '../../services/api'
 import type { CommentResponse } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -67,7 +67,8 @@ export function CommentList({ itemType, itemId }: Props) {
       await commentsApi.update(id, editBody)
       setComments((prev) => prev.map((c) => c.id === id ? { ...c, body: editBody } : c))
       setEditId(null)
-    } catch {
+    } catch (e) {
+      if (isDemoBlockedError(e)) return
       addToast(t('errors.generic'), 'error')
     }
   }
@@ -76,7 +77,8 @@ export function CommentList({ itemType, itemId }: Props) {
     try {
       await commentsApi.delete(id)
       setComments((prev) => prev.filter((c) => c.id !== id))
-    } catch {
+    } catch (e) {
+      if (isDemoBlockedError(e)) return
       addToast(t('errors.generic'), 'error')
     }
   }

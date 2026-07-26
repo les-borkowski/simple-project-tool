@@ -12,6 +12,8 @@ from app.admin.users_service import (
     block_user,
     create_user,
     delete_user,
+    disable_demo,
+    enable_demo,
     get_all_users,
     send_password_reset,
     unblock_user,
@@ -132,6 +134,30 @@ async def users_reset_password(
     try:
         await send_password_reset(db, user_id, background_tasks)
         _flash(request, success="Password reset email sent")
+    except HTTPException as exc:
+        _flash(request, error=f"Error: {exc.detail}")
+    return _redirect_users()
+
+
+@router.post("/users/{user_id}/enable-demo")
+async def users_enable_demo(
+    request: Request, user_id: uuid.UUID, db: AsyncSession = Depends(get_db)
+):
+    try:
+        await enable_demo(db, user_id)
+        _flash(request, success="Demo mode enabled")
+    except HTTPException as exc:
+        _flash(request, error=f"Error: {exc.detail}")
+    return _redirect_users()
+
+
+@router.post("/users/{user_id}/disable-demo")
+async def users_disable_demo(
+    request: Request, user_id: uuid.UUID, db: AsyncSession = Depends(get_db)
+):
+    try:
+        await disable_demo(db, user_id)
+        _flash(request, success="Demo mode disabled")
     except HTTPException as exc:
         _flash(request, error=f"Error: {exc.detail}")
     return _redirect_users()

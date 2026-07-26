@@ -3,7 +3,7 @@ import { Link, useParams, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { storiesApi, tasksApi, projectsApi } from '../services/api'
+import { storiesApi, tasksApi, projectsApi, isDemoBlockedError } from '../services/api'
 import type { StoryResponse, Status, Priority, MemberResponse } from '../services/api'
 import { CreateTaskModal } from '../components/tasks/CreateTaskModal'
 import { useRole } from '../hooks/useRole'
@@ -93,7 +93,8 @@ export function StoryDetailPage() {
       setStory(res.data)
       setEditingStatus(false)
       addToast(t('stories.status_updated'))
-    } catch {
+    } catch (e) {
+      if (isDemoBlockedError(e)) return
       addToast(t('errors.generic'), 'error')
     }
   }
@@ -105,7 +106,8 @@ export function StoryDetailPage() {
       setStory(res.data)
       setEditingPriority(false)
       addToast(t('stories.priority_updated'))
-    } catch {
+    } catch (e) {
+      if (isDemoBlockedError(e)) return
       addToast(t('errors.generic'), 'error')
     }
   }
@@ -123,7 +125,8 @@ export function StoryDetailPage() {
       await tasksApi.update(taskId, { [field]: value })
       tasksHook.refresh()
       addToast(field === 'status' ? t('tasks.status_updated') : t('tasks.priority_updated'))
-    } catch {
+    } catch (e) {
+      if (isDemoBlockedError(e)) return
       addToast(t('errors.save_failed'), 'error')
     } finally {
       setEditingTaskField(null)

@@ -6,7 +6,12 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi import HTTPException
 
-from app.auth.permissions import require_manager, require_project_access, resolve_role
+from app.auth.permissions import (
+    require_manager,
+    require_not_demo,
+    require_project_access,
+    resolve_role,
+)
 from app.db.base import RoleEnum
 
 # --- Helpers ---
@@ -166,3 +171,25 @@ async def test_require_project_access_global_manager_non_member_raises_403():
         await require_project_access(user, project.id, db)
     assert exc_info.value.status_code == 403
     db.scalar.assert_called_once()
+
+
+# --- require_not_demo ---
+
+
+def test_require_not_demo_raises_403_for_demo_user():
+    """require_not_demo → raises HTTPException(403) with DEMO_ACCOUNT detail for demo users."""
+    user = MagicMock()
+    user.is_demo = True
+
+    with pytest.raises(HTTPException) as exc_info:
+        require_not_demo(user)
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.detail == "DEMO_ACCOUNT"
+
+
+def test_require_not_demo_passes_for_regular_user():
+    """require_not_demo → does not raise for non-demo user."""
+    user = MagicMock()
+    user.is_demo = False
+
+    require_not_demo(user)  # should not raise

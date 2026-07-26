@@ -308,5 +308,6 @@
   "auth.reset_password_submit": "Set new password",
   "auth.reset_password_success": "Password updated! You can now sign in.",
   "auth.reset_password_failed": "This link is invalid or has expired.",
-  "auth.resetting": "Updating…"
+  "auth.resetting": "Updating…",
+  "demo.blocked": "Demo mode — sign up to make changes"
 }

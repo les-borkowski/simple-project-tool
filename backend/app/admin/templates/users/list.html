@@ -55,6 +55,7 @@
       <th>Role</th>
       <th>Verified</th>
       <th>Blocked</th>
+      <th>Demo</th>
       <th>Last login</th>
       <th>Created</th>
       <th>Actions</th>
@@ -80,6 +81,13 @@
           <span class="badge badge-green">Active</span>
         {% endif %}
       </td>
+      <td>
+        {% if user.is_demo %}
+          <span class="badge badge-yellow">Demo</span>
+        {% else %}
+          <span class="badge badge-gray">—</span>
+        {% endif %}
+      </td>
       <td>{{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else '—' }}</td>
       <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
       <td>
@@ -96,6 +104,15 @@
           {% else %}
           <form method="post" action="/admin/users/{{ user.id }}/block">
             <button class="btn-sm btn-warn" type="submit">Block</button>
+          </form>
+          {% endif %}
+          {% if user.is_demo %}
+          <form method="post" action="/admin/users/{{ user.id }}/disable-demo">
+            <button class="btn-sm btn-outline" type="submit">Demo off</button>
+          </form>
+          {% else %}
+          <form method="post" action="/admin/users/{{ user.id }}/enable-demo">
+            <button class="btn-sm btn-warn" type="submit">Demo on</button>
           </form>
           {% endif %}
           <form method="post" action="/admin/users/{{ user.id }}/reset-password">

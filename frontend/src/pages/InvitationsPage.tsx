@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { invitationsApi } from '../services/api'
+import { invitationsApi, isDemoBlockedError } from '../services/api'
 import type { InvitationResponse } from '../services/api'
 import { EmptyState } from '../components/common/EmptyState'
 import { SkeletonCard } from '../components/common/Skeleton'
@@ -39,7 +39,8 @@ export function InvitationsPage() {
       await invitationsApi.accept(id)
       addToast(t('invitations.accepted'), 'success')
       load()
-    } catch {
+    } catch (e) {
+      if (isDemoBlockedError(e)) return
       addToast(t('errors.generic'), 'error')
     }
   }
@@ -49,7 +50,8 @@ export function InvitationsPage() {
       await invitationsApi.decline(id)
       addToast(t('invitations.declined'), 'success')
       load()
-    } catch {
+    } catch (e) {
+      if (isDemoBlockedError(e)) return
       addToast(t('errors.generic'), 'error')
     }
   }
