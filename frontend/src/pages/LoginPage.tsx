@@ -53,45 +53,45 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-white dark:bg-stone-950 text-stone-900 dark:text-stone-100">
+    <div className="min-h-dvh grid lg:grid-cols-2 bg-white dark:bg-stone-950 text-stone-900 dark:text-stone-100">
       {/* Left — form */}
       <div className="flex items-center justify-center px-6 py-10">
         <div className="w-full max-w-sm">
           {/* Logo */}
           <div className="flex items-center gap-2 mb-10">
-            <span className="w-7 h-7 rounded-md accent-bg flex items-center justify-center text-[12px] font-semibold">SP</span>
-            <span className="text-[15px] font-semibold">Simple Project Tool</span>
+            <span className="w-7 h-7 rounded-md accent-bg flex items-center justify-center text-ui-sm font-semibold">SP</span>
+            <span className="text-ui-xl font-semibold">Simple Project Tool</span>
           </div>
 
-          <h1 className="text-[26px] font-semibold tracking-tight mb-1">{t('auth.welcome_back')}</h1>
-          <p className="text-[13px] text-stone-500 mb-7">{t('auth.sign_in_subtitle')}</p>
+          <h1 className="text-ui-4xl font-semibold tracking-tight mb-1">{t('auth.welcome_back')}</h1>
+          <p className="text-ui-md text-stone-500 mb-7">{t('auth.sign_in_subtitle')}</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1">{t('auth.email')}</label>
+              <label className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium mb-1">{t('auth.email')}</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13.5px] focus-ring"
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-lg focus-ring"
               />
             </div>
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium">{t('auth.password')}</label>
+                <label className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium">{t('auth.password')}</label>
               </div>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13.5px] focus-ring"
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-lg focus-ring"
               />
             </div>
-            {error && <p className="text-[12.5px] text-rose-600 dark:text-rose-400">{error}</p>}
+            {error && <p className="text-ui-md text-rose-600 dark:text-rose-400">{error}</p>}
             {emailNotConfirmed && (
-              <div className="text-[12.5px] text-amber-600 dark:text-amber-400 space-y-1">
+              <div className="text-ui-md text-amber-600 dark:text-amber-400 space-y-1">
                 <p>{t('auth.email_not_confirmed')}</p>
                 {resendSent ? (
                   <p className="text-emerald-600 dark:text-emerald-400">{t('auth.resend_email_sent')}</p>
@@ -110,13 +110,13 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 rounded-md accent-bg text-[13.5px] font-medium disabled:opacity-50"
+              className="w-full py-2.5 rounded-md accent-bg text-ui-lg font-medium disabled:opacity-50"
             >
               {loading ? t('auth.logging_in') : t('auth.login')}
             </button>
           </form>
 
-          <p className="mt-6 text-[12.5px] text-stone-500">
+          <p className="mt-6 text-ui-md text-stone-500">
             {t('auth.no_account')}{' '}
             <Link to="/register" className="accent-text hover:underline">{t('auth.register')}</Link>
           </p>
@@ -142,7 +142,7 @@ export function LoginPage() {
               <span className="w-2 h-2 rounded-full bg-rose-400" />
               <span className="w-2 h-2 rounded-full bg-amber-400" />
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span className="ml-3 text-[11px] text-stone-400">Projects · Board</span>
+              <span className="ml-3 text-ui-xs text-stone-400">Projects · Board</span>
             </div>
             <div className="p-4 space-y-2">
               {[
@@ -153,10 +153,10 @@ export function LoginPage() {
               ].map((t) => (
                 <div key={t.code} className="rounded-md border border-stone-200 dark:border-stone-800 p-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-[10px] text-stone-400">{t.code}</span>
+                    <span className="font-mono text-ui-2xs text-stone-400">{t.code}</span>
                     <span className="pr-bars" data-level={t.priority}><span /><span /><span /></span>
                   </div>
-                  <div className="text-[12px] mt-1 text-stone-700 dark:text-stone-300">{t.title}</div>
+                  <div className="text-ui-sm mt-1 text-stone-700 dark:text-stone-300">{t.title}</div>
                   <div className="flex items-center gap-2 mt-1.5">
                     <span className={`st-pill ${t.status}`}><span className="dot" />{t.status.replace('st-', '').replace('rev','In review').replace('prog','In progress').replace('todo','To do').replace('done','Done').replace('test','In testing')}</span>
                   </div>
@@ -164,7 +164,7 @@ export function LoginPage() {
               ))}
             </div>
           </div>
-          <p className="mt-6 text-center text-[13px] text-stone-500 italic">"Finally a tracker that gets out of the way."</p>
+          <p className="mt-6 text-center text-ui-md text-stone-500 italic">"Finally a tracker that gets out of the way."</p>
         </div>
       </div>
     </div>

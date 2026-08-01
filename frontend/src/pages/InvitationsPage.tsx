@@ -4,6 +4,7 @@ import { invitationsApi, isDemoBlockedError } from '../services/api'
 import type { InvitationResponse } from '../services/api'
 import { EmptyState } from '../components/common/EmptyState'
 import { SkeletonCard } from '../components/common/Skeleton'
+import { PageHeader } from '../components/layout/PageHeader'
 import { useToast } from '../context/ToastContext'
 import i18n from '../i18n'
 import { formatDate } from '../utils/format'
@@ -58,11 +59,7 @@ export function InvitationsPage() {
 
   return (
     <div className="flex-1 flex flex-col">
-      {/* Header */}
-      <div className="px-7 pt-6 pb-4 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
-        <h1 className="text-[22px] font-semibold tracking-tight">{t('invitations.title')}</h1>
-        <p className="text-[13px] text-stone-500 mt-0.5">{t('inbox.subtitle')}</p>
-      </div>
+      <PageHeader title={t('invitations.title')} subtitle={t('inbox.subtitle')} />
 
       <div className="px-7 py-5 flex-1">
         {loading ? (
@@ -80,28 +77,28 @@ export function InvitationsPage() {
                   key={inv.id}
                   className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-4 flex items-center gap-4"
                 >
-                  <span className="w-10 h-10 rounded-lg accent-soft inline-flex items-center justify-center font-mono text-[11px] accent-text font-semibold shrink-0">
+                  <span className="w-10 h-10 rounded-lg accent-soft inline-flex items-center justify-center font-mono text-ui-xs accent-text font-semibold shrink-0">
                     {projInitials}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[13.5px] font-medium">{inv.project_name}</div>
-                    <div className="text-[11.5px] text-stone-500 mt-0.5">
+                    <div className="text-ui-lg font-medium">{inv.project_name}</div>
+                    <div className="text-ui-sm text-stone-500 mt-0.5">
                       {t('invitations.invited_by')}: {inv.inviter_name} &middot; {t('invitations.role_offered')}: <span className="text-stone-700 dark:text-stone-300">{t(`role.${inv.role}`)}</span>
                     </div>
-                    <div className="text-[11px] text-stone-400 mt-0.5">
+                    <div className="text-ui-xs text-stone-400 mt-0.5">
                       {t('invitations.expires')}: {formatDate(inv.expires_at, i18n.language)}
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <button
                       onClick={() => handleDecline(inv.id)}
-                      className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-800 inline-flex items-center gap-1.5 text-stone-600 dark:text-stone-300"
+                      className="px-2.5 py-1.5 text-ui-sm rounded-md border border-stone-200 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-800 inline-flex items-center gap-1.5 text-stone-600 dark:text-stone-300"
                     >
                       <IDecline /> {t('invitations.decline')}
                     </button>
                     <button
                       onClick={() => handleAccept(inv.id)}
-                      className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5"
+                      className="px-2.5 py-1.5 text-ui-sm rounded-md accent-bg inline-flex items-center gap-1.5"
                     >
                       <ICheck /> {t('invitations.accept')}
                     </button>

@@ -1,9 +1,19 @@
 // frontend/src/components/config/ProjectStatusManager.tsx
-import { useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { statusesApi, isDemoBlockedError } from '../../services/api'
 import type { ProjectStatusResponse } from '../../services/api'
 import { useProjectStatuses } from '../../hooks/useProjectStatuses'
+import { useToast } from '../../context/ToastContext'
+import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { useDragSensors } from '../../hooks/useDragSensors'
 
 function slugify(name: string): string {
   return name
@@ -19,9 +29,11 @@ interface RowProps {
   isManager: boolean
   onUpdated: () => void
   onDeleted: () => void
-  onDragStart: (e: React.DragEvent, id: string) => void
-  onDragOver: (e: React.DragEvent, id: string) => void
-  onDrop: (e: React.DragEvent) => void
+  isFirst: boolean
+  isLast: boolean
+  reordering: boolean
+  onMoveUp: () => void
+  onMoveDown: () => void
 }
 
 function StatusRow({
@@ -30,15 +42,19 @@ function StatusRow({
   isManager,
   onUpdated,
   onDeleted,
-  onDragStart,
-  onDragOver,
-  onDrop,
+  isFirst,
+  isLast,
+  reordering,
+  onMoveUp,
+  onMoveDown,
 }: RowProps) {
   const { t } = useTranslation()
   const [name, setName] = useState(status.name)
   const [colour, setColour] = useState(status.colour)
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: status.id })
+  const style = { transform: CSS.Transform.toString(transform), transition }
 
   const isDirty = name !== status.name || colour !== status.colour
 
@@ -60,17 +76,44 @@ function StatusRow({
 
   return (
     <div
-      draggable={isManager}
-      onDragStart={(e) => onDragStart(e, status.id)}
-      onDragOver={(e) => onDragOver(e, status.id)}
-      onDrop={onDrop}
+      ref={setNodeRef}
+      style={style}
       className="flex items-center gap-3 p-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 group"
     >
       {/* Drag handle */}
       {isManager && (
-        <span className="cursor-grab text-stone-300 dark:text-stone-600 select-none" title="Drag to reorder">
+        <span
+          {...attributes}
+          {...listeners}
+          className="drag-handle cursor-grab text-stone-300 dark:text-stone-600"
+          title="Drag to reorder"
+        >
           ⠿
         </span>
+      )}
+
+      {/* Reorder buttons */}
+      {isManager && (
+        <div className="flex flex-col shrink-0">
+          <button
+            type="button"
+            onClick={onMoveUp}
+            disabled={isFirst || reordering}
+            aria-label={t('project_statuses.move_up')}
+            className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 disabled:opacity-30 disabled:cursor-not-allowed text-ui-xs leading-none px-1"
+          >
+            ▲
+          </button>
+          <button
+            type="button"
+            onClick={onMoveDown}
+            disabled={isLast || reordering}
+            aria-label={t('project_statuses.move_down')}
+            className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 disabled:opacity-30 disabled:cursor-not-allowed text-ui-xs leading-none px-1"
+          >
+            ▼
+          </button>
+        </div>
       )}
 
       {/* Colour swatch / picker */}
@@ -97,29 +140,29 @@ function StatusRow({
             value={name}
             onChange={(e) => setName(e.target.value)}
             onBlur={save}
-            className="w-full text-[13px] bg-transparent border-none outline-none focus:ring-1 focus:ring-stone-300 dark:focus:ring-stone-600 rounded px-1 -mx-1"
+            className="w-full text-ui-md bg-transparent border-none outline-none focus:ring-1 focus:ring-stone-300 dark:focus:ring-stone-600 rounded px-1 -mx-1"
             disabled={saving}
           />
         ) : (
-          <span className="text-[13px]">{name}</span>
+          <span className="text-ui-md">{name}</span>
         )}
-        <div className="text-[10.5px] text-stone-400 font-mono">{status.slug}</div>
+        <div className="text-ui-xs text-stone-400 font-mono">{status.slug}</div>
       </div>
 
       {/* Delete */}
       {isManager && (
         confirmDelete ? (
           <div className="flex items-center gap-1 shrink-0">
-            <span className="text-[11px] text-stone-500">{t('project_statuses.delete_confirm')}</span>
+            <span className="text-ui-xs text-stone-500">{t('project_statuses.delete_confirm')}</span>
             <button
               onClick={deleteStatus}
-              className="px-2 py-0.5 text-[11px] bg-red-600 text-white rounded hover:bg-red-700"
+              className="px-2 py-0.5 text-ui-xs bg-red-600 text-white rounded hover:bg-red-700"
             >
               {t('actions.delete')}
             </button>
             <button
               onClick={() => setConfirmDelete(false)}
-              className="px-2 py-0.5 text-[11px] border border-stone-200 dark:border-stone-600 rounded"
+              className="px-2 py-0.5 text-ui-xs border border-stone-200 dark:border-stone-600 rounded"
             >
               {t('actions.cancel')}
             </button>
@@ -127,7 +170,7 @@ function StatusRow({
         ) : (
           <button
             onClick={() => setConfirmDelete(true)}
-            className="opacity-0 group-hover:opacity-100 text-stone-400 hover:text-red-600 text-[11px] transition-opacity shrink-0"
+            className="opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 text-stone-400 hover:text-red-600 text-ui-xs transition-opacity shrink-0"
           >
             {t('actions.delete')}
           </button>
@@ -195,26 +238,26 @@ function AddStatusRow({ projectId, nextOrder, onAdded, onCancel }: AddRowProps) 
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={handleNameBlur}
-          className="flex-1 text-[13px] bg-transparent border-none outline-none focus:ring-1 focus:ring-stone-300 dark:focus:ring-stone-600 rounded px-1 -mx-1"
+          className="flex-1 text-ui-md bg-transparent border-none outline-none focus:ring-1 focus:ring-stone-300 dark:focus:ring-stone-600 rounded px-1 -mx-1"
         />
       </div>
       {name && (
-        <div className="text-[10.5px] text-stone-400 font-mono pl-8">
+        <div className="text-ui-xs text-stone-400 font-mono pl-8">
           {t('project_statuses.slug_label')}: {slug || slugify(name)}
         </div>
       )}
-      {error && <div className="text-[11px] text-red-500 pl-8">{error}</div>}
+      {error && <div className="text-ui-xs text-red-500 pl-8">{error}</div>}
       <div className="flex gap-2 pl-8">
         <button
           onClick={save}
           disabled={saving || !name.trim()}
-          className="px-3 py-1 text-[12px] accent-bg text-white rounded-md disabled:opacity-50"
+          className="px-3 py-1 text-ui-sm accent-bg text-white rounded-md disabled:opacity-50"
         >
           {t('project_statuses.save')}
         </button>
         <button
           onClick={onCancel}
-          className="px-3 py-1 text-[12px] border border-stone-200 dark:border-stone-700 rounded-md"
+          className="px-3 py-1 text-ui-sm border border-stone-200 dark:border-stone-700 rounded-md"
         >
           {t('project_statuses.cancel')}
         </button>
@@ -230,61 +273,82 @@ interface Props {
 
 export function ProjectStatusManager({ projectId, isManager }: Props) {
   const { t } = useTranslation()
+  const { addToast } = useToast()
   const { statuses, loading, refresh } = useProjectStatuses(projectId)
   const [showAdd, setShowAdd] = useState(false)
-  const dragId = useRef<string | null>(null)
-  const dragOverId = useRef<string | null>(null)
+  const [localStatuses, setLocalStatuses] = useState<ProjectStatusResponse[]>(statuses)
+  const [reordering, setReordering] = useState(false)
+  const sensors = useDragSensors()
 
-  const handleDragStart = (_e: React.DragEvent, id: string) => {
-    dragId.current = id
-  }
+  useEffect(() => {
+    setLocalStatuses(statuses)
+  }, [statuses])
 
-  const handleDragOver = (e: React.DragEvent, id: string) => {
-    e.preventDefault()
-    dragOverId.current = id
-  }
-
-  const handleDrop = async (_e: React.DragEvent) => {
-    if (!dragId.current || !dragOverId.current || dragId.current === dragOverId.current) return
-
-    const from = statuses.findIndex((s) => s.id === dragId.current)
-    const to = statuses.findIndex((s) => s.id === dragOverId.current)
-    if (from === -1 || to === -1) return
-
-    const reordered = [...statuses]
-    const [moved] = reordered.splice(from, 1)
-    reordered.splice(to, 0, moved)
-
-    // PATCH each status with its new order
-    await Promise.all(
-      reordered.map((s, idx) =>
-        statusesApi.update(projectId, s.id, { order: idx })
+  const reorder = async (newOrder: ProjectStatusResponse[]) => {
+    // Serialize reorders: a second reorder cannot start while one is still
+    // in flight. This avoids a race where a later, successful batch's
+    // optimistic update gets clobbered by an earlier batch's failure
+    // handler, and keeps the drag path and the ↑/↓ buttons on one path.
+    if (reordering) return
+    setReordering(true)
+    setLocalStatuses(newOrder)
+    try {
+      await Promise.all(
+        newOrder.map((s, idx) => statusesApi.update(projectId, s.id, { order: idx }))
       )
-    )
-    dragId.current = null
-    dragOverId.current = null
-    refresh()
+    } catch (e: unknown) {
+      if (!isDemoBlockedError(e)) {
+        addToast(t('errors.save_failed'), 'error')
+        // A partial failure may have already committed some of the PATCHes
+        // server-side, so a client-invented "previous order" would be a
+        // lie. Re-sync from the server instead of rolling back locally.
+        await refresh()
+      }
+    } finally {
+      setReordering(false)
+    }
   }
 
-  if (loading) return <div className="text-[13px] text-stone-400">Loading…</div>
+  const moveStatus = (index: number, direction: -1 | 1) => {
+    const newIndex = index + direction
+    if (newIndex < 0 || newIndex >= localStatuses.length) return
+    reorder(arrayMove(localStatuses, index, newIndex))
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = localStatuses.findIndex((s) => s.id === active.id)
+    const newIndex = localStatuses.findIndex((s) => s.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+    reorder(arrayMove(localStatuses, oldIndex, newIndex))
+  }
+
+  if (loading) return <div className="text-ui-md text-stone-400">Loading…</div>
 
   return (
     <div className="space-y-2">
-      <h3 className="text-[13px] font-medium">{t('project_statuses.title')}</h3>
+      <h3 className="text-ui-md font-medium">{t('project_statuses.title')}</h3>
       <div className="space-y-1.5">
-        {statuses.map((s) => (
-          <StatusRow
-            key={s.id}
-            status={s}
-            projectId={projectId}
-            isManager={isManager}
-            onUpdated={refresh}
-            onDeleted={refresh}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-          />
-        ))}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={localStatuses.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+            {localStatuses.map((s, idx) => (
+              <StatusRow
+                key={s.id}
+                status={s}
+                projectId={projectId}
+                isManager={isManager}
+                onUpdated={refresh}
+                onDeleted={refresh}
+                isFirst={idx === 0}
+                isLast={idx === localStatuses.length - 1}
+                reordering={reordering}
+                onMoveUp={() => moveStatus(idx, -1)}
+                onMoveDown={() => moveStatus(idx, 1)}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
         {showAdd && (
           <AddStatusRow
             projectId={projectId}
@@ -297,7 +361,7 @@ export function ProjectStatusManager({ projectId, isManager }: Props) {
       {isManager && !showAdd && (
         <button
           onClick={() => setShowAdd(true)}
-          className="mt-2 text-[12.5px] text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 flex items-center gap-1"
+          className="mt-2 text-ui-md text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 flex items-center gap-1"
         >
           + {t('project_statuses.add')}
         </button>

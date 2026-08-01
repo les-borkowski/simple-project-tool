@@ -9,6 +9,8 @@ import { PriorityBars } from '../components/common/PriorityBars'
 import { LoadMoreButton } from '../components/common/LoadMoreButton'
 import { EmptyState } from '../components/common/EmptyState'
 import { ConfirmDialog } from '../components/common/ConfirmDialog'
+import { Modal } from '../components/common/Modal'
+import { PageHeader } from '../components/layout/PageHeader'
 import { projectsApi } from '../services/api'
 import { MarkdownEditor } from '../components/common/MarkdownEditor'
 import { SkeletonCard } from '../components/common/Skeleton'
@@ -126,21 +128,20 @@ export function ProjectsPage() {
 
   return (
     <div className="flex-1 flex flex-col">
-      {/* Page header */}
-      <div className="px-7 pt-6 pb-4 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
-        <div className="flex items-end justify-between">
-          <div>
-            <h1 className="text-[22px] font-semibold tracking-tight">{t('projects.title')}</h1>
-            {initialized && (
-              <p className="text-[13px] text-stone-500 mt-0.5">{items.length} {archived ? t('projects.archived_label') : t('projects.active')}</p>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
+      <PageHeader
+        title={t('projects.title')}
+        subtitle={
+          initialized
+            ? `${items.length} ${archived ? t('projects.archived_label') : t('projects.active')}`
+            : undefined
+        }
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as Status | '')}
-                className="text-[12px] px-2.5 py-1.5 rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-300"
+                className="text-ui-sm px-2.5 py-1.5 rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-300"
               >
                 <option value="">{t('filter.status')}: {t('filter.all')}</option>
                 {statuses.map((s) => (
@@ -150,14 +151,14 @@ export function ProjectsPage() {
               <select
                 value={priorityFilter}
                 onChange={(e) => setPriorityFilter(e.target.value as Priority | '')}
-                className="text-[12px] px-2.5 py-1.5 rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-300"
+                className="text-ui-sm px-2.5 py-1.5 rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-300"
               >
                 <option value="">{t('filter.priority')}: {t('filter.all')}</option>
                 {priorities.map((p) => (
                   <option key={p} value={p}>{t(`priority.${p}`)}</option>
                 ))}
               </select>
-              <label className="flex items-center gap-1.5 text-[12px] text-stone-600 dark:text-stone-300 px-2.5 py-1.5 rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 cursor-pointer">
+              <label className="flex items-center gap-1.5 text-ui-sm text-stone-600 dark:text-stone-300 px-2.5 py-1.5 rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={archived}
@@ -171,20 +172,20 @@ export function ProjectsPage() {
                 placeholder={t('filter.search')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="text-[12px] px-2.5 py-1.5 rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-300 min-w-[160px] focus-ring"
+                className="text-ui-sm px-2.5 py-1.5 rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-300 min-w-[160px] focus-ring"
               />
             </div>
             {isManager && (
               <button
                 onClick={() => setShowCreate(true)}
-                className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5"
+                className="px-2.5 py-1.5 text-ui-sm rounded-md accent-bg inline-flex items-center gap-1.5 tap-safe"
               >
                 <IPlus /> {t('projects.create')}
               </button>
             )}
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Grid */}
       <div className="px-7 py-5 flex-1">
@@ -211,20 +212,20 @@ export function ProjectsPage() {
                   />
                   <StatusPill status={project.status} />
                   {project.archived_at && (
-                    <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-stone-100 dark:bg-stone-800 text-stone-500">{t('board.archived')}</span>
+                    <span className="inline-flex px-2 py-0.5 rounded-full text-ui-2xs font-medium bg-stone-100 dark:bg-stone-800 text-stone-500">{t('board.archived')}</span>
                   )}
                   <span className="flex-1" />
                   {isManager && (
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100">
+                    <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
                       <button
                         onClick={() => setEditProject({ id: project.id, name: project.name, description: project.description ?? '' })}
-                        className="text-[11px] text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
+                        className="text-ui-xs text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 tap-safe"
                       >
                         {t('actions.edit')}
                       </button>
                       <button
                         onClick={() => setDeleteId(project.id)}
-                        className="text-[11px] text-rose-400 hover:text-rose-600"
+                        className="text-ui-xs text-rose-400 hover:text-rose-600 tap-safe"
                       >
                         {t('actions.delete')}
                       </button>
@@ -232,15 +233,15 @@ export function ProjectsPage() {
                   )}
                 </div>
                 <Link to={`/projects/${project.id}`} className="block">
-                  <div className="text-[15px] font-semibold tracking-tight hover:accent-text transition-colors">{project.name}</div>
+                  <div className="text-ui-xl font-semibold tracking-tight hover:accent-text transition-colors">{project.name}</div>
                   {project.description && (
-                    <p className="text-[12.5px] text-stone-500 dark:text-stone-400 mt-0.5 line-clamp-2">{project.description}</p>
+                    <p className="text-ui-md text-stone-500 dark:text-stone-400 mt-0.5 line-clamp-2">{project.description}</p>
                   )}
                 </Link>
                 <MiniProgress status={project.status} />
                 <div className="mt-3 flex items-center justify-between">
                   <PriorityBars priority={project.priority} withLabel />
-                  <div className="flex items-center gap-3 text-[11px] text-stone-400">
+                  <div className="flex items-center gap-3 text-ui-xs text-stone-400">
                     <span>{formatRelative(project.created_at)}</span>
                   </div>
                 </div>
@@ -253,86 +254,92 @@ export function ProjectsPage() {
       </div>
 
       {/* Create modal */}
-      {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 max-w-md w-full mx-4">
-            <h3 className="text-[15px] font-semibold mb-4">{t('projects.create')}</h3>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1">{t('projects.name')}</label>
-                <input
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1">{t('projects.description')}</label>
-                <MarkdownEditor value={newDesc} onChange={setNewDesc} rows={3} autoExpand />
-              </div>
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowCreate(false)}
-                  className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
-                >
-                  {t('actions.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating}
-                  className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md disabled:opacity-50"
-                >
-                  {t('actions.create')}
-                </button>
-              </div>
-            </form>
+      <Modal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        title={t('projects.create')}
+        onSubmit={handleCreate}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowCreate(false)}
+              className="px-3 py-1.5 text-ui-md border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 tap-safe"
+            >
+              {t('actions.cancel')}
+            </button>
+            <button
+              type="submit"
+              disabled={creating}
+              className="px-3 py-1.5 text-ui-md accent-bg rounded-md disabled:opacity-50 tap-safe"
+            >
+              {t('actions.create')}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium mb-1">{t('projects.name')}</label>
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              required
+              className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md focus-ring"
+            />
+          </div>
+          <div>
+            <label className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium mb-1">{t('projects.description')}</label>
+            <MarkdownEditor value={newDesc} onChange={setNewDesc} rows={3} autoExpand />
           </div>
         </div>
-      )}
+      </Modal>
 
       {/* Edit modal */}
-      {editProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 max-w-md w-full mx-4">
-            <h3 className="text-[15px] font-semibold mb-4">{t('actions.edit')}</h3>
-            <form onSubmit={handleEditSave} className="space-y-4">
-              <div>
-                <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1">{t('projects.name')}</label>
-                <input
-                  type="text"
-                  value={editProject.name}
-                  onChange={(e) => setEditProject({ ...editProject, name: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1">{t('projects.description')}</label>
-                <MarkdownEditor value={editProject.description} onChange={(v) => setEditProject({ ...editProject, description: v })} rows={3} autoExpand />
-              </div>
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setEditProject(null)}
-                  className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
-                >
-                  {t('actions.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md disabled:opacity-50"
-                >
-                  {t('actions.save')}
-                </button>
-              </div>
-            </form>
+      <Modal
+        open={editProject !== null}
+        onClose={() => setEditProject(null)}
+        title={t('actions.edit')}
+        onSubmit={handleEditSave}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setEditProject(null)}
+              className="px-3 py-1.5 text-ui-md border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 tap-safe"
+            >
+              {t('actions.cancel')}
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-3 py-1.5 text-ui-md accent-bg rounded-md disabled:opacity-50 tap-safe"
+            >
+              {t('actions.save')}
+            </button>
           </div>
-        </div>
-      )}
+        }
+      >
+        {editProject && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium mb-1">{t('projects.name')}</label>
+              <input
+                type="text"
+                value={editProject.name}
+                onChange={(e) => setEditProject({ ...editProject, name: e.target.value })}
+                required
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md focus-ring"
+              />
+            </div>
+            <div>
+              <label className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium mb-1">{t('projects.description')}</label>
+              <MarkdownEditor value={editProject.description} onChange={(v) => setEditProject({ ...editProject, description: v })} rows={3} autoExpand />
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Delete confirm */}
       {deleteId && (

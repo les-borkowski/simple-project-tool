@@ -17,6 +17,10 @@ import { ConfirmDialog } from '../components/common/ConfirmDialog'
 import { MarkdownEditor } from '../components/common/MarkdownEditor'
 import { SkeletonCard } from '../components/common/Skeleton'
 import { DetailField } from '../components/common/DetailField'
+import { DetailRail } from '../components/common/DetailRail'
+import { Modal } from '../components/common/Modal'
+import { Breadcrumbs } from '../components/common/Breadcrumbs'
+import { PageHeader } from '../components/layout/PageHeader'
 import { useToast } from '../context/ToastContext'
 import { formatRelative } from '../utils/time'
 import { applySortField } from '../utils/sort'
@@ -149,9 +153,31 @@ export function StoryDetailPage() {
 
   const priorities: Priority[] = ['low', 'medium', 'high']
 
+  // Handed to both branches so the loading header reserves the same boxes the
+  // loaded one fills.
+  const breadcrumbs = (
+    <Breadcrumbs
+      items={[
+        { label: t('projects.title'), to: '/projects' },
+        { label: projectName || '…', to: `/projects/${projectId}?tab=stories` },
+        { label: story?.title ?? '' },
+      ]}
+    />
+  )
+  const createTaskAction = (
+    <button
+      onClick={() => setShowCreateTask(true)}
+      className="px-2.5 py-1.5 text-ui-sm rounded-md accent-bg inline-flex items-center gap-1.5 shrink-0"
+    >
+      <IPlus /> {t('tasks.create')}
+    </button>
+  )
+
   if (loading) return (
     <div className="flex-1 flex flex-col">
-      <div className="px-7 pt-6 pb-4">
+      <PageHeader loading title={story?.title ?? ''} breadcrumbs={breadcrumbs} actions={createTaskAction} />
+      {/* The skeletons stand in for the main column, so they take its padding. */}
+      <div className="px-7 py-5">
         <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}</div>
       </div>
     </div>
@@ -165,86 +191,116 @@ export function StoryDetailPage() {
 
   return (
     <div className="flex-1 flex flex-col">
-      {/* Header */}
-      <div className="px-7 pt-5 pb-4 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
-        <div className="flex items-center gap-2 text-[11.5px] text-stone-500 mb-2">
-          <Link to="/projects" className="hover:text-stone-800 dark:hover:text-stone-200">{t('projects.title')}</Link>
-          <span>/</span>
-          <Link to={`/projects/${projectId}?tab=stories`} className="hover:text-stone-800 dark:hover:text-stone-200">{projectName || '…'}</Link>
-          <span>/</span>
-          <span>{story.title}</span>
-        </div>
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-[22px] font-semibold tracking-tight">{story.title}</h1>
-            <div className="flex items-center gap-3 mt-3">
-              {story.is_default ? (
-                <StatusPill status={story.status} statuses={projectStatuses} />
-              ) : editingStatus ? (
-                <select
-                  autoFocus
-                  defaultValue={story.status}
-                  onChange={(e) => handleStatusChange(e.target.value as Status)}
-                  onBlur={() => setEditingStatus(false)}
-                  className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
-                >
-                  {projectStatuses.map((ps) => (
-                    <option key={ps.slug} value={ps.slug}>{ps.name}</option>
-                  ))}
-                </select>
-              ) : (
-                <button onClick={() => setEditingStatus(true)}><StatusPill status={story.status} statuses={projectStatuses} /></button>
-              )}
-              {story.is_default ? (
+      <PageHeader
+        title={story.title}
+        breadcrumbs={breadcrumbs}
+        actions={createTaskAction}
+        subtitle={
+          // A <span> rather than a <div>: PageHeader renders the subtitle inside
+          // a <p>. Padding rather than margin for the 12px this meta row has
+          // always sat at — the <p> has no border or padding of its own, so a
+          // top margin here would adjoin its `mt-0.5` and collapse to 10px.
+          <span className="flex items-center gap-3 pt-2.5">
+            {story.is_default ? (
+              <StatusPill status={story.status} statuses={projectStatuses} />
+            ) : editingStatus ? (
+              <select
+                autoFocus
+                defaultValue={story.status}
+                onChange={(e) => handleStatusChange(e.target.value as Status)}
+                onBlur={() => setEditingStatus(false)}
+                className="text-ui-sm px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
+              >
+                {projectStatuses.map((ps) => (
+                  <option key={ps.slug} value={ps.slug}>{ps.name}</option>
+                ))}
+              </select>
+            ) : (
+              <button onClick={() => setEditingStatus(true)}><StatusPill status={story.status} statuses={projectStatuses} /></button>
+            )}
+            {story.is_default ? (
+              <PriorityBars priority={story.priority} withLabel />
+            ) : editingPriority ? (
+              <select
+                autoFocus
+                defaultValue={story.priority}
+                onChange={(e) => handlePriorityChange(e.target.value as Priority)}
+                onBlur={() => setEditingPriority(false)}
+                className="text-ui-sm px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
+              >
+                {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
+              </select>
+            ) : (
+              <button onClick={() => setEditingPriority(true)}>
                 <PriorityBars priority={story.priority} withLabel />
-              ) : editingPriority ? (
-                <select
-                  autoFocus
-                  defaultValue={story.priority}
-                  onChange={(e) => handlePriorityChange(e.target.value as Priority)}
-                  onBlur={() => setEditingPriority(false)}
-                  className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
-                >
-                  {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
-                </select>
-              ) : (
-                <button onClick={() => setEditingPriority(true)}>
-                  <PriorityBars priority={story.priority} withLabel />
-                </button>
-              )}
-              <span className="text-[11.5px] text-stone-400">{formatRelative(story.created_at)}</span>
-            </div>
-          </div>
-          <button
-            onClick={() => setShowCreateTask(true)}
-            className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5 shrink-0"
-          >
-            <IPlus /> {t('tasks.create')}
-          </button>
-        </div>
-      </div>
+              </button>
+            )}
+            <span className="text-ui-sm text-stone-400">{formatRelative(story.created_at)}</span>
+          </span>
+        }
+      />
 
-      {/* Two-column layout */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_280px] min-h-0">
+      {/* Two-column layout: the rail comes first in the DOM so the phone reader
+          meets it before the description, the task list and every comment, and
+          the page scrolls as one document rather than nesting a scroller. The
+          rail takes itself back to the right-hand track at lg, so the main
+          column needs no order class of its own. */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_300px] min-h-0">
+        {/* Right rail */}
+        <DetailRail
+          label={t('detail.details')}
+          secondary={{
+            label: t('history.title'),
+            children: <StatusHistoryTimeline itemType="story" itemId={storyId!} statuses={projectStatuses} />,
+          }}
+        >
+          <DetailField label={t('detail.status')}>
+            <select
+              aria-label={t('detail.status')}
+              value={story.status}
+              onChange={(e) => handleStatusChange(e.target.value as Status)}
+              disabled={story.is_default}
+              className="text-ui-sm px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {projectStatuses.map((ps) => (
+                <option key={ps.slug} value={ps.slug}>{ps.name}</option>
+              ))}
+            </select>
+          </DetailField>
+          <DetailField label={t('detail.priority')}>
+            <select
+              aria-label={t('detail.priority')}
+              value={story.priority}
+              onChange={(e) => handlePriorityChange(e.target.value as Priority)}
+              disabled={story.is_default}
+              className="text-ui-sm px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
+            </select>
+          </DetailField>
+          <DetailField label={t('detail.project')}><span className="text-stone-700 dark:text-stone-200">{projectName}</span></DetailField>
+          <DetailField label={t('detail.created')}><span className="text-stone-500">{formatRelative(story.created_at)}</span></DetailField>
+        </DetailRail>
+
         {/* Main column */}
-        <div className="px-7 py-5 space-y-8 overflow-y-auto">
+        <div className="px-7 py-5 space-y-8 overflow-visible lg:overflow-y-auto">
           {/* Description */}
           <section>
-            <h2 className="text-[13px] font-medium text-stone-700 dark:text-stone-200 mb-2">{t('detail.description')}</h2>
+            <h2 className="text-ui-md font-medium text-stone-700 dark:text-stone-200 mb-2">{t('detail.description')}</h2>
             <div className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-4">
               {editingDesc ? (
                 <div className="space-y-2">
-                  <MarkdownEditor value={desc} onChange={setDesc} rows={10} autoExpand maxHeight="calc(100vh - 240px)" />
+                  <MarkdownEditor value={desc} onChange={setDesc} rows={10} autoExpand maxHeight="calc(100dvh - 240px)" />
                   <div className="flex gap-2">
-                    <button onClick={handleSaveDesc} className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md">{t('actions.save')}</button>
-                    <button onClick={() => { setEditingDesc(false); setDesc(story.description ?? '') }} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300">{t('actions.cancel')}</button>
+                    <button onClick={handleSaveDesc} className="px-3 py-1.5 text-ui-md accent-bg rounded-md">{t('actions.save')}</button>
+                    <button onClick={() => { setEditingDesc(false); setDesc(story.description ?? '') }} className="px-3 py-1.5 text-ui-md border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300">{t('actions.cancel')}</button>
                   </div>
                 </div>
               ) : (
                 <button onClick={() => setEditingDesc(true)} className="w-full text-left">
                   {story.description
-                    ? <div className="prose prose-sm dark:prose-invert max-w-none text-[13.5px] leading-relaxed"><ReactMarkdown remarkPlugins={[remarkGfm]}>{story.description}</ReactMarkdown></div>
-                    : <p className="text-[13px] text-stone-400 italic">{t('detail.add_description')}</p>}
+                    ? <div className="prose prose-sm dark:prose-invert max-w-none text-ui-lg leading-relaxed"><ReactMarkdown remarkPlugins={[remarkGfm]}>{story.description}</ReactMarkdown></div>
+                    : <p className="text-ui-md text-stone-400 italic">{t('detail.add_description')}</p>}
                 </button>
               )}
             </div>
@@ -253,14 +309,14 @@ export function StoryDetailPage() {
           {/* Tasks */}
           <section>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[13px] font-medium text-stone-700 dark:text-stone-200">
+              <h2 className="text-ui-md font-medium text-stone-700 dark:text-stone-200">
                 {t('tasks.title')} <span className="text-stone-400 font-normal ml-1">{tasksHook.items.length}</span>
               </h2>
               <div className="flex items-center gap-2">
                 <select
                   value={sortField}
                   onChange={(e) => setSortField(e.target.value as SortField)}
-                  className="text-[11px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
+                  className="text-ui-xs px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
                 >
                   <option value="created_at">{t('sort.created')}</option>
                   <option value="status">{t('sort.status')}</option>
@@ -269,7 +325,7 @@ export function StoryDetailPage() {
                 </select>
                 <button
                   onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
-                  className="text-[11px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
+                  className="text-ui-xs px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
                 >
                   {sortDir === 'asc' ? '↑' : '↓'}
                 </button>
@@ -288,7 +344,7 @@ export function StoryDetailPage() {
                     <div className="flex-1 min-w-0">
                       <Link
                         to={`/stories/${storyId}/tasks/${task.id}`}
-                        className="text-[13px] font-medium hover:accent-text"
+                        className="text-ui-md font-medium hover:accent-text"
                       >
                         {task.title}
                       </Link>
@@ -300,7 +356,7 @@ export function StoryDetailPage() {
                           defaultValue={task.priority}
                           onChange={(e) => handleTaskFieldChange(task.id, 'priority', e.target.value)}
                           onBlur={() => setEditingTaskField(null)}
-                          className="text-[11px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
+                          className="text-ui-xs px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
                         >
                           {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
                         </select>
@@ -315,7 +371,7 @@ export function StoryDetailPage() {
                           defaultValue={task.status}
                           onChange={(e) => handleTaskFieldChange(task.id, 'status', e.target.value)}
                           onBlur={() => setEditingTaskField(null)}
-                          className="text-[11px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
+                          className="text-ui-xs px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
                         >
                           {projectStatuses.map((ps) => (
                             <option key={ps.slug} value={ps.slug}>{ps.name}</option>
@@ -330,19 +386,19 @@ export function StoryDetailPage() {
                         const m = members.find(m => m.user_id === task.assignee_id)
                         if (!m) return null
                         return (
-                          <span title={m.name} className="inline-flex items-center justify-center w-5 h-5 rounded-full av-2 text-white text-[9px] font-semibold">{initials(m.name)}</span>
+                          <span title={m.name} className="inline-flex items-center justify-center w-5 h-5 rounded-full av-2 text-white text-ui-2xs font-semibold">{initials(m.name)}</span>
                         )
                       })()}
-                      <span className="text-[11px] text-stone-400 w-10 text-right">{formatRelative(task.created_at)}</span>
+                      <span className="text-ui-xs text-stone-400 w-10 text-right">{formatRelative(task.created_at)}</span>
                       {isManager && (
                         <div className="flex gap-2">
                           <button
                             onClick={() => setEditTask({ id: task.id, title: task.title, description: task.description ?? '' })}
-                            className="text-[11px] text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
+                            className="text-ui-xs text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
                           >
                             {t('actions.edit')}
                           </button>
-                          <button onClick={() => setDeleteTaskId(task.id)} className="text-[11px] text-rose-400 hover:text-rose-600">
+                          <button onClick={() => setDeleteTaskId(task.id)} className="text-ui-xs text-rose-400 hover:text-rose-600">
                             {t('actions.delete')}
                           </button>
                         </div>
@@ -357,42 +413,10 @@ export function StoryDetailPage() {
 
           {/* Comments */}
           <section>
-            <h2 className="text-[13px] font-medium text-stone-700 dark:text-stone-200 mb-3">{t('comments.title')}</h2>
+            <h2 className="text-ui-md font-medium text-stone-700 dark:text-stone-200 mb-3">{t('comments.title')}</h2>
             <CommentList itemType="story" itemId={storyId!} />
           </section>
         </div>
-
-        {/* Right rail */}
-        <aside className="border-l border-stone-200 dark:border-stone-800 bg-stone-50/40 dark:bg-stone-950/30 px-5 py-5 space-y-5 text-[12.5px]">
-          <DetailField label={t('detail.status')}>
-            <select
-              value={story.status}
-              onChange={(e) => handleStatusChange(e.target.value as Status)}
-              disabled={story.is_default}
-              className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {projectStatuses.map((ps) => (
-                <option key={ps.slug} value={ps.slug}>{ps.name}</option>
-              ))}
-            </select>
-          </DetailField>
-          <DetailField label={t('detail.priority')}>
-            <select
-              value={story.priority}
-              onChange={(e) => handlePriorityChange(e.target.value as Priority)}
-              disabled={story.is_default}
-              className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
-            </select>
-          </DetailField>
-          <DetailField label={t('detail.project')}><span className="text-stone-700 dark:text-stone-200">{projectName}</span></DetailField>
-          <DetailField label={t('detail.created')}><span className="text-stone-500">{formatRelative(story.created_at)}</span></DetailField>
-          <div>
-            <div className="text-[10.5px] uppercase tracking-wider text-stone-400 mb-2 font-medium">{t('history.title')}</div>
-            <StatusHistoryTimeline itemType="story" itemId={storyId!} statuses={projectStatuses} />
-          </div>
-        </aside>
       </div>
 
       {/* Modals */}
@@ -408,31 +432,35 @@ export function StoryDetailPage() {
         />
       )}
 
-      {editTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 max-w-md w-full mx-4">
-            <h3 className="text-[15px] font-semibold mb-4">{t('actions.edit')}</h3>
-            <form onSubmit={handleSaveTask} className="space-y-4">
-              <input
-                type="text"
-                value={editTask.title}
-                onChange={(e) => setEditTask({ ...editTask, title: e.target.value })}
-                required
-                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
-              />
-              <MarkdownEditor value={editTask.description} onChange={(v) => setEditTask({ ...editTask, description: v })} rows={3} autoExpand />
-              <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setEditTask(null)} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
-                  {t('actions.cancel')}
-                </button>
-                <button type="submit" disabled={savingTask} className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md disabled:opacity-50">
-                  {t('actions.save')}
-                </button>
-              </div>
-            </form>
+      <Modal
+        open={editTask !== null}
+        onClose={() => setEditTask(null)}
+        title={t('actions.edit')}
+        onSubmit={handleSaveTask}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setEditTask(null)} className="px-3 py-1.5 text-ui-md border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 tap-safe">
+              {t('actions.cancel')}
+            </button>
+            <button type="submit" disabled={savingTask} className="px-3 py-1.5 text-ui-md accent-bg rounded-md disabled:opacity-50 tap-safe">
+              {t('actions.save')}
+            </button>
           </div>
-        </div>
-      )}
+        }
+      >
+        {editTask && (
+          <div className="space-y-4">
+            <input
+              type="text"
+              value={editTask.title}
+              onChange={(e) => setEditTask({ ...editTask, title: e.target.value })}
+              required
+              className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md focus-ring"
+            />
+            <MarkdownEditor value={editTask.description} onChange={(v) => setEditTask({ ...editTask, description: v })} rows={3} autoExpand />
+          </div>
+        )}
+      </Modal>
 
       {deleteTaskId && (
         <ConfirmDialog

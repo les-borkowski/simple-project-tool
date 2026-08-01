@@ -3,8 +3,11 @@
   "nav.invitations": "Invitations",
   "nav.settings": "Settings",
   "nav.recent_work": "Recent work",
+  "nav.menu": "Menu",
+  "nav.open_menu": "Open menu",
   "nav.all_projects": "All projects",
   "nav.logout": "Log out",
+  "nav.show_all_crumbs": "Show the full path",
 
   "projects.title": "Projects",
   "projects.create": "New project",
@@ -128,6 +131,7 @@
   "actions.confirm": "Are you sure?",
   "actions.load_more": "Load more",
   "actions.create": "Create",
+  "actions.more": "More actions",
 
   "auth.login": "Log in",
   "auth.register": "Register",
@@ -152,6 +156,7 @@
   "time.hours": "{{count}}h",
   "time.days": "{{count}}d",
 
+  "tabs.project_sections": "Project sections",
   "tabs.stories": "Stories",
   "tabs.members": "Members",
   "tabs.board": "Board",
@@ -181,6 +186,7 @@
   "detail.story": "Story",
   "detail.sprint": "Sprint",
   "detail.effort": "Effort",
+  "detail.details": "Details",
   "detail.description": "Description",
   "detail.assigned_to": "Assigned to {{name}}",
   "detail.add_description": "Add description…",
@@ -242,6 +248,8 @@
 
   "config.app_settings": "App Settings",
   "config.project_settings": "Project Settings",
+  "config.settings_scope": "Settings scope",
+  "config.settings_sections": "Settings sections",
   "config.select_project": "Select a project",
 
   "project_statuses.title": "Statuses",
@@ -252,6 +260,8 @@
   "project_statuses.save": "Save",
   "project_statuses.cancel": "Cancel",
   "project_statuses.unlisted": "Unlisted statuses",
+  "project_statuses.move_up": "Move up",
+  "project_statuses.move_down": "Move down",
 
   "sprints.title": "Sprints",
   "sprints.create": "New sprint",

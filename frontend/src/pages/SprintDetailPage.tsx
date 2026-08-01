@@ -9,10 +9,14 @@ import { StatusPill } from '../components/common/StatusPill'
 import { PriorityBars } from '../components/common/PriorityBars'
 import { SkeletonCard } from '../components/common/Skeleton'
 import { DetailField } from '../components/common/DetailField'
+import { DetailRail } from '../components/common/DetailRail'
+import { Breadcrumbs } from '../components/common/Breadcrumbs'
+import type { Crumb } from '../components/common/Breadcrumbs'
+import { PageHeader } from '../components/layout/PageHeader'
 import { useToast } from '../context/ToastContext'
 import { formatRelative } from '../utils/time'
 
-const inputCls = 'text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full'
+const inputCls = 'text-ui-sm px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full'
 
 export function SprintDetailPage() {
   const { projectId, sprintId } = useParams<{ projectId: string; sprintId: string }>()
@@ -90,15 +94,22 @@ export function SprintDetailPage() {
     await patch({ capacity: parsed }, t('sprints.capacity_updated'))
   }
 
+  const crumbs: Crumb[] = [
+    { label: t('projects.title'), to: '/projects' },
+    { label: projectName || '…', to: `/projects/${projectId}?tab=sprints` },
+    { label: sprint?.name ?? '' },
+  ]
+
   if (loading) return (
     <div className="flex-1 flex flex-col">
-      <div className="px-7 pt-6 pb-4">
+      <PageHeader loading title={sprint?.name ?? ''} breadcrumbs={<Breadcrumbs items={crumbs} />} subtitle={<span />} />
+      <div className="px-7 py-5">
         <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}</div>
       </div>
     </div>
   )
   if (error) return (
-    <div className="flex-1 flex items-center justify-center text-[13px] text-stone-500">
+    <div className="flex-1 flex items-center justify-center text-ui-md text-stone-500">
       {t('errors.generic')}
     </div>
   )
@@ -106,17 +117,11 @@ export function SprintDetailPage() {
 
   return (
     <div className="flex-1 flex flex-col">
-      {/* Header */}
-      <div className="px-7 pt-5 pb-4 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
-        <div className="flex items-center gap-2 text-[11.5px] text-stone-500 mb-2">
-          <Link to="/projects" className="hover:text-stone-800 dark:hover:text-stone-200">{t('projects.title')}</Link>
-          <span>/</span>
-          <Link to={`/projects/${projectId}?tab=sprints`} className="hover:text-stone-800 dark:hover:text-stone-200">{projectName || '…'}</Link>
-          <span>/</span>
-          <span>{sprint.name}</span>
-        </div>
-        <div className="flex items-start gap-4">
-          {editingName && isManager ? (
+      <PageHeader
+        title={sprint.name}
+        onTitleClick={isManager ? () => { setNameDraft(sprint.name); setEditingName(true) } : undefined}
+        titleEditor={
+          editingName && isManager ? (
             <input
               autoFocus
               value={nameDraft}
@@ -126,55 +131,21 @@ export function SprintDetailPage() {
                 if (e.key === 'Enter') handleSaveName()
                 if (e.key === 'Escape') { setNameDraft(sprint.name); setEditingName(false) }
               }}
-              className="text-[22px] font-semibold tracking-tight leading-tight w-full bg-transparent border-b border-stone-300 dark:border-stone-600 outline-none py-0.5"
+              className="text-ui-3xl font-semibold tracking-tight w-full bg-transparent border-b border-stone-300 dark:border-stone-600 outline-none py-0.5"
             />
-          ) : (
-            <h1
-              className={`text-[22px] font-semibold tracking-tight leading-tight ${isManager ? 'cursor-text hover:text-stone-600 dark:hover:text-stone-300' : ''}`}
-              onClick={isManager ? () => { setNameDraft(sprint.name); setEditingName(true) } : undefined}
-              title={isManager ? 'Click to edit' : undefined}
-            >{sprint.name}</h1>
-          )}
-        </div>
-        <p className="text-[11.5px] text-stone-400 mt-1">{sprint.start_date} – {sprint.end_date}</p>
-      </div>
+          ) : undefined
+        }
+        breadcrumbs={<Breadcrumbs items={crumbs} />}
+        subtitle={`${sprint.start_date} – ${sprint.end_date}`}
+      />
 
-      {/* Two-column layout */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_280px] min-h-0">
-        {/* Main column — task list */}
-        <div className="px-7 py-5 space-y-6 overflow-y-auto">
-          <section>
-            <h2 className="text-[13px] font-medium text-stone-700 dark:text-stone-200 mb-3">
-              {t('tasks.title')} <span className="text-stone-400 font-normal ml-1">{tasks.length}</span>
-            </h2>
-            {tasks.length === 0 ? (
-              <p className="text-[13px] text-stone-400 italic">{t('tasks.empty')}</p>
-            ) : (
-              <div className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 divide-y divide-stone-100 dark:divide-stone-800/80">
-                {tasks.map((task) => {
-                  const href = task.story_id
-                    ? `/stories/${task.story_id}/tasks/${task.id}`
-                    : `/projects/${projectId}/tasks/${task.id}`
-                  return (
-                    <div key={task.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-stone-50/80 dark:hover:bg-stone-800/50">
-                      <div className="flex-1 min-w-0">
-                        <Link to={href} className="text-[13px] font-medium hover:accent-text">{task.title}</Link>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <PriorityBars priority={task.priority} />
-                        <StatusPill status={task.status} statuses={projectStatuses} />
-                        <span className="text-[11px] text-stone-400 w-10 text-right">{formatRelative(task.created_at)}</span>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </section>
-        </div>
-
+      {/* Two-column layout: the rail comes first in the DOM so the phone reader
+          meets it before the task list, and the page scrolls as one document
+          rather than nesting a scroller. The rail takes itself back to the
+          right-hand track at lg. */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_300px] min-h-0">
         {/* Right rail */}
-        <aside className="border-l border-stone-200 dark:border-stone-800 bg-stone-50/40 dark:bg-stone-950/30 px-5 py-5 space-y-5 text-[12.5px]">
+        <DetailRail label={t('detail.details')}>
           <DetailField label={t('sprints.start_date')}>
             {isManager ? (
               <input
@@ -237,7 +208,39 @@ export function SprintDetailPage() {
           <DetailField label={t('detail.created')}>
             <span className="text-stone-500">{formatRelative(sprint.created_at)}</span>
           </DetailField>
-        </aside>
+        </DetailRail>
+
+        {/* Main column — task list */}
+        <div className="px-7 py-5 space-y-6 overflow-visible lg:overflow-y-auto">
+          <section>
+            <h2 className="text-ui-md font-medium text-stone-700 dark:text-stone-200 mb-3">
+              {t('tasks.title')} <span className="text-stone-400 font-normal ml-1">{tasks.length}</span>
+            </h2>
+            {tasks.length === 0 ? (
+              <p className="text-ui-md text-stone-400 italic">{t('tasks.empty')}</p>
+            ) : (
+              <div className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 divide-y divide-stone-100 dark:divide-stone-800/80">
+                {tasks.map((task) => {
+                  const href = task.story_id
+                    ? `/stories/${task.story_id}/tasks/${task.id}`
+                    : `/projects/${projectId}/tasks/${task.id}`
+                  return (
+                    <div key={task.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-stone-50/80 dark:hover:bg-stone-800/50">
+                      <div className="flex-1 min-w-0">
+                        <Link to={href} className="text-ui-md font-medium hover:accent-text">{task.title}</Link>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <PriorityBars priority={task.priority} />
+                        <StatusPill status={task.status} statuses={projectStatuses} />
+                        <span className="text-ui-xs text-stone-400 w-10 text-right">{formatRelative(task.created_at)}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   )

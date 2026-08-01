@@ -29,6 +29,7 @@ interface AuthContextValue extends AuthState {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+export { AuthContext }
 
 function applyTheme(theme: string) {
   const root = document.documentElement

@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { timelineApi, sprintsApi } from '../services/api'
 import type { TimelineTask, Priority } from '../services/api'
 import { EmptyState } from '../components/common/EmptyState'
 import { useToast } from '../context/ToastContext'
+import { useMediaQuery } from '../hooks/useMediaQuery'
+import { useTimelineMetrics } from '../hooks/useTimelineMetrics'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 
 const PRIORITY_COLOURS: Record<Priority, string> = {
   low: '#6b7280',
@@ -12,8 +15,6 @@ const PRIORITY_COLOURS: Record<Priority, string> = {
 }
 
 const ROW_HEIGHT = 32   // px per stacked task sub-row
-const LEFT_COL = 220    // px for the left title column
-const DAY_WIDTH = 24    // px per day
 
 function parseDate(s: string): Date {
   return new Date(s + 'T00:00:00')
@@ -35,14 +36,14 @@ interface PlacedTask {
 }
 
 // Assign tasks to sub-rows to avoid overlap (calendar-style stacking)
-function assignRows(tasks: TimelineTask[], rangeStart: Date): PlacedTask[] {
+function assignRows(tasks: TimelineTask[], rangeStart: Date, dayWidth: number): PlacedTask[] {
   const placed: PlacedTask[] = []
   const rowEnds: number[] = []   // rightmost pixel used in each sub-row
 
   for (const task of tasks) {
-    const startPx = daysBetween(rangeStart, parseDate(task.bar_start)) * DAY_WIDTH
-    const endPx = daysBetween(rangeStart, parseDate(task.bar_end)) * DAY_WIDTH
-    const widthPx = Math.max(endPx - startPx, DAY_WIDTH)  // min 1 day wide
+    const startPx = daysBetween(rangeStart, parseDate(task.bar_start)) * dayWidth
+    const endPx = daysBetween(rangeStart, parseDate(task.bar_end)) * dayWidth
+    const widthPx = Math.max(endPx - startPx, dayWidth)  // min 1 day wide
 
     let row = rowEnds.findIndex((end) => end <= startPx)
     if (row === -1) row = rowEnds.length
@@ -79,9 +80,10 @@ function buildGroups(items: TimelineTask[], sprintNames: Map<string, string>, un
 
 interface TooltipProps {
   task: TimelineTask
+  id: string
 }
 
-function Tooltip({ task }: TooltipProps) {
+function Tooltip({ task, id }: TooltipProps) {
   const { t } = useTranslation()
   const sourceLabel: Record<string, string> = {
     deadline: t('timeline.source_deadline'),
@@ -89,7 +91,11 @@ function Tooltip({ task }: TooltipProps) {
     status_history: t('timeline.source_history'),
   }
   return (
-    <div className="absolute z-50 bottom-full mb-1 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 text-[11px] rounded-lg px-3 py-2 shadow-xl pointer-events-none whitespace-nowrap">
+    <div
+      id={id}
+      role="tooltip"
+      className="absolute z-50 bottom-full mb-1 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 text-ui-xs rounded-lg px-3 py-2 shadow-xl pointer-events-none whitespace-nowrap"
+    >
       <div className="font-medium mb-0.5">{task.title}</div>
       <div className="text-stone-300 dark:text-stone-600">{task.status} · {task.priority}</div>
       <div className="mt-0.5 opacity-70">{sourceLabel[task.source]}</div>
@@ -102,11 +108,44 @@ export function TimelineView({ projectId }: { projectId: string }) {
   const locale = i18n.language || navigator.language
   const { addToast } = useToast()
 
+  const { dayWidth, leftCol } = useTimelineMetrics()
+  const isFinePointer = useMediaQuery('(pointer: fine)')
+  const tooltipBaseId = useId()
+
   const [items, setItems] = useState<TimelineTask[]>([])
   const [truncated, setTruncated] = useState(false)
   const [sprintNames, setSprintNames] = useState<Map<string, string>>(new Map())
   const [loading, setLoading] = useState(true)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [openId, setOpenId] = useState<string | null>(null)
+  const openBarRef = useRef<HTMLButtonElement | null>(null)
+
+  // Clears both the tap-latched and hover-transient tooltip state. Shared by
+  // the outside-click and Escape handlers below so a click's synthetic
+  // pointer movement (which can leave hoveredId set) never leaves a tooltip
+  // visible after either close path fires.
+  const closeTooltip = useCallback(() => {
+    setOpenId(null)
+    setHoveredId(null)
+  }, [])
+
+  // Outside-click closes the tapped-open tooltip, same mechanism as Menu
+  // (src/components/common/Menu.tsx): a document-level mousedown listener
+  // that only closes when the click lands outside the currently open bar.
+  useEffect(() => {
+    if (openId === null) return
+    function handlePointerDown(e: MouseEvent) {
+      if (!(e.target instanceof Node)) return
+      if (openBarRef.current?.contains(e.target)) return
+      closeTooltip()
+    }
+    document.addEventListener('mousedown', handlePointerDown)
+    return () => document.removeEventListener('mousedown', handlePointerDown)
+  }, [openId, closeTooltip])
+
+  // Repo-wide topmost-only Escape stack (src/hooks/useEscapeKey.ts), rather
+  // than a private keydown listener that could fight other overlays.
+  useEscapeKey(openId !== null, closeTooltip)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -156,29 +195,29 @@ export function TimelineView({ projectId }: { projectId: string }) {
   const groups = useMemo(() => buildGroups(items, sprintNames, t('common.unassigned')), [items, sprintNames, t])
 
   if (loading) {
-    return <div className="p-6 text-[13px] text-stone-400">Loading…</div>
+    return <div className="p-6 text-ui-md text-stone-400">Loading…</div>
   }
   if (items.length === 0) {
     return <EmptyState message={t('timeline.empty')} />
   }
 
-  const canvasWidth = totalDays * DAY_WIDTH
+  const canvasWidth = totalDays * dayWidth
 
   return (
     <div className="p-6">
-      <h2 className="text-[15px] font-semibold mb-4">{t('timeline.title')}</h2>
+      <h2 className="text-ui-xl font-semibold mb-4">{t('timeline.title')}</h2>
       {truncated && (
-        <div className="mb-3 px-3 py-2 text-[12px] rounded-md bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800">
+        <div className="mb-3 px-3 py-2 text-ui-sm rounded-md bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800">
           {t('timeline.truncated_warning')}
         </div>
       )}
-      <div className="overflow-x-auto border border-stone-200 dark:border-stone-800 rounded-lg">
-        <div style={{ minWidth: LEFT_COL + canvasWidth }}>
+      <div className="overflow-x-auto scroll-fade-x-r border border-stone-200 dark:border-stone-800 rounded-lg">
+        <div style={{ minWidth: leftCol + canvasWidth }}>
           {/* Date axis */}
           <div className="flex border-b border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900">
             <div
-              style={{ width: LEFT_COL }}
-              className="shrink-0 px-3 py-2 text-[10px] font-medium text-stone-400 uppercase tracking-wider"
+              style={{ width: leftCol }}
+              className="sticky left-0 z-10 shrink-0 px-3 py-2 text-ui-2xs font-medium text-stone-400 uppercase tracking-wider bg-stone-50 dark:bg-stone-900"
             >
               Task
             </div>
@@ -186,8 +225,8 @@ export function TimelineView({ projectId }: { projectId: string }) {
               {axisTicks.map((tick, i) => (
                 <span
                   key={i}
-                  className="absolute top-1.5 text-[10px] text-stone-400"
-                  style={{ left: daysBetween(rangeStart, tick) * DAY_WIDTH }}
+                  className="absolute top-1.5 text-ui-2xs text-stone-400"
+                  style={{ left: daysBetween(rangeStart, tick) * dayWidth }}
                 >
                   {formatDay(tick, locale)}
                 </span>
@@ -197,7 +236,7 @@ export function TimelineView({ projectId }: { projectId: string }) {
 
           {/* Groups */}
           {groups.map((group, gi) => {
-            const placed = assignRows(group.tasks, rangeStart)
+            const placed = assignRows(group.tasks, rangeStart, dayWidth)
             const rowCount = Math.max(...placed.map(p => p.row + 1), 1)
             const groupHeight = rowCount * ROW_HEIGHT
 
@@ -206,8 +245,8 @@ export function TimelineView({ projectId }: { projectId: string }) {
                 {/* Group label row */}
                 <div className="flex items-center bg-stone-50/50 dark:bg-stone-900/50 px-3 py-1.5 border-b border-stone-100 dark:border-stone-800">
                   <span
-                    className="text-[10.5px] font-semibold text-stone-500 uppercase tracking-wider"
-                    style={{ width: LEFT_COL - 12 }}
+                    className="sticky left-0 z-10 text-ui-xs font-semibold text-stone-500 uppercase tracking-wider bg-stone-50 dark:bg-stone-900"
+                    style={{ width: leftCol - 12 }}
                   >
                     {group.label}
                   </span>
@@ -217,13 +256,13 @@ export function TimelineView({ projectId }: { projectId: string }) {
                 <div className="flex">
                   {/* Left: task titles */}
                   <div
-                    style={{ width: LEFT_COL }}
-                    className="shrink-0 border-r border-stone-100 dark:border-stone-800"
+                    style={{ width: leftCol }}
+                    className="sticky left-0 z-10 shrink-0 border-r border-stone-100 dark:border-stone-800 bg-white dark:bg-stone-950"
                   >
                     {placed.map(({ task, row }) => (
                       <div
                         key={task.task_id}
-                        className="flex items-center gap-2 px-3 text-[12px] truncate"
+                        className="flex items-center gap-2 px-3 text-ui-sm truncate"
                         style={{ height: ROW_HEIGHT, marginTop: row === 0 ? 0 : undefined }}
                       >
                         <span
@@ -240,40 +279,53 @@ export function TimelineView({ projectId }: { projectId: string }) {
                     className="relative"
                     style={{ width: canvasWidth, height: groupHeight }}
                   >
-                    {placed.map(({ task, row, startPx, widthPx }) => (
-                      <div
-                        key={task.task_id}
-                        className="absolute flex items-center"
-                        style={{
-                          left: startPx,
-                          top: row * ROW_HEIGHT + 6,
-                          height: ROW_HEIGHT - 12,
-                        }}
-                        onMouseEnter={() => setHoveredId(task.task_id)}
-                        onMouseLeave={() => setHoveredId(null)}
-                      >
-                        <div
-                          className={`h-full rounded ${
-                            task.source === 'status_history'
-                              ? 'border-2 border-dashed'
-                              : ''
-                          }`}
+                    {placed.map(({ task, row, startPx, widthPx }) => {
+                      const isOpen = openId === task.task_id || hoveredId === task.task_id
+                      const tooltipId = `${tooltipBaseId}-${task.task_id}`
+                      return (
+                        <button
+                          key={task.task_id}
+                          type="button"
+                          ref={openId === task.task_id ? openBarRef : undefined}
+                          aria-label={task.title}
+                          aria-describedby={isOpen ? tooltipId : undefined}
+                          className="absolute flex items-center bg-transparent border-0 p-0 m-0 cursor-pointer"
                           style={{
-                            width: widthPx,
-                            backgroundColor: PRIORITY_COLOURS[task.priority] + '33',
-                            borderColor:
-                              task.source === 'status_history'
-                                ? PRIORITY_COLOURS[task.priority]
-                                : undefined,
+                            left: startPx,
+                            top: row * ROW_HEIGHT + 6,
+                            height: ROW_HEIGHT - 12,
                           }}
-                        />
-                        {hoveredId === task.task_id && (
-                          <div className="relative">
-                            <Tooltip task={task} />
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                          onClick={() => setOpenId((prev) => (prev === task.task_id ? null : task.task_id))}
+                          onMouseEnter={() => {
+                            if (isFinePointer) setHoveredId(task.task_id)
+                          }}
+                          onMouseLeave={() => {
+                            if (isFinePointer) setHoveredId(null)
+                          }}
+                        >
+                          <div
+                            className={`h-full rounded ${
+                              task.source === 'status_history'
+                                ? 'border-2 border-dashed'
+                                : ''
+                            }`}
+                            style={{
+                              width: widthPx,
+                              backgroundColor: PRIORITY_COLOURS[task.priority] + '33',
+                              borderColor:
+                                task.source === 'status_history'
+                                  ? PRIORITY_COLOURS[task.priority]
+                                  : undefined,
+                            }}
+                          />
+                          {isOpen && (
+                            <div className="relative">
+                              <Tooltip task={task} id={tooltipId} />
+                            </div>
+                          )}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               </div>

@@ -25,28 +25,28 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 px-4">
+    <div className="min-h-dvh flex items-center justify-center bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 px-4">
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-2 mb-8">
-          <span className="w-7 h-7 rounded-md accent-bg flex items-center justify-center text-[12px] font-semibold">SP</span>
-          <span className="text-[15px] font-semibold">Simple Project Tool</span>
+          <span className="w-7 h-7 rounded-md accent-bg flex items-center justify-center text-ui-sm font-semibold">SP</span>
+          <span className="text-ui-xl font-semibold">Simple Project Tool</span>
         </div>
         <div className="bg-white dark:bg-stone-900 rounded-xl shadow-sm border border-stone-200 dark:border-stone-800 p-8">
           {status === 'success' ? (
             <div className="text-center">
-              <p className="text-[20px] font-semibold tracking-tight mb-2">{t('auth.reset_password')}</p>
-              <p className="text-[13px] text-stone-500 mb-6">{t('auth.reset_password_success')}</p>
-              <Link to="/login" className="inline-block py-2.5 px-6 rounded-md accent-bg text-[13.5px] font-medium">
+              <p className="text-ui-2xl font-semibold tracking-tight mb-2">{t('auth.reset_password')}</p>
+              <p className="text-ui-md text-stone-500 mb-6">{t('auth.reset_password_success')}</p>
+              <Link to="/login" className="inline-block py-2.5 px-6 rounded-md accent-bg text-ui-lg font-medium">
                 {t('auth.login')}
               </Link>
             </div>
           ) : (
             <>
-              <h2 className="text-[20px] font-semibold tracking-tight mb-1">{t('auth.reset_password')}</h2>
-              <p className="text-[12.5px] text-stone-500 mb-6">{t('auth.reset_password_subtitle')}</p>
+              <h2 className="text-ui-2xl font-semibold tracking-tight mb-1">{t('auth.reset_password')}</h2>
+              <p className="text-ui-md text-stone-500 mb-6">{t('auth.reset_password_subtitle')}</p>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1">
+                  <label className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium mb-1">
                     {t('auth.new_password')}
                   </label>
                   <input
@@ -55,14 +55,14 @@ export function ResetPasswordPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     minLength={8}
-                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
+                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md focus-ring"
                   />
                 </div>
-                {error && <p className="text-[12.5px] text-rose-600 dark:text-rose-400">{error}</p>}
+                {error && <p className="text-ui-md text-rose-600 dark:text-rose-400">{error}</p>}
                 <button
                   type="submit"
                   disabled={status === 'loading'}
-                  className="w-full py-2.5 rounded-md accent-bg text-[13.5px] font-medium disabled:opacity-50"
+                  className="w-full py-2.5 rounded-md accent-bg text-ui-lg font-medium disabled:opacity-50"
                 >
                   {status === 'loading' ? t('auth.resetting') : t('auth.reset_password_submit')}
                 </button>

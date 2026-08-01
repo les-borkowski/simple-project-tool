@@ -20,4 +20,13 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    files: ['src/**/*.{test,spec}.{ts,tsx}', 'src/test/**'],
+    languageOptions: {
+      globals: globals.vitest,
+    },
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

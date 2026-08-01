@@ -1,11 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { Children, useEffect, useMemo, useRef, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
   closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
   useDroppable,
   type DragEndEvent,
   type DragStartEvent,
@@ -23,16 +20,22 @@ import { Link, useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { projectsApi, invitationsApi, storiesApi, tasksApi, preferencesApi } from '../services/api'
 import { TabConfigPanel } from '../components/settings/TabConfigPanel'
-import type { ProjectResponse, MemberResponse, StoryResponse, TaskResponse, Status, Priority, Role } from '../services/api'
+import type { ProjectResponse, MemberResponse, StoryResponse, TaskResponse, Status, Priority, Role, ProjectStatusResponse } from '../services/api'
 import { CreateTaskModal } from '../components/tasks/CreateTaskModal'
 import { useRole } from '../hooks/useRole'
+import { useDragSensors } from '../hooks/useDragSensors'
 import { useStories } from '../hooks/useStories'
 import { useProjectStatuses } from '../hooks/useProjectStatuses'
+import { Menu, MenuItem } from '../components/common/Menu'
+import { Breadcrumbs } from '../components/common/Breadcrumbs'
+import { Tabs } from '../components/common/Tabs'
+import { PageHeader } from '../components/layout/PageHeader'
 import { StatusPill } from '../components/common/StatusPill'
 import { PriorityBars } from '../components/common/PriorityBars'
 import { LoadMoreButton } from '../components/common/LoadMoreButton'
 import { EmptyState } from '../components/common/EmptyState'
 import { ConfirmDialog } from '../components/common/ConfirmDialog'
+import { Modal } from '../components/common/Modal'
 import { MarkdownEditor } from '../components/common/MarkdownEditor'
 import { SkeletonCard } from '../components/common/Skeleton'
 import { useToast } from '../context/ToastContext'
@@ -42,6 +45,10 @@ import { applySortField } from '../utils/sort'
 import { initials } from '../utils/initials'
 
 type Tab = 'board' | 'stories' | 'members' | 'sprints' | 'timeline' | 'settings'
+
+// Namespace for the tab rail's generated ids. Deliberately not derived from a
+// panel id, which two tablists may share (T10).
+const PROJECT_TABS_ID = 'project-tabs'
 
 
 const IPlus = () => (
@@ -148,7 +155,13 @@ function EmptyColumnDropZone({ statusSlug }: { statusSlug: string }) {
   )
 }
 
-function BoardCard({ task, storyTitle, dragOverlay }: { task: TaskResponse; storyTitle?: string; dragOverlay?: boolean }) {
+function BoardCard({ task, storyTitle, statuses, onStatusChange, dragOverlay }: {
+  task: TaskResponse
+  storyTitle?: string
+  statuses: ProjectStatusResponse[]
+  onStatusChange: (taskId: string, newStatus: Status) => void
+  dragOverlay?: boolean
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -156,23 +169,60 @@ function BoardCard({ task, storyTitle, dragOverlay }: { task: TaskResponse; stor
     opacity: isDragging ? 0.4 : 1,
   }
   const href = taskHref(task)
+  const otherStatuses = statuses.filter((s) => s.slug !== task.status)
   return (
-    <div ref={setNodeRef} style={dragOverlay ? undefined : style} {...attributes} {...listeners}>
-      <Link
-        to={href}
-        className="lift block bg-white dark:bg-stone-900 rounded-lg border border-stone-200 dark:border-stone-800 p-3 hover:border-stone-300 dark:hover:border-stone-700"
-      >
+    <div
+      ref={setNodeRef}
+      className="drag-row lift bg-white dark:bg-stone-900 rounded-lg border border-stone-200 dark:border-stone-800 p-3 hover:border-stone-300 dark:hover:border-stone-700"
+      style={dragOverlay ? undefined : style}
+      {...attributes}
+      {...listeners}
+    >
+      <Link to={href} className="block">
         <div className="flex items-center justify-between gap-2 mb-1.5">
           <PriorityBars priority={task.priority} />
-          <span className="text-[10.5px] text-stone-400">{formatRelative(task.created_at)}</span>
+          <span className="text-ui-xs text-stone-400">{formatRelative(task.created_at)}</span>
         </div>
-        <div className="text-[13px] leading-snug">{task.title}</div>
-        {storyTitle && (
-          <div className="flex items-center gap-2 mt-2.5">
-            <span className="text-[10.5px] text-stone-400 truncate flex-1">{storyTitle}</span>
-          </div>
-        )}
+        <div className="text-ui-md leading-snug">{task.title}</div>
       </Link>
+      {/* Tap-pill-to-edit idiom (T07): the same tap-to-open pattern used on
+          TaskDetailPage/StoryDetailPage, so touch users can change status
+          without a drag. This sits as a *sibling* of the <Link> above rather
+          than nested inside it — a <button> descendant of an <a> is invalid
+          content per the HTML spec and real browsers get confused about
+          which element owns Enter/Space activation, so keyboard users could
+          never open the menu even though a jsdom test (which activates the
+          button directly via .focus(), bypassing real tab order and native
+          nested-control quirks) didn't catch it. The wrapping div only needs
+          to stop Enter/Space from bubbling to the card's drag-listener
+          wrapper, whose sortable keyboard handling would otherwise treat
+          them as a drag-activation key; every other key (notably Escape,
+          which the open Menu listens for on `document`) must keep bubbling. */}
+      <div
+        className="flex items-center gap-2 mt-2"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
+        }}
+      >
+        <Menu
+          trigger={
+            <button>
+              <StatusPill status={task.status} statuses={statuses} />
+            </button>
+          }
+        >
+          {otherStatuses.map((s) => (
+            <MenuItem key={s.slug} onSelect={() => onStatusChange(task.id, s.slug as Status)}>
+              {s.name}
+            </MenuItem>
+          ))}
+        </Menu>
+      </div>
+      {storyTitle && (
+        <div className="flex items-center gap-2 mt-2.5">
+          <span className="text-ui-xs text-stone-400 truncate flex-1">{storyTitle}</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -189,10 +239,17 @@ function SortableStoriesTaskRow({ task, storyId, href, children, dragOverlay }: 
     transition,
     opacity: isDragging ? 0.4 : 1,
   }
+  const [title, status, priority, count, updated] = Children.toArray(children)
   return (
-    <div ref={setNodeRef} style={dragOverlay ? undefined : style} {...attributes} {...listeners}>
-      <Link to={href} className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-1.5 pl-8 bg-stone-50/60 dark:bg-stone-900/20 hover:bg-stone-100/60 dark:hover:bg-stone-900/40 border-t border-stone-100/60 dark:border-stone-800/40 first:border-t-0">
-        {children}
+    <div ref={setNodeRef} className="drag-row" style={dragOverlay ? undefined : style} {...attributes} {...listeners}>
+      <Link to={href} draggable={false} className="grid stories-grid md:grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-1.5 pl-8 bg-stone-50/60 dark:bg-stone-900/20 hover:bg-stone-100/60 dark:hover:bg-stone-900/40 border-t border-stone-100/60 dark:border-stone-800/40 first:border-t-0">
+        {title}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 md:contents">
+          {status}
+          {priority}
+          {count}
+          {updated}
+        </div>
       </Link>
     </div>
   )
@@ -227,9 +284,6 @@ export function ProjectDetailPage() {
   const [newStoryStatus, setNewStoryStatus] = useState<Status>('to_do')
   const [newStoryPriority, setNewStoryPriority] = useState<Priority>('medium')
 
-  const [showNewDropdown, setShowNewDropdown] = useState(false)
-  const newDropdownRef = useRef<HTMLDivElement>(null)
-
   const [showInvite, setShowInvite] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<Role>('contributor')
@@ -259,7 +313,7 @@ export function ProjectDetailPage() {
 
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
   const [activeStoriesTaskId, setActiveStoriesTaskId] = useState<string | null>(null)
-  const boardSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  const boardSensors = useDragSensors()
 
   useEffect(() => {
     const modal = (location.state as { modal?: string } | null)?.modal
@@ -271,39 +325,6 @@ export function ProjectDetailPage() {
       window.history.replaceState({}, '')
     }
   }, [location.state])
-
-  useEffect(() => {
-    if (!showNewDropdown) return
-    function handleClick(e: MouseEvent) {
-      if (newDropdownRef.current && e.target instanceof Node && !newDropdownRef.current.contains(e.target)) {
-        setShowNewDropdown(false)
-      }
-    }
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') setShowNewDropdown(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handleClick)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [showNewDropdown])
-
-  useEffect(() => {
-    if (!showCreateStory) return
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setShowCreateStory(false)
-        setNewStoryTitle('')
-        setNewStoryDescription('')
-        setNewStoryStatus('to_do')
-        setNewStoryPriority('medium')
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [showCreateStory])
 
   useEffect(() => {
     if (!id) return
@@ -380,6 +401,17 @@ export function ProjectDetailPage() {
     navigate('/projects')
   }
 
+  // The only way out of the create-story overlay: Escape, the backdrop, Cancel
+  // and a successful submit all land here, so the form never reopens holding
+  // the values of an abandoned draft.
+  const closeCreateStory = () => {
+    setShowCreateStory(false)
+    setNewStoryTitle('')
+    setNewStoryDescription('')
+    setNewStoryStatus('to_do')
+    setNewStoryPriority('medium')
+  }
+
   const handleCreateStory = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!id) return
@@ -391,11 +423,7 @@ export function ProjectDetailPage() {
         status: newStoryStatus,
         priority: newStoryPriority,
       })
-      setShowCreateStory(false)
-      setNewStoryTitle('')
-      setNewStoryDescription('')
-      setNewStoryStatus('to_do')
-      setNewStoryPriority('medium')
+      closeCreateStory()
       storiesHook.refresh()
       addToast(t('stories.created'))
     } finally {
@@ -440,6 +468,27 @@ export function ProjectDetailPage() {
 
   const statuses: Status[] = ['to_do', 'in_progress', 'in_review', 'in_testing', 'done']
   const priorities: Priority[] = ['low', 'medium', 'high']
+
+  // Memoised because Tabs re-scrolls its active tab into view whenever `items`
+  // changes, and a fresh array on every render would yank the strip back under
+  // the user's finger each time anything else in the header moves. Settings is
+  // always last and can never be hidden — it is where a hidden tab is brought
+  // back.
+  const tabItems = useMemo(() => {
+    const allTabs: Record<string, { label: string; icon: React.ReactNode }> = {
+      board: { label: t('tabs.board'), icon: <IBoard /> },
+      stories: { label: t('tabs.stories'), icon: <IList /> },
+      sprints: { label: t('sprints.title'), icon: <ISprint /> },
+      timeline: { label: t('timeline.title'), icon: <ITimeline /> },
+      members: { label: t('tabs.members'), icon: <IUser /> },
+    }
+    return [
+      ...tabOrder
+        .filter((key) => !hiddenTabs.includes(key) && allTabs[key])
+        .map((key) => ({ key, ...allTabs[key] })),
+      { key: 'settings', label: t('tabs.settings'), icon: <ICog /> },
+    ]
+  }, [t, tabOrder, hiddenTabs])
 
   // Build flat task list for board
   const allTasks: Array<{ task: TaskResponse; story: StoryResponse | null }> = [
@@ -498,6 +547,19 @@ export function ProjectDetailPage() {
     })
   }
 
+  // Shared by both the board drag-and-drop cross-column move and the tap
+  // status menu on BoardCard (T07) — one code path updates the task status,
+  // optimistically and with rollback on failure.
+  const updateTaskStatus = (taskId: string, newStatus: Status) => {
+    const task = findTaskById(taskId)
+    if (!task) return
+    const previousStatus = task.status
+    updateTaskInState(taskId, { status: newStatus })
+    tasksApi.update(taskId, { status: newStatus }).catch(() => {
+      updateTaskInState(taskId, { status: previousStatus })
+    })
+  }
+
   const handleBoardDragStart = (event: DragStartEvent) => {
     setActiveTaskId(event.active.id as string)
   }
@@ -516,11 +578,7 @@ export function ProjectDetailPage() {
 
     if (sourceStatus !== destStatus) {
       // Cross-column: update status
-      updateTaskInState(active.id as string, { status: destStatus as Status })
-      tasksApi.update(active.id as string, { status: destStatus as Status }).catch(() => {
-        // rollback on error
-        updateTaskInState(active.id as string, { status: sourceStatus })
-      })
+      updateTaskStatus(active.id as string, destStatus as Status)
     } else {
       // Same column: reorder
       const columnTasks = allTasks
@@ -620,10 +678,76 @@ export function ProjectDetailPage() {
     }
   }
 
+  // Handed to both branches so the loading header reserves the same crumb line
+  // the loaded one fills.
+  const breadcrumbs = (
+    <Breadcrumbs
+      items={[
+        { label: t('projects.title'), to: '/projects' },
+        { label: project?.name ?? '' },
+      ]}
+    />
+  )
+
+  // Likewise handed to both branches. The cluster is never empty — the avatar
+  // stack sits outside the manager gate — so a loading header without it would
+  // be a whole line shorter on a phone and the body would jump on arrival.
+  const headerActions = (
+    // justify-end so the cluster stays on the right once PageHeader gives
+    // it the full width of its own line on a phone.
+    <div className="flex items-center justify-end gap-2">
+      <AvatarStack members={members} max={5} size={24} />
+      {isManager && (
+        <>
+          <button
+            onClick={() => setShowInvite(true)}
+            className="px-2.5 py-1.5 text-ui-sm rounded-md border border-stone-200 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-900 inline-flex items-center gap-1.5 text-stone-600 dark:text-stone-300 tap-safe"
+          >
+            <IUser /> {t('board.invite')}
+          </button>
+          <Menu
+            trigger={
+              <button className="px-2.5 py-1.5 text-ui-sm rounded-md accent-bg inline-flex items-center gap-1.5 tap-safe">
+                <IPlus /> New <IChevron />
+              </button>
+            }
+          >
+            <MenuItem onSelect={() => setShowCreateStory(true)}>Story</MenuItem>
+            <MenuItem onSelect={() => setShowCreateTask(true)}>Task</MenuItem>
+          </Menu>
+          <Menu
+            trigger={
+              <button
+                aria-label={t('actions.more')}
+                className="px-1.5 py-1.5 rounded-md hover:bg-stone-50 dark:hover:bg-stone-900 text-stone-500 tap-safe"
+              >
+                <IMore />
+              </button>
+            }
+          >
+            <MenuItem onSelect={handleArchive}>
+              <IArchive /> {project?.archived_at ? t('actions.restore') : t('actions.archive')}
+            </MenuItem>
+            <MenuItem onSelect={() => setDeleteProjectConfirm(true)} destructive>
+              {t('actions.delete')}
+            </MenuItem>
+          </Menu>
+        </>
+      )}
+    </div>
+  )
+
   if (loading) {
     return (
       <div className="flex-1 flex flex-col">
-        <div className="px-7 pt-6 pb-4 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
+        <PageHeader
+          loading
+          title={project?.name ?? ''}
+          breadcrumbs={breadcrumbs}
+          actions={headerActions}
+        />
+        {/* The skeletons stand in for the body below the header. */}
+        <div className="px-7 py-5">
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
@@ -633,160 +757,98 @@ export function ProjectDetailPage() {
   }
   if (!project) return null
 
+  // The header's status and priority triggers are buttons, so — unlike the
+  // rail's selects, which announce their own value — naming them after the
+  // field alone would drop the value they show. Each name carries both, built
+  // from the label the control displays so the visible text is part of the
+  // accessible name (WCAG 2.5.3).
+  const statusName = `${t('detail.status')}: ${
+    projectStatuses.find((s) => s.slug === project.status)?.name ?? project.status
+  }`
+  const priorityName = `${t('detail.priority')}: ${t(`priority.${project.priority}`)}`
+
   return (
     <div className="flex-1 flex flex-col">
       {/* Project header */}
-      <div className="px-7 pt-5 pb-3 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
-        <div className="flex items-center gap-2 text-[11.5px] text-stone-500 mb-2">
-          <Link to="/projects" className="hover:text-stone-800 dark:hover:text-stone-200">{t('projects.title')}</Link>
-          <span>/</span>
-          <span>{project.name}</span>
-        </div>
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-3">
-              <h1 className="text-[22px] font-semibold tracking-tight">{project.name}</h1>
-              {editingStatus ? (
-                <select
-                  autoFocus
-                  defaultValue={project.status}
-                  onChange={(e) => handleStatusChange(e.target.value as Status)}
-                  onBlur={() => setEditingStatus(false)}
-                  className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
-                >
-                  {statuses.map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
-                </select>
-              ) : (
-                <button onClick={() => setEditingStatus(true)}>
-                  <StatusPill status={project.status} statuses={projectStatuses} />
-                </button>
-              )}
-              {editingPriority ? (
-                <select
-                  autoFocus
-                  defaultValue={project.priority}
-                  onChange={(e) => handlePriorityChange(e.target.value as Priority)}
-                  onBlur={() => setEditingPriority(false)}
-                  className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
-                >
-                  {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
-                </select>
-              ) : (
-                <button onClick={() => setEditingPriority(true)}>
-                  <PriorityBars priority={project.priority} withLabel />
-                </button>
-              )}
-              {project.archived_at && (
-                <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-stone-100 dark:bg-stone-800 text-stone-500">{t('board.archived')}</span>
-              )}
-            </div>
-            {project.description && (
-              <p className="text-[13px] text-stone-500 mt-1">{project.description}</p>
-            )}
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <AvatarStack members={members} max={5} size={24} />
-            {isManager && (
-              <>
-                <button
-                  onClick={() => setShowInvite(true)}
-                  className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-900 inline-flex items-center gap-1.5 text-stone-600 dark:text-stone-300"
-                >
-                  <IUser /> {t('board.invite')}
-                </button>
-                <div className="relative" ref={newDropdownRef}>
-                  <button
-                    onClick={() => setShowNewDropdown(v => !v)}
-                    aria-haspopup="true"
-                    aria-expanded={showNewDropdown}
-                    className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5"
-                  >
-                    <IPlus /> New <IChevron />
-                  </button>
-                  {showNewDropdown && (
-                    <div className="absolute right-0 top-full mt-1 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-md shadow-lg z-20 min-w-[120px]">
-                      <button
-                        onClick={() => { setShowNewDropdown(false); setShowCreateStory(true) }}
-                        className="w-full flex items-center px-3 py-2 text-[12.5px] text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 rounded-t-md"
-                      >
-                        Story
-                      </button>
-                      <button
-                        onClick={() => { setShowNewDropdown(false); setShowCreateTask(true) }}
-                        className="w-full flex items-center px-3 py-2 text-[12.5px] text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 rounded-b-md"
-                      >
-                        Task
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div className="relative group">
-                  <button className="px-1.5 py-1.5 rounded-md hover:bg-stone-50 dark:hover:bg-stone-900 text-stone-500"><IMore /></button>
-                  <div className="hidden group-hover:block absolute right-0 top-full mt-1 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-md shadow-lg z-20 min-w-[140px]">
-                    <button
-                      onClick={handleArchive}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
-                    >
-                      <IArchive /> {project.archived_at ? t('actions.restore') : t('actions.archive')}
-                    </button>
-                    <button
-                      onClick={() => setDeleteProjectConfirm(true)}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] text-rose-600 hover:bg-stone-50 dark:hover:bg-stone-800"
-                    >
-                      {t('actions.delete')}
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Sub-tabs */}
-        <div className="mt-4 flex items-center gap-5 text-[13px]">
-          {(() => {
-            const ALL_TABS: Record<string, { label: string; icon: React.ReactNode }> = {
-              board: { label: t('tabs.board'), icon: <IBoard /> },
-              stories: { label: t('tabs.stories'), icon: <IList /> },
-              sprints: { label: t('sprints.title'), icon: <ISprint /> },
-              timeline: { label: t('timeline.title'), icon: <ITimeline /> },
-              members: { label: t('tabs.members'), icon: <IUser /> },
-            }
-            const visibleTabs = tabOrder
-              .filter((k) => !hiddenTabs.includes(k) && ALL_TABS[k])
-              .map((k) => [k, ALL_TABS[k].label, ALL_TABS[k].icon] as [Tab, string, React.ReactNode])
-            const settingsTab: [Tab, string, React.ReactNode] = ['settings', t('tabs.settings'), <ICog />]
-            return [...visibleTabs, settingsTab].map(([key, label, icon]) => (
-              <button
-                key={key}
-                onClick={() => setTab(key)}
-                className={`pb-2 -mb-px flex items-center gap-1.5 border-b-2 ${tab === key ? 'border-stone-900 dark:border-stone-100 text-stone-900 dark:text-stone-100' : 'border-transparent text-stone-500 hover:text-stone-800 dark:hover:text-stone-200'}`}
+      <PageHeader
+        title={project.name}
+        breadcrumbs={breadcrumbs}
+        subtitle={project.description || undefined}
+        titleAdornment={
+          <>
+            {/* The pill and the bars say which field they are visually; these
+                labels say it for everyone else. The selects are named exactly
+                as the rail's equivalents are (T11). */}
+            {editingStatus ? (
+              <select
+                autoFocus
+                aria-label={t('detail.status')}
+                defaultValue={project.status}
+                onChange={(e) => handleStatusChange(e.target.value as Status)}
+                onBlur={() => setEditingStatus(false)}
+                className="text-ui-sm px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
               >
-                <span className="text-stone-400">{icon}</span>{label}
+                {statuses.map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
+              </select>
+            ) : (
+              <button aria-label={statusName} onClick={() => setEditingStatus(true)}>
+                <StatusPill status={project.status} statuses={projectStatuses} />
               </button>
-            ))
-          })()}
-        </div>
+            )}
+            {editingPriority ? (
+              <select
+                autoFocus
+                aria-label={t('detail.priority')}
+                defaultValue={project.priority}
+                onChange={(e) => handlePriorityChange(e.target.value as Priority)}
+                onBlur={() => setEditingPriority(false)}
+                className="text-ui-sm px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
+              >
+                {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
+              </select>
+            ) : (
+              <button aria-label={priorityName} onClick={() => setEditingPriority(true)}>
+                <PriorityBars priority={project.priority} withLabel />
+              </button>
+            )}
+            {project.archived_at && (
+              <span className="inline-flex px-2 py-0.5 rounded-full text-ui-2xs font-medium bg-stone-100 dark:bg-stone-800 text-stone-500">{t('board.archived')}</span>
+            )}
+          </>
+        }
+        actions={headerActions}
+      />
+
+      {/* Sub-tabs: a strip that scrolls sideways rather than wrapping, so the
+          Settings tab stays reachable at 320px. */}
+      <div className="px-4 md:px-7 py-2 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
+        <Tabs
+          items={tabItems}
+          value={tab}
+          onChange={(key) => setTab(key as Tab)}
+          label={t('tabs.project_sections')}
+          idPrefix={PROJECT_TABS_ID}
+        />
       </div>
 
       {/* Board tab */}
       {tab === 'board' && (
         <>
           {/* Board toolbar */}
-          <div className="flex items-center gap-2 px-7 py-2.5 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
+          <div className="flex flex-wrap items-center gap-2 px-4 md:px-7 py-2.5 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
             <input
               type="text"
               aria-label={t('filter.search')}
               placeholder={t('filter.search')}
               value={boardSearch}
               onChange={e => setBoardSearch(e.target.value)}
-              className="w-40 px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+              className="w-40 px-2.5 py-1.5 text-ui-sm rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
             />
             <select
               aria-label={t('filter.priority')}
               value={boardFilterPriority}
               onChange={e => setBoardFilterPriority(e.target.value as Priority | 'all')}
-              className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+              className="px-2.5 py-1.5 text-ui-sm rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
             >
               <option value="all">{t('filter.all')} {t('filter.priority')}</option>
               {priorities.map(p => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
@@ -795,7 +857,7 @@ export function ProjectDetailPage() {
               aria-label={t('filter.assignee')}
               value={boardFilterAssignee}
               onChange={e => setBoardFilterAssignee(e.target.value)}
-              className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+              className="px-2.5 py-1.5 text-ui-sm rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
             >
               <option value="">{t('filter.all')} {t('filter.assignee')}</option>
               {members.map(m => <option key={m.user_id} value={m.user_id}>{m.name}</option>)}
@@ -804,37 +866,46 @@ export function ProjectDetailPage() {
               aria-label={t('filter.story')}
               value={boardFilterStory}
               onChange={e => setBoardFilterStory(e.target.value)}
-              className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+              className="px-2.5 py-1.5 text-ui-sm rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
             >
               <option value="">{t('filter.all')} {t('filter.story')}</option>
               {storiesHook.items.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
             </select>
-            <span className="flex-1" />
-            <span className="text-[11.5px] text-stone-400 tabular-nums">
+            {/* ml-auto rather than a flex-1 spacer: once the row wraps, a spacer
+                would claim a whole line of its own. */}
+            <span className="ml-auto text-ui-sm text-stone-400 tabular-nums">
               {t('toolbar.tasks_count', { count: allTasks.length })} · {t('toolbar.done_count', { count: totalDoneCount })}
             </span>
           </div>
-          <div className="flex-1 overflow-x-auto scroll-hidden bg-stone-50 dark:bg-stone-950/50 fine-grid">
-            <DndContext
-              sensors={boardSensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleBoardDragStart}
-              onDragEnd={handleBoardDragEnd}
-            >
+          {/* T17 lesson: a CSS mask on an ancestor clips fixed-position
+              descendants, and dnd-kit's DragOverlay renders with
+              position: fixed. scroll-fade-x below is a mask-image gradient,
+              so DndContext (and its DragOverlay) must wrap the masked div
+              rather than sit inside it — otherwise the drag preview vanishes
+              near the scroller's edges. */}
+          <DndContext
+            sensors={boardSensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleBoardDragStart}
+            onDragEnd={handleBoardDragEnd}
+          >
+          {/* One column per swipe, with the T02 edge fade hinting that the
+              board continues past the right edge. */}
+          <div className="flex-1 overflow-x-auto snap-x snap-mandatory scroll-fade-x bg-stone-50 dark:bg-stone-950/50 fine-grid">
             <div className="flex gap-3 px-7 py-5 min-w-min min-h-full">
               {projectStatuses.map((ps) => {
                 const columnTasks = filteredBoardTasks.filter(({ task }) => task.status === ps.slug)
                 return (
-                  <div key={ps.slug} className="w-[272px] shrink-0">
+                  <div key={ps.slug} className="w-[272px] shrink-0 snap-start">
                     <div className="flex items-center gap-2 px-1 mb-2">
                       <span className="w-2 h-2 rounded-full" style={{ background: ps.colour }} />
-                      <span className="text-[12px] font-medium">{ps.name}</span>
-                      <span className="text-[11px] text-stone-400 tabular-nums">{columnTasks.length}</span>
+                      <span className="text-ui-sm font-medium">{ps.name}</span>
+                      <span className="text-ui-xs text-stone-400 tabular-nums">{columnTasks.length}</span>
                     </div>
                     <SortableContext items={columnTasks.map(({ task }) => task.id)} strategy={verticalListSortingStrategy}>
                       <div className="space-y-1.5">
                         {columnTasks.map(({ task, story }) => (
-                          <BoardCard key={task.id} task={task} storyTitle={story?.title} />
+                          <BoardCard key={task.id} task={task} storyTitle={story?.title} statuses={projectStatuses} onStatusChange={updateTaskStatus} />
                         ))}
                         {columnTasks.length === 0 && <EmptyColumnDropZone statusSlug={ps.slug} />}
                       </div>
@@ -858,7 +929,7 @@ export function ProjectDetailPage() {
                   <>
                     <div className="shrink-0 flex items-center gap-3 self-stretch">
                       <div className="w-px bg-stone-200 dark:bg-stone-700 self-stretch" />
-                      <span className="text-[11px] text-stone-400 whitespace-nowrap">
+                      <span className="text-ui-xs text-stone-400 whitespace-nowrap">
                         {t('project_statuses.unlisted')}
                       </span>
                       <div className="w-px bg-stone-200 dark:bg-stone-700 self-stretch" />
@@ -866,15 +937,15 @@ export function ProjectDetailPage() {
                     {unlistedSlugs.map((slug) => {
                       const columnTasks = filteredBoardTasks.filter(({ task }) => task.status === slug)
                       return (
-                        <div key={slug} className="w-[272px] shrink-0">
+                        <div key={slug} className="w-[272px] shrink-0 snap-start">
                           <div className="flex items-center gap-2 px-1 mb-2">
                             <span className="w-2 h-2 rounded-full bg-stone-300 dark:bg-stone-600" />
-                            <span className="text-[12px] font-medium text-stone-400 font-mono">{slug}</span>
-                            <span className="text-[11px] text-stone-400 tabular-nums">{columnTasks.length}</span>
+                            <span className="text-ui-sm font-medium text-stone-400 font-mono">{slug}</span>
+                            <span className="text-ui-xs text-stone-400 tabular-nums">{columnTasks.length}</span>
                           </div>
                           <div className="space-y-1.5">
                             {columnTasks.map(({ task, story }) => (
-                              <BoardCard key={task.id} task={task} storyTitle={story?.title} />
+                              <BoardCard key={task.id} task={task} storyTitle={story?.title} statuses={projectStatuses} onStatusChange={updateTaskStatus} />
                             ))}
                           </div>
                         </div>
@@ -884,20 +955,20 @@ export function ProjectDetailPage() {
                 )
               })()}
             </div>
-              <DragOverlay>
-                {activeTaskId ? (() => {
-                  const found = allTasks.find(({ task }) => task.id === activeTaskId)
-                  return found ? <BoardCard task={found.task} storyTitle={found.story?.title} dragOverlay /> : null
-                })() : null}
-              </DragOverlay>
-            </DndContext>
           </div>
+            <DragOverlay>
+              {activeTaskId ? (() => {
+                const found = allTasks.find(({ task }) => task.id === activeTaskId)
+                return found ? <BoardCard task={found.task} storyTitle={found.story?.title} statuses={projectStatuses} onStatusChange={updateTaskStatus} dragOverlay /> : null
+              })() : null}
+            </DragOverlay>
+          </DndContext>
         </>
       )}
 
       {/* Stories tab */}
       {tab === 'stories' && (
-        <div className="flex-1 px-7 py-5">
+        <div className="flex-1 px-4 md:px-7 py-5">
           {storiesHook.items.length === 0 ? (
             <EmptyState
               message={t('stories.empty')}
@@ -906,20 +977,20 @@ export function ProjectDetailPage() {
           ) : (
             <>
               {/* Toolbar */}
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex flex-wrap items-center gap-2 mb-4">
                 <input
                   type="text"
                   aria-label={t('filter.search')}
                   placeholder={t('filter.search')}
                   value={storySearch}
                   onChange={e => setStorySearch(e.target.value)}
-                  className="w-40 px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                  className="w-40 px-2.5 py-1.5 text-ui-sm rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
                 />
                 <select
                   aria-label={t('filter.status')}
                   value={storyFilterStatus}
                   onChange={e => setStoryFilterStatus(e.target.value as Status | 'all')}
-                  className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                  className="px-2.5 py-1.5 text-ui-sm rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
                 >
                   <option value="all">{t('filter.all')} {t('filter.status')}</option>
                   {statuses.map(s => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
@@ -928,7 +999,7 @@ export function ProjectDetailPage() {
                   aria-label={t('filter.priority')}
                   value={storyFilterPriority}
                   onChange={e => setStoryFilterPriority(e.target.value as Priority | 'all')}
-                  className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                  className="px-2.5 py-1.5 text-ui-sm rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
                 >
                   <option value="all">{t('filter.all')} {t('filter.priority')}</option>
                   {priorities.map(p => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
@@ -937,7 +1008,7 @@ export function ProjectDetailPage() {
                   aria-label="Sort by"
                   value={storySortField}
                   onChange={e => setStorySortField(e.target.value as StorySortField)}
-                  className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                  className="px-2.5 py-1.5 text-ui-sm rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
                 >
                   <option value="created_at">{t('sort.created')}</option>
                   <option value="status">{t('sort.status')}</option>
@@ -947,19 +1018,19 @@ export function ProjectDetailPage() {
                 <button
                   onClick={() => setStorySortDir(d => d === 'asc' ? 'desc' : 'asc')}
                   aria-label={storySortDir === 'asc' ? 'Sort descending' : 'Sort ascending'}
-                  className="px-2.5 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
+                  className="px-2.5 py-1.5 text-ui-sm rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950"
                 >
                   {storySortDir === 'asc' ? '↑' : '↓'}
                 </button>
                 <span className="flex-1" />
-                <span className="text-[11.5px] text-stone-400 tabular-nums">
+                <span className="text-ui-sm text-stone-400 tabular-nums">
                   {t('toolbar.tasks_count', { count: totalTaskCount })} · {t('toolbar.stories_count', { count: storiesHook.items.length })}
                 </span>
               </div>
 
               {/* Stories table */}
               {filteredStories.length === 0 ? (
-                <p className="text-[13px] text-stone-400 py-8 text-center">{t('filter.no_results')}</p>
+                <p className="text-ui-md text-stone-400 py-8 text-center">{t('filter.no_results')}</p>
               ) : (
                 <DndContext
                   sensors={boardSensors}
@@ -968,7 +1039,7 @@ export function ProjectDetailPage() {
                   onDragEnd={handleStoriesDragEnd}
                 >
                   <div className="rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 overflow-hidden">
-                    <div className="grid grid-cols-[1fr_120px_100px_100px_80px] px-4 py-2 text-[10.5px] uppercase tracking-wider text-stone-400 font-medium border-b border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/30">
+                    <div className="hidden md:grid stories-grid md:grid-cols-[1fr_120px_100px_100px_80px] px-4 py-2 text-ui-xs uppercase tracking-wider text-stone-400 font-medium border-b border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/30">
                       <span>{t('board.col_title')}</span>
                       <span>{t('board.col_status')}</span>
                       <span>{t('board.col_priority')}</span>
@@ -979,49 +1050,51 @@ export function ProjectDetailPage() {
                       const storyTasks = [...(tasksByStory[story.id] ?? [])].sort((a, b) => a.position - b.position)
                       return (
                         <div key={story.id} className="border-b border-stone-100 dark:border-stone-800 last:border-0">
-                          <div className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-2.5 hover:bg-stone-50 dark:hover:bg-stone-900/40">
+                          <div className="grid stories-grid md:grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-2.5 hover:bg-stone-50 dark:hover:bg-stone-900/40">
                             <div className="min-w-0">
                               <div className="flex items-center gap-2 min-w-0">
                                 <Link
                                   to={`/projects/${id}/stories/${story.id}`}
-                                  className="text-[13px] font-medium hover:accent-text"
+                                  className="text-ui-md font-medium hover:accent-text min-w-0 line-clamp-1 md:line-clamp-none"
                                 >
                                   {story.title}
                                 </Link>
                                 {story.is_default && (
-                                  <span className="shrink-0 text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-stone-100 dark:bg-stone-800 text-stone-400 dark:text-stone-500">
+                                  <span className="shrink-0 text-ui-2xs uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-stone-100 dark:bg-stone-800 text-stone-400 dark:text-stone-500">
                                     {t('stories.backlog')}
                                   </span>
                                 )}
                               </div>
                             </div>
-                            {story.is_default
-                              ? <span className="text-[11px] text-stone-300 dark:text-stone-700">—</span>
-                              : <StatusPill status={story.status} statuses={projectStatuses} />}
-                            {story.is_default
-                              ? <span className="text-[11px] text-stone-300 dark:text-stone-700">—</span>
-                              : <PriorityBars priority={story.priority} withLabel />}
-                            <span className="text-[12px] text-stone-500">{tasksByStory[story.id]?.length ?? '…'}</span>
-                            <div className="flex items-center justify-end gap-2">
-                              <span className="text-[11px] text-stone-400">{formatRelative(story.created_at)}</span>
-                              {isManager && (
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => setEditStory({ id: story.id, title: story.title, description: story.description ?? '' })}
-                                    className="text-[11px] text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
-                                  >
-                                    {t('actions.edit')}
-                                  </button>
-                                  {!story.is_default && (
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 md:contents">
+                              {story.is_default
+                                ? <span className="text-ui-xs text-stone-300 dark:text-stone-700">—</span>
+                                : <StatusPill status={story.status} statuses={projectStatuses} />}
+                              {story.is_default
+                                ? <span className="text-ui-xs text-stone-300 dark:text-stone-700">—</span>
+                                : <PriorityBars priority={story.priority} withLabel />}
+                              <span className="text-ui-sm text-stone-500">{tasksByStory[story.id]?.length ?? '…'}</span>
+                              <div className="flex items-center justify-end gap-2">
+                                <span className="text-ui-xs text-stone-400">{formatRelative(story.created_at)}</span>
+                                {isManager && (
+                                  <div className="flex gap-2">
                                     <button
-                                      onClick={() => setDeleteStoryId(story.id)}
-                                      className="text-[11px] text-rose-400 hover:text-rose-600"
+                                      onClick={() => setEditStory({ id: story.id, title: story.title, description: story.description ?? '' })}
+                                      className="text-ui-xs text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 tap-safe"
                                     >
-                                      {t('actions.delete')}
+                                      {t('actions.edit')}
                                     </button>
-                                  )}
-                                </div>
-                              )}
+                                    {!story.is_default && (
+                                      <button
+                                        onClick={() => setDeleteStoryId(story.id)}
+                                        className="text-ui-xs text-rose-400 hover:text-rose-600 tap-safe"
+                                      >
+                                        {t('actions.delete')}
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
                           {/* Tasks inline */}
@@ -1035,11 +1108,11 @@ export function ProjectDetailPage() {
                                     storyId={story.id}
                                     href={`/stories/${story.id}/tasks/${task.id}`}
                                   >
-                                    <span className="text-[12px] text-stone-600 dark:text-stone-400 truncate">{task.title}</span>
+                                    <span className="min-w-0 block text-ui-sm text-stone-600 dark:text-stone-400 truncate">{task.title}</span>
                                     <StatusPill status={task.status} statuses={projectStatuses} />
                                     <PriorityBars priority={task.priority} withLabel />
-                                    <span />
-                                    <span className="text-[11px] text-stone-400 text-right">{formatRelative(task.created_at)}</span>
+                                    <span className="hidden md:inline" />
+                                    <span className="text-ui-xs text-stone-400 text-right">{formatRelative(task.created_at)}</span>
                                   </SortableStoriesTaskRow>
                                 ))}
                               </SortableContext>
@@ -1057,11 +1130,11 @@ export function ProjectDetailPage() {
                       const href = storyId ? `/stories/${storyId}/tasks/${task.id}` : `/projects/${id}/tasks/${task.id}`
                       return (
                         <SortableStoriesTaskRow task={task} storyId={storyId} href={href} dragOverlay>
-                          <span className="text-[12px] text-stone-600 dark:text-stone-400 truncate">{task.title}</span>
+                          <span className="min-w-0 block text-ui-sm text-stone-600 dark:text-stone-400 truncate">{task.title}</span>
                           <StatusPill status={task.status} statuses={projectStatuses} />
                           <PriorityBars priority={task.priority} withLabel />
-                          <span />
-                          <span className="text-[11px] text-stone-400 text-right">{formatRelative(task.created_at)}</span>
+                          <span className="hidden md:inline" />
+                          <span className="text-ui-xs text-stone-400 text-right">{formatRelative(task.created_at)}</span>
                         </SortableStoriesTaskRow>
                       )
                     })() : null}
@@ -1089,7 +1162,7 @@ export function ProjectDetailPage() {
             <div className="flex justify-end mb-4">
               <button
                 onClick={() => setShowInvite(true)}
-                className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5"
+                className="px-2.5 py-1.5 text-ui-sm rounded-md accent-bg inline-flex items-center gap-1.5 tap-safe"
               >
                 <IPlus /> {t('members.invite')}
               </button>
@@ -1106,14 +1179,14 @@ export function ProjectDetailPage() {
                 >
                   <Avatar member={m} size={32} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-[13.5px] font-medium">{m.name}</div>
-                    <div className="text-[11.5px] text-stone-500">{m.email}</div>
+                    <div className="text-ui-lg font-medium">{m.name}</div>
+                    <div className="text-ui-sm text-stone-500">{m.email}</div>
                   </div>
-                  <span className="text-[11.5px] text-stone-500">{t(`role.${m.role}`)}</span>
+                  <span className="text-ui-sm text-stone-500">{t(`role.${m.role}`)}</span>
                   {isManager && (
                     <button
                       onClick={() => handleRemoveMember(m.user_id)}
-                      className="text-[12px] text-rose-500 hover:text-rose-700"
+                      className="text-ui-sm text-rose-500 hover:text-rose-700 tap-safe"
                     >
                       {t('actions.delete')}
                     </button>
@@ -1157,123 +1230,131 @@ export function ProjectDetailPage() {
         />
       )}
 
-      {showCreateStory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 w-[min(90vw,_900px)] min-w-[67vw] mx-4">
-            <h3 className="text-[15px] font-semibold mb-5">{t('stories.create')}</h3>
-            <form onSubmit={handleCreateStory} className="space-y-4">
-              <input
-                type="text"
-                placeholder={t('board.col_title')}
-                value={newStoryTitle}
-                onChange={(e) => setNewStoryTitle(e.target.value)}
-                required
-                autoFocus
-                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
-              />
-              <MarkdownEditor
-                value={newStoryDescription}
-                onChange={setNewStoryDescription}
-                rows={4}
-                placeholder={t('tasks.description')}
-                autoExpand
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label htmlFor="pdp-create-story-status" className="text-[11.5px] font-medium text-stone-500">{t('filter.status')}</label>
-                  <select
-                    id="pdp-create-story-status"
-                    value={newStoryStatus}
-                    onChange={(e) => setNewStoryStatus(e.target.value as Status)}
-                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-                  >
-                    {statuses.map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label htmlFor="pdp-create-story-priority" className="text-[11.5px] font-medium text-stone-500">{t('filter.priority')}</label>
-                  <select
-                    id="pdp-create-story-priority"
-                    value={newStoryPriority}
-                    onChange={(e) => setNewStoryPriority(e.target.value as Priority)}
-                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-                  >
-                    {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 pt-1">
-                <button type="button" onClick={() => { setShowCreateStory(false); setNewStoryTitle(''); setNewStoryDescription(''); setNewStoryStatus('to_do'); setNewStoryPriority('medium') }} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
-                  {t('actions.cancel')}
-                </button>
-                <button type="submit" disabled={creatingStory} className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md disabled:opacity-50">
-                  {t('actions.create')}
-                </button>
-              </div>
-            </form>
+      <Modal
+        open={showCreateStory}
+        onClose={closeCreateStory}
+        title={t('stories.create')}
+        size="lg"
+        onSubmit={handleCreateStory}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={closeCreateStory} className="px-3 py-1.5 text-ui-md border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 tap-safe">
+              {t('actions.cancel')}
+            </button>
+            <button type="submit" disabled={creatingStory} className="px-3 py-1.5 text-ui-md accent-bg rounded-md disabled:opacity-50 tap-safe">
+              {t('actions.create')}
+            </button>
           </div>
-        </div>
-      )}
-
-      {showInvite && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 max-w-md w-full mx-4">
-            <h3 className="text-[15px] font-semibold mb-4">{t('members.invite')}</h3>
-            <form onSubmit={handleInvite} className="space-y-4">
-              <input
-                type="email"
-                placeholder={t('members.email')}
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                required
-                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
-              />
+        }
+      >
+        <div className="space-y-4">
+          <input
+            type="text"
+            placeholder={t('board.col_title')}
+            value={newStoryTitle}
+            onChange={(e) => setNewStoryTitle(e.target.value)}
+            required
+            className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md focus-ring"
+          />
+          <MarkdownEditor
+            value={newStoryDescription}
+            onChange={setNewStoryDescription}
+            rows={4}
+            placeholder={t('tasks.description')}
+            autoExpand
+          />
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label htmlFor="pdp-create-story-status" className="text-ui-sm font-medium text-stone-500">{t('filter.status')}</label>
               <select
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value as Role)}
-                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
+                id="pdp-create-story-status"
+                value={newStoryStatus}
+                onChange={(e) => setNewStoryStatus(e.target.value as Status)}
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md"
               >
-                <option value="contributor">{t('role.contributor')}</option>
-                <option value="manager">{t('role.manager')}</option>
+                {statuses.map((s) => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
               </select>
-              <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setShowInvite(false)} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
-                  {t('actions.cancel')}
-                </button>
-                <button type="submit" disabled={inviting} className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md disabled:opacity-50">
-                  {t('members.invite')}
-                </button>
-              </div>
-            </form>
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="pdp-create-story-priority" className="text-ui-sm font-medium text-stone-500">{t('filter.priority')}</label>
+              <select
+                id="pdp-create-story-priority"
+                value={newStoryPriority}
+                onChange={(e) => setNewStoryPriority(e.target.value as Priority)}
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md"
+              >
+                {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
+              </select>
+            </div>
           </div>
         </div>
-      )}
+      </Modal>
 
-      {editStory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 max-w-md w-full mx-4">
-            <h3 className="text-[15px] font-semibold mb-4">{t('actions.edit')}</h3>
-            <form onSubmit={handleSaveStory} className="space-y-4">
-              <input
-                type="text"
-                value={editStory.title}
-                onChange={(e) => setEditStory({ ...editStory, title: e.target.value })}
-                required
-                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
-              />
-              <MarkdownEditor value={editStory.description} onChange={(v) => setEditStory({ ...editStory, description: v })} rows={3} autoExpand />
-              <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setEditStory(null)} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
-                  {t('actions.cancel')}
-                </button>
-                <button type="submit" disabled={savingStory} className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md disabled:opacity-50">
-                  {t('actions.save')}
-                </button>
-              </div>
-            </form>
+      <Modal
+        open={showInvite}
+        onClose={() => setShowInvite(false)}
+        title={t('members.invite')}
+        onSubmit={handleInvite}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setShowInvite(false)} className="px-3 py-1.5 text-ui-md border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 tap-safe">
+              {t('actions.cancel')}
+            </button>
+            <button type="submit" disabled={inviting} className="px-3 py-1.5 text-ui-md accent-bg rounded-md disabled:opacity-50 tap-safe">
+              {t('members.invite')}
+            </button>
           </div>
+        }
+      >
+        <div className="space-y-4">
+          <input
+            type="email"
+            placeholder={t('members.email')}
+            value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)}
+            required
+            className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md focus-ring"
+          />
+          <select
+            value={inviteRole}
+            onChange={(e) => setInviteRole(e.target.value as Role)}
+            className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md"
+          >
+            <option value="contributor">{t('role.contributor')}</option>
+            <option value="manager">{t('role.manager')}</option>
+          </select>
         </div>
-      )}
+      </Modal>
+
+      <Modal
+        open={editStory !== null}
+        onClose={() => setEditStory(null)}
+        title={t('actions.edit')}
+        onSubmit={handleSaveStory}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setEditStory(null)} className="px-3 py-1.5 text-ui-md border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 tap-safe">
+              {t('actions.cancel')}
+            </button>
+            <button type="submit" disabled={savingStory} className="px-3 py-1.5 text-ui-md accent-bg rounded-md disabled:opacity-50 tap-safe">
+              {t('actions.save')}
+            </button>
+          </div>
+        }
+      >
+        {editStory && (
+          <div className="space-y-4">
+            <input
+              type="text"
+              value={editStory.title}
+              onChange={(e) => setEditStory({ ...editStory, title: e.target.value })}
+              required
+              className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md focus-ring"
+            />
+            <MarkdownEditor value={editStory.description} onChange={(v) => setEditStory({ ...editStory, description: v })} rows={3} autoExpand />
+          </div>
+        )}
+      </Modal>
 
       {deleteStoryId && (
         <ConfirmDialog

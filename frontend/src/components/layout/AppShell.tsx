@@ -1,81 +1,15 @@
-import { useEffect, useState } from 'react'
-import { NavLink, useNavigate, useLocation, Link } from 'react-router-dom'
+import { useCallback, useEffect, useId, useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/AuthContext'
+import { useIsDesktopShell } from '../../hooks/useMediaQuery'
 import { invitationsApi, projectsApi, recentApi } from '../../services/api'
 import type { ProjectResponse, RecentItemResponse } from '../../services/api'
+import { Drawer } from '../common/Drawer'
 import { CommandPalette } from './CommandPalette'
-import { recentLink } from '../../utils/links'
+import { MobileTopBar } from './MobileTopBar'
+import { SidebarNav } from './SidebarNav'
 import { initials as getInitials } from '../../utils/initials'
-
-const ISearch = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-    <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
-  </svg>
-)
-const IPlus = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M12 5v14M5 12h14"/>
-  </svg>
-)
-const IHome = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-    <path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/>
-  </svg>
-)
-const IInbox = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-    <path d="M3 13h5l1 3h6l1-3h5"/><path d="M3 13l3-8h12l3 8v6H3z"/>
-  </svg>
-)
-const ICog = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-    <circle cx="12" cy="12" r="3"/>
-    <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1A2 2 0 1 1 4.3 17l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
-  </svg>
-)
-const ICaret = () => (
-  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="m6 9 6 6 6-6"/>
-  </svg>
-)
-const IFolder = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-  </svg>
-)
-const IDoc = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-    <path d="M14 2v6h6M8 13h8M8 17h5"/>
-  </svg>
-)
-const ICheck = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M20 6 9 17l-5-5"/>
-  </svg>
-)
-const IClock = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-    <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>
-  </svg>
-)
-const ISignOut = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-    <polyline points="16 17 21 12 16 7"/>
-    <line x1="21" y1="12" x2="9" y2="12"/>
-  </svg>
-)
-
-const recentIcon = (type: RecentItemResponse['type']) => {
-  if (type === 'project') return <IFolder />
-  if (type === 'story') return <IDoc />
-  return <ICheck />
-}
-
-const SUB_ITEM = 'flex items-center gap-2 pl-8 pr-2 py-1 text-[12.5px] rounded-md truncate text-stone-500 dark:text-stone-400 hover:bg-stone-50 dark:hover:bg-stone-900 hover:text-stone-800 dark:hover:text-stone-200'
-const SUB_ITEM_ACTIVE = 'flex items-center gap-2 pl-8 pr-2 py-1 text-[12.5px] rounded-md truncate bg-stone-100 dark:bg-stone-900 text-stone-900 dark:text-stone-100'
 
 interface Props {
   children: React.ReactNode
@@ -87,19 +21,49 @@ export function AppShell({ children }: Props) {
   const location = useLocation()
   const { t } = useTranslation()
   const [pendingCount, setPendingCount] = useState(0)
-  const [menuOpen, setMenuOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const drawerId = useId()
+  // Whether the drawer exists at all is behaviour, not layout: no CSS variant
+  // can release a scroll lock or a focus trap. Same call as DetailRail's.
+  const isDesktop = useIsDesktopShell()
+  // A rotation from portrait to landscape crosses `lg` with the drawer still
+  // open, and the sheet would otherwise cover the desktop sidebar that replaced
+  // it — with the hamburger that dismisses it now display:none.
+  const drawerVisible = drawerOpen && !isDesktop
+
+  // The palette does not portal, so it and the drawer are two z-50 overlays in
+  // one stacking context: leaving the drawer open buries the palette under it,
+  // hands the drawer the topmost focus trap and puts drawer links under every
+  // tap aimed at a palette row.
+  const openPalette = useCallback(() => {
+    setDrawerOpen(false)
+    setPaletteOpen(true)
+  }, [])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        // Modal and Drawer both createPortal to document.body; CommandPalette
+        // renders in-place inside #root (T12/T18, deliberately not portalled).
+        // All three declare role="dialog" aria-modal="true" and z-index:50 in
+        // one stacking context, so DOM order decides and a portalled overlay
+        // always wins visually — but ⌘K would still mount the palette
+        // underneath it, stealing focus, the topmost Tab trap and the topmost
+        // Escape handler. Guard against any *other* open dialog, but exclude
+        // the drawer (id === drawerId): T12 relies on ⌘K working from inside
+        // the drawer to close it and open the palette in its place.
+        const blockingDialog = Array.from(
+          document.querySelectorAll('[role="dialog"][aria-modal="true"]')
+        ).some((el) => el.id !== drawerId)
+        if (blockingDialog) return
         e.preventDefault()
-        setPaletteOpen(true)
+        openPalette()
       }
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [])
+  }, [openPalette, drawerId])
   const [recentProjects, setRecentProjects] = useState<ProjectResponse[]>([])
   const [hasMoreProjects, setHasMoreProjects] = useState(false)
   const [recentItems, setRecentItems] = useState<RecentItemResponse[]>([])
@@ -124,161 +88,70 @@ export function AppShell({ children }: Props) {
     }).catch(() => {})
   }, [isAuthenticated])
 
+  // Navigations that do not come from a drawer link — a breadcrumb, a redirect,
+  // the browser's back button — must close the drawer too. Adjusted during
+  // render rather than in an effect, so the drawer never paints over the page
+  // it has already navigated away from.
+  const [pathAtLastRender, setPathAtLastRender] = useState(location.pathname)
+  if (pathAtLastRender !== location.pathname) {
+    setPathAtLastRender(location.pathname)
+    setDrawerOpen(false)
+  }
+
   const handleLogout = () => {
+    setDrawerOpen(false)
     logout()
     navigate('/login')
   }
 
   const projectsActive = location.pathname === '/projects'
 
+  const nav = (onNavigate: () => void) => (
+    <SidebarNav
+      recentItems={recentItems}
+      recentProjects={recentProjects}
+      hasMoreProjects={hasMoreProjects}
+      pendingCount={pendingCount}
+      projectsActive={projectsActive}
+      user={user}
+      initials={initials}
+      onSearch={openPalette}
+      onLogout={handleLogout}
+      onNavigate={onNavigate}
+    />
+  )
+
   return (
-    <div className="flex min-h-screen bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100">
-      {/* Sidebar */}
-      <aside className="w-[240px] shrink-0 border-r border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 flex flex-col h-screen sticky top-0">
+    <div className="flex flex-col lg:flex-row min-h-dvh bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100">
+      <MobileTopBar
+        drawerOpen={drawerVisible}
+        drawerId={drawerId}
+        onOpenDrawer={() => setDrawerOpen(true)}
+        onOpenSearch={openPalette}
+      />
 
-        {/* Scrollable zone: workspace + search + nav */}
-        <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
-          {/* Workspace */}
-          <div className="px-3 py-3 border-b border-stone-200 dark:border-stone-800 shrink-0">
-            <Link to="/projects" className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-stone-50 dark:hover:bg-stone-900">
-              <span className="w-6 h-6 rounded-md accent-bg flex items-center justify-center text-[11px] font-semibold">SP</span>
-              <span className="flex-1 min-w-0">
-                <span className="block text-[13px] font-semibold leading-tight">{t('shell.workspace')}</span>
-              </span>
-            </Link>
-          </div>
-
-          {/* Search stub */}
-          <div className="px-3 pt-3 shrink-0">
-            <button
-              onClick={() => setPaletteOpen(true)}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-stone-200 dark:border-stone-800 text-stone-400 text-[12px] hover:bg-stone-50 dark:hover:bg-stone-900 hover:border-stone-300 dark:hover:border-stone-700"
-            >
-              <ISearch />
-              <span className="flex-1 text-left">{t('shell.search')}</span>
-              <span className="text-[10px] text-stone-300 dark:text-stone-600 shrink-0">⌘K</span>
-            </button>
-          </div>
-
-          {/* Primary nav */}
-          <nav className="px-2 py-3 space-y-0.5 text-[13px]">
-
-            {/* Recent Work */}
-            {recentItems.length > 0 && (
-              <div className="mb-1">
-                <div className="flex items-center gap-2.5 px-2 py-1.5 text-stone-600 dark:text-stone-300 select-none">
-                  <span className="text-stone-400"><IClock /></span>
-                  <span className="flex-1">{t('nav.recent_work')}</span>
-                </div>
-                {recentItems.map(item => (
-                  <Link
-                    key={`${item.type}-${item.id}`}
-                    to={recentLink(item)}
-                    className={SUB_ITEM}
-                  >
-                    <span className="text-stone-400 shrink-0">{recentIcon(item.type)}</span>
-                    <span className="truncate">{item.title}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-
-            {/* Projects */}
-            <div className="mb-1">
-              <div className={`flex items-center gap-2.5 px-2 py-1.5 rounded-md ${projectsActive ? 'text-stone-900 dark:text-stone-100 font-medium' : 'text-stone-600 dark:text-stone-300'}`}>
-                <span className="text-stone-400"><IHome /></span>
-                <span className="flex-1">{t('nav.projects')}</span>
-                <Link
-                  to="/projects"
-                  className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 p-0.5 rounded"
-                  aria-label="New project"
-                >
-                  <IPlus />
-                </Link>
-              </div>
-              {recentProjects.map(project => (
-                <NavLink
-                  key={project.id}
-                  to={`/projects/${project.id}`}
-                  className={({ isActive }) => isActive ? SUB_ITEM_ACTIVE : SUB_ITEM}
-                >
-                  <span className="truncate">{project.name}</span>
-                </NavLink>
-              ))}
-              {hasMoreProjects && (
-                <Link to="/projects" className={SUB_ITEM}>
-                  <span className="truncate">{t('nav.all_projects')}</span>
-                  <span className="shrink-0 ml-1">→</span>
-                </Link>
-              )}
-            </div>
-
-            {/* Invitations */}
-            <NavLink
-              to="/invitations"
-              className={({ isActive }) =>
-                `w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md ${isActive ? 'bg-stone-100 dark:bg-stone-900 text-stone-900 dark:text-stone-100' : 'text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-900'}`
-              }
-            >
-              <span className="text-stone-400"><IInbox /></span>
-              <span className={pendingCount > 0 ? 'font-semibold' : ''}>
-                {t('nav.invitations')}{pendingCount > 0 ? ` (${pendingCount})` : ''}
-              </span>
-            </NavLink>
-
-          </nav>
-        </div>
-
-        {/* Footer — always visible at bottom of viewport */}
-        <div className="border-t border-stone-200 dark:border-stone-800 p-2 space-y-0.5 shrink-0">
-          <NavLink
-            to="/config"
-            className={({ isActive }) =>
-              `w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[13px] ${isActive ? 'bg-stone-100 dark:bg-stone-900' : 'text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-900'}`
-            }
-          >
-            <span className="text-stone-400"><ICog /></span>
-            <span>{t('nav.settings')}</span>
-          </NavLink>
-
-          <div className="relative">
-            <button
-              onClick={() => setMenuOpen(o => !o)}
-              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-stone-50 dark:hover:bg-stone-900"
-            >
-              <span className="w-6 h-6 rounded-full av-2 inline-flex items-center justify-center text-white text-[9.5px] font-semibold">
-                {initials}
-              </span>
-              <span className="flex-1 min-w-0 text-left">
-                <span className="block text-[12px] font-medium leading-tight truncate text-stone-800 dark:text-stone-100">{user?.name}</span>
-                <span className="block text-[10.5px] text-stone-500 leading-tight capitalize">{user?.role}</span>
-              </span>
-              <span className="text-stone-400"><ICaret /></span>
-            </button>
-            {menuOpen && (
-              <div className="absolute bottom-full left-0 right-0 mb-1 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-md shadow-lg z-50 overflow-hidden">
-                <Link
-                  to="/config"
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-2 px-3 py-2 text-[12.5px] text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
-                >
-                  <ICog /> {t('nav.settings')}
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
-                >
-                  <ISignOut /> {t('shell.sign_out')}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
+      {/* Sidebar — the phone gets the same navigation through the drawer below */}
+      <aside className="w-[240px] shrink-0 border-r border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950 hidden lg:flex flex-col h-dvh sticky top-0">
+        {nav(() => {})}
       </aside>
 
+      <Drawer
+        open={drawerVisible}
+        onClose={() => setDrawerOpen(false)}
+        title={t('nav.menu')}
+        id={drawerId}
+      >
+        {/* Tapping the link for the route you are already on leaves the path
+            untouched, so the route effect above never fires: the drawer has to
+            close from the click as well. */}
+        {nav(() => setDrawerOpen(false))}
+      </Drawer>
+
       {/* Main content */}
-      <main className="flex-1 min-w-0 flex flex-col min-h-screen">
+      {/* The floor is scoped to `lg`, where the root is a row and it overlaps
+          the root's own: below it the root is a column, so a bare `min-h-dvh`
+          here would stack under the top bar and beat flex-grow. */}
+      <main className="flex-1 min-w-0 flex flex-col lg:min-h-dvh">
         {children}
       </main>
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />

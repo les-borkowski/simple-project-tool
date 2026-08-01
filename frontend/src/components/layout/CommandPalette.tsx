@@ -1,10 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { RefObject } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { searchApi, configApi } from '../../services/api'
 import type { RecentItemResponse } from '../../services/api'
 import { applyTheme, getCurrentTheme } from '../../utils/theme'
 import { recentLink } from '../../utils/links'
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock'
+import { useEscapeKey } from '../../hooks/useEscapeKey'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 // ---------------------------------------------------------------------------
 // Icons
@@ -105,6 +109,19 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const [results, setResults] = useState<RecentItemResponse[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [focusedIndex, setFocusedIndex] = useState(-1)
+
+  // Escape is two-stage: clear the query first, then close on a second press
+  // with an empty query. The shared stack only owns "what happens on
+  // Escape" — this closure still decides which stage applies.
+  useEscapeKey(open, () => {
+    if (query) {
+      setQuery('')
+    } else {
+      onClose()
+    }
+  })
+  useBodyScrollLock(open)
+  const panelRef = useFocusTrap(open)
 
   // Parse context from URL
   const pathParts = location.pathname.split('/')
@@ -223,14 +240,6 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       ]
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Escape') {
-      if (query) {
-        setQuery('')
-      } else {
-        onClose()
-      }
-      return
-    }
     if (e.key === 'ArrowDown') {
       e.preventDefault()
       setFocusedIndex((i) => Math.min(i + 1, activeList.length - 1))
@@ -254,24 +263,24 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-start justify-center pt-[20vh]"
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-start justify-center pt-[10vh] md:pt-[20vh]"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
-      onKeyDown={(e) => { if (e.key === 'Tab') e.preventDefault() }}
     >
       <div
-        className="max-w-xl w-full mx-4 bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800"
+        ref={panelRef as RefObject<HTMLDivElement | null>}
+        className="max-w-xl w-full mx-4 max-h-[80dvh] flex flex-col bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800"
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
       >
 
         {/* Search input row */}
-        <div className="flex items-center gap-3 px-4 py-3">
+        <div className="shrink-0 flex items-center gap-3 px-4 py-3">
           <span className="text-stone-400 shrink-0"><ISearch /></span>
           <input
             ref={inputRef}
             type="text"
-            className="flex-1 bg-transparent outline-none text-[14px] text-stone-900 dark:text-stone-100 placeholder:text-stone-400"
+            className="flex-1 bg-transparent outline-none text-ui-lg text-stone-900 dark:text-stone-100 placeholder:text-stone-400"
             placeholder={t('palette.placeholder')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -280,7 +289,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           {query && (
             <button
               onClick={() => setQuery('')}
-              className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 text-[16px] leading-none shrink-0"
+              className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 text-ui-xl leading-none shrink-0"
               aria-label="Clear"
             >
               ×
@@ -289,15 +298,15 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         </div>
 
         {/* Divider */}
-        <div className="border-t border-stone-100 dark:border-stone-800" />
+        <div className="shrink-0 border-t border-stone-100 dark:border-stone-800" />
 
         {/* List */}
-        <div className="py-1.5 max-h-[360px] overflow-y-auto" role="listbox">
+        <div className="py-1.5 min-h-0 overflow-y-auto" role="listbox">
 
           {/* Quick actions (empty query) */}
           {query === '' && (
             <>
-              <div className="px-4 py-1.5 text-[10px] uppercase tracking-wider font-medium text-stone-400 dark:text-stone-500 select-none">
+              <div className="px-4 py-1.5 text-ui-2xs uppercase tracking-wider font-medium text-stone-400 dark:text-stone-500 select-none">
                 {t('palette.quick_actions')}
               </div>
               {quickActions.map((action, idx) => (
@@ -311,7 +320,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
                   onMouseDown={() => action.onClick()}
                 >
                   <span className="text-stone-400 shrink-0">{action.icon}</span>
-                  <span className="text-[13.5px] text-stone-700 dark:text-stone-200">{action.label}</span>
+                  <span className="text-ui-lg text-stone-700 dark:text-stone-200">{action.label}</span>
                 </div>
               ))}
             </>
@@ -319,11 +328,11 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
           {/* Search results */}
           {query !== '' && isSearching && (
-            <div className="px-4 py-3 text-[12.5px] text-stone-400 italic">{t('search.searching')}</div>
+            <div className="px-4 py-3 text-ui-md text-stone-400 italic">{t('search.searching')}</div>
           )}
 
           {query !== '' && !isSearching && results.length === 0 && (
-            <div className="px-4 py-4 text-[13px] italic text-stone-400 dark:text-stone-500">
+            <div className="px-4 py-4 text-ui-md italic text-stone-400 dark:text-stone-500">
               {t('search.empty', { q: query })}
             </div>
           )}
@@ -339,8 +348,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
               onMouseDown={() => { navigate(recentLink(item)); onClose() }}
             >
               <span className="text-stone-400 shrink-0">{typeIcon(item.type)}</span>
-              <span className="flex-1 min-w-0 text-[13.5px] text-stone-800 dark:text-stone-200 truncate">{item.title}</span>
-              <span className="text-[11.5px] text-stone-400 dark:text-stone-500 shrink-0">{typeLabel(item.type)}</span>
+              <span className="flex-1 min-w-0 text-ui-lg text-stone-800 dark:text-stone-200 truncate">{item.title}</span>
+              <span className="text-ui-sm text-stone-400 dark:text-stone-500 shrink-0">{typeLabel(item.type)}</span>
             </div>
           ))}
 
@@ -354,7 +363,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
               onMouseDown={() => { navigate('/search?q=' + encodeURIComponent(query)); onClose() }}
             >
               <span className="w-[14px] shrink-0" />
-              <span className="text-[13px] text-stone-500 dark:text-stone-400">
+              <span className="text-ui-md text-stone-500 dark:text-stone-400">
                 {t('palette.see_all', { count: results.length })}
               </span>
             </div>

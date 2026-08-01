@@ -2,10 +2,178 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ── iOS zoom guard ──────────────────────────────────────────────
+   iOS Safari force-zooms when a focused control's font-size < 16px.
+   Deliberately UNLAYERED: Tailwind v4 puts every utility in
+   @layer utilities, and unlayered rules outrank all layered rules,
+   so this beats the bracketed arbitrary-value form (12px) / text-ui-sm
+   on the same element without !important. Do NOT "fix" this by moving
+   it into @layer base — it would then lose to every utility class.
+   Any per-control override must therefore also be unlayered.        */
+@media (max-width: 767.98px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]):not([type="file"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* ── Design tokens (font sizes) ──────────────────────────────────
+   Namespaced as --text-ui-* on purpose: MarkdownEditor.tsx,
+   ConfirmDialog.tsx and ToastContext.tsx already rely on Tailwind's
+   own --text-sm / --text-xs / --text-lg, and overriding those here
+   would shift them silently. Do not rename these into that namespace.
+
+   Full reference, including the 16-value -> 9-token mapping this scale
+   replaced and how to revisit it: docs/type-scale.md
+
+   Font-size ONLY — do NOT add --text-ui-*--line-height companion
+   tokens. A later ticket mechanically replaces 347 existing sites
+   using the bracketed arbitrary-value font-size form with these
+   utilities; if the tokens also carried line-heights, that codemod
+   would silently change vertical rhythm everywhere.                 */
+@theme {
+  --text-ui-2xs: 0.625rem;   /* 10px */
+  --text-ui-xs:  0.6875rem;  /* 11px */
+  --text-ui-sm:  0.75rem;    /* 12px */
+  --text-ui-md:  0.8125rem;  /* 13px */
+  --text-ui-lg:  0.875rem;   /* 14px */
+  --text-ui-xl:  0.9375rem;  /* 15px */
+  --text-ui-2xl: 1.25rem;    /* 20px */
+  --text-ui-3xl: 1.375rem;   /* 22px */
+  --text-ui-4xl: 1.625rem;   /* 26px */
+  --spacing-topbar: calc(3rem + env(safe-area-inset-top));
+}
+
+/* Force generation of the text-ui-* utilities even though no call
+   site references them yet (T02 makes zero call-site changes — a
+   later ticket does the codemod). Without this, Tailwind's content
+   scanner would never emit these classes into the built CSS. */
+@source inline("text-ui-2xs text-ui-xs text-ui-sm text-ui-md text-ui-lg text-ui-xl text-ui-2xl text-ui-3xl text-ui-4xl");
+
+/* index.css.test.ts and typeScale.sourceLint.test.ts (only these two, not
+   test files generally — a broader exclusion would also drop classes that
+   happen to appear only in some *.test.tsx's mock markup, changing the
+   built CSS beyond font-size) quote the same bracketed-arbitrary-value
+   shape inside their own doc comments, documenting this exact landmine.
+   Tailwind's content scanner can't tell that prose apart from real class
+   usage, so without this exclusion it re-emits the invalid rule from
+   whichever of the two files still mentions it, even after both comments
+   above are reworded. Neither file contributes a class that isn't already
+   covered by the @source inline(...) above, so excluding them changes no
+   real utility output. */
+@source not "index.css.test.ts";
+@source not "typeScale.sourceLint.test.ts";
+
+/* ── Touch / scroll utilities ──────────────────────────────────────
+   Written as plain unlayered classes (matching the existing .st-pill
+   / .accent-bg style already used throughout this file) rather than
+   the @utility directive, because @utility only emits a rule when
+   the generated class name is referenced somewhere in scanned source
+   — verified against the built CSS in dist/ before choosing this. */
+.drag-handle {
+  touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+/* .drag-row is for full-row/full-card draggables (as opposed to a small,
+   dedicated grip glyph): it must NOT set touch-action: none. dnd-kit's
+   TouchSensor here is activated with a delay (250ms) rather than
+   immediately, and it calls preventDefault() itself once a drag actually
+   activates — so scroll suppression during a real drag is already
+   handled. Setting touch-action: none on the whole row would instead
+   disable native panning from the very first touchstart, before the
+   delay can elapse, which breaks vertical scroll on any row/card that
+   uses this class. Do not "simplify" this back into .drag-handle. */
+.drag-row {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.tap-safe {
+  @media (pointer: coarse) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* .stories-grid widens the last column of the stories table's
+   md:grid-cols-[1fr_120px_100px_100px_80px] track list under a coarse
+   pointer. That column packs a relative timestamp plus two 44px
+   tap-safe Edit/Delete buttons and an 8px gap. Sizing this from one
+   observed row ("2d", 18.7px) was the mistake being corrected here:
+   formatRelative() (src/utils/time.ts) can also emit "100y ago" and
+   "11mo ago", the longest outputs, measured at 46.2px -- worst case is
+   46.2 + 8 + 44 + 8 + 44 = 150.2px required against an actual 80px
+   column. 160px covers the buttons (160 - 96 - 8 = 56px left for the
+   timestamp) with ~9.8px of headroom over that worst case. Only the
+   last track changes; the first four stay byte-identical to desktop.
+   Gated on width >= 48rem (md) because below md the grid is
+   single-column for the mobile card layout (T14) -- this rule must not
+   fire there. Left unlayered like the rest of this file so the plain
+   .stories-grid selector outranks the md:grid-cols-[...] Tailwind
+   utility without needing !important. */
+@media (pointer: coarse) and (width >= 48rem) {
+  .stories-grid {
+    grid-template-columns: 1fr 120px 100px 100px 160px;
+  }
+}
+
+.scroll-fade-x {
+  mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
+}
+
+/* .scroll-fade-x-r is a right-edge-only sibling of .scroll-fade-x, for
+   scroll containers whose left edge is permanently occupied by a pinned
+   (sticky left-0) column — a left fade there would mask the pinned column
+   itself toward transparency rather than hint at off-screen content. It is
+   also gated off entirely at >=1024px (Tailwind's `lg` breakpoint): the
+   Gantt this was added for (TimelineView) never overflows at desktop
+   widths, so the mask would otherwise fade a container that never
+   scrolls. Do not modify .scroll-fade-x itself — src/pages/ProjectDetailPage.tsx's
+   kanban board scroller depends on its current (both-edges) shape. */
+.scroll-fade-x-r {
+  mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+}
+
+@media (width >= 64rem) {
+  .scroll-fade-x-r {
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+}
+
 html, body {
   font-family: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   font-size: 16px;
+}
+
+/* ── Base text colour ────────────────────────────────────────────
+   The app's base colour also lives on AppShell's wrapper <div>
+   (text-stone-900 dark:text-stone-100), but Modal and Menu
+   createPortal() into document.body — their subtrees are NOT
+   descendants of that wrapper, so anything relying on *inherited*
+   colour fell back to the user-agent default (black) and was
+   unreadable on a dark panel. Setting it on <body> fixes every
+   portal at once. The values must stay identical to AppShell's
+   classes so in-shell rendering is unchanged.
+
+   Dark mode is class-based (see @custom-variant above; .dark is
+   toggled on <html> by AuthContext.applyTheme), so the override
+   keys off .dark, never prefers-color-scheme.
+
+   Unlayered like the rest of this file, which is harmless here:
+   nothing targets <body> itself, and any element carrying its own
+   colour still beats inheritance.                                 */
+body {
+  color: var(--color-stone-900);
+}
+.dark body {
+  color: var(--color-stone-100);
 }
 
 /* ── Design tokens ── */

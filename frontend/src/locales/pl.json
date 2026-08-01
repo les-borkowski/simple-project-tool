@@ -3,8 +3,11 @@
   "nav.invitations": "Zaproszenia",
   "nav.settings": "Ustawienia",
   "nav.recent_work": "Ostatnia aktywność",
+  "nav.menu": "Menu",
+  "nav.open_menu": "Otwórz menu",
   "nav.all_projects": "Wszystkie projekty",
   "nav.logout": "Wyloguj",
+  "nav.show_all_crumbs": "Pokaż pełną ścieżkę",
 
   "projects.title": "Projekty",
   "projects.create": "Nowy projekt",
@@ -138,6 +141,7 @@
   "actions.confirm": "Czy jesteś pewny?",
   "actions.load_more": "Wczytaj więcej",
   "actions.create": "Utwórz",
+  "actions.more": "Więcej akcji",
 
   "auth.login": "Zaloguj się",
   "auth.register": "Zarejestruj się",
@@ -162,6 +166,7 @@
   "time.hours": "{{count}} godz.",
   "time.days": "{{count}} dni",
 
+  "tabs.project_sections": "Sekcje projektu",
   "tabs.stories": "Historyjki",
   "tabs.members": "Członkowie",
   "tabs.board": "Tablica",
@@ -191,6 +196,7 @@
   "detail.story": "Historyjka",
   "detail.sprint": "Sprint",
   "detail.effort": "Wysiłek",
+  "detail.details": "Szczegóły",
   "detail.description": "Opis",
   "detail.assigned_to": "Przypisano do {{name}}",
   "detail.add_description": "Dodaj opis…",
@@ -252,6 +258,8 @@
 
   "config.app_settings": "Ustawienia aplikacji",
   "config.project_settings": "Ustawienia projektu",
+  "config.settings_scope": "Zakres ustawień",
+  "config.settings_sections": "Sekcje ustawień",
   "config.select_project": "Wybierz projekt",
 
   "project_statuses.title": "Statusy",
@@ -262,6 +270,8 @@
   "project_statuses.save": "Zapisz",
   "project_statuses.cancel": "Anuluj",
   "project_statuses.unlisted": "Nieprzypisane statusy",
+  "project_statuses.move_up": "Przesuń w górę",
+  "project_statuses.move_down": "Przesuń w dół",
 
   "sprints.title": "Sprinty",
   "sprints.create": "Nowy sprint",

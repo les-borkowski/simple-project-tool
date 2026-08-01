@@ -1,24 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useToast } from '../../context/ToastContext'
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core'
+import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core'
 import {
   arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { preferencesApi, isDemoBlockedError } from '../../services/api'
+import { useDragSensors } from '../../hooks/useDragSensors'
 
 interface TabConfigPanelProps {
   projectId: string
@@ -51,11 +43,11 @@ function SortableTabRow({ tabKey, label, isHidden, onToggle }: SortableTabRowPro
       >
         ⠿
       </span>
-      <span className="flex-1 text-[13px]">{label}</span>
+      <span className="flex-1 text-ui-md">{label}</span>
       <button
         type="button"
         onClick={onToggle}
-        className={`text-[11px] px-2 py-0.5 rounded-md border ${isHidden ? 'border-stone-200 dark:border-stone-700 text-stone-400' : 'border-stone-400 text-stone-600 dark:text-stone-300'}`}
+        className={`text-ui-xs px-2 py-0.5 rounded-md border ${isHidden ? 'border-stone-200 dark:border-stone-700 text-stone-400' : 'border-stone-400 text-stone-600 dark:text-stone-300'}`}
       >
         {isHidden ? t('tabs.hidden') : t('tabs.visible')}
       </button>
@@ -97,12 +89,7 @@ export function TabConfigPanel({ projectId, tabOrder, hiddenTabs, onPreferencesC
     }, 300)
   }, [projectId, onPreferencesChange, addToast, t])
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  )
+  const sensors = useDragSensors()
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
@@ -132,8 +119,8 @@ export function TabConfigPanel({ projectId, tabOrder, hiddenTabs, onPreferencesC
 
   return (
     <div className="max-w-md">
-      <h2 className="text-[14px] font-semibold mb-1">{t('tabs.settings')}</h2>
-      <p className="text-[12px] text-stone-500 mb-4">{t('tabs.reorder_hint')}</p>
+      <h2 className="text-ui-lg font-semibold mb-1">{t('tabs.settings')}</h2>
+      <p className="text-ui-sm text-stone-500 mb-4">{t('tabs.reorder_hint')}</p>
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}

@@ -56,7 +56,7 @@ export function MarkdownEditor({ value, onChange, rows = 4, placeholder = 'Add d
 
   return (
     <div className="space-y-1">
-      <div className="flex flex-wrap gap-1 px-1 py-1 rounded-t border border-b-0 border-stone-300 dark:border-stone-600 bg-stone-50 dark:bg-stone-750">
+      <div className="flex flex-wrap gap-1 px-1 py-1 rounded-t border border-b-0 border-stone-300 dark:border-stone-600 bg-stone-50 dark:bg-stone-800">
         <button type="button" className={btnClass} title="Bold" onClick={() => wrap({ before: '**', after: '**', placeholder: 'bold' })}>
           <strong>B</strong>
         </button>

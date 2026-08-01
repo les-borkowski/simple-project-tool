@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { searchApi } from '../services/api'
 import type { RecentItemResponse } from '../services/api'
 import { SkeletonCard } from '../components/common/Skeleton'
+import { PageHeader } from '../components/layout/PageHeader'
 import { recentLink } from '../utils/links'
 
 const IFolder = () => (
@@ -38,7 +39,7 @@ function GroupSection({ label, items }: GroupSectionProps) {
   if (items.length === 0) return null
   return (
     <section>
-      <h2 className="text-[11px] uppercase tracking-wider text-stone-400 font-medium px-4 py-2">
+      <h2 className="text-ui-xs uppercase tracking-wider text-stone-400 font-medium px-4 py-2">
         {label} ({items.length})
       </h2>
       <div className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 divide-y divide-stone-100 dark:divide-stone-800/80">
@@ -49,7 +50,7 @@ function GroupSection({ label, items }: GroupSectionProps) {
             className="flex items-center gap-3 px-4 py-2.5 hover:bg-stone-50 dark:hover:bg-stone-800 rounded-lg"
           >
             <span className="text-stone-400 shrink-0">{typeIcon(item.type)}</span>
-            <span className="font-medium text-[13.5px] truncate">{item.title}</span>
+            <span className="font-medium text-ui-lg truncate">{item.title}</span>
           </Link>
         ))}
       </div>
@@ -83,12 +84,7 @@ export function SearchResultsPage() {
 
   return (
     <div className="flex-1 flex flex-col">
-      {/* Header */}
-      <div className="px-7 pt-5 pb-4 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
-        <h1 className="text-[22px] font-semibold tracking-tight">
-          {t('search.title', { q })}
-        </h1>
-      </div>
+      <PageHeader title={t('search.title', { q })} />
 
       {/* Content */}
       <div className="flex-1 px-7 py-5 space-y-6 overflow-y-auto">
@@ -97,7 +93,7 @@ export function SearchResultsPage() {
             {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : results.length === 0 ? (
-          <div className="flex items-center justify-center h-48 text-stone-400 text-[13.5px]">
+          <div className="flex items-center justify-center h-48 text-stone-400 text-ui-lg">
             {t('search.empty', { q })}
           </div>
         ) : (

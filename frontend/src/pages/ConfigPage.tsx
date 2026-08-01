@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -9,6 +9,9 @@ import { ApiKeyList } from '../components/config/ApiKeyList'
 import { projectsApi, authApi, isDemoBlockedError } from '../services/api'
 import type { ProjectResponse } from '../services/api'
 import { ProjectStatusManager } from '../components/config/ProjectStatusManager'
+import { Modal } from '../components/common/Modal'
+import { Tabs } from '../components/common/Tabs'
+import { tabId } from '../utils/tabId'
 import { useRole } from '../hooks/useRole'
 import { useToast } from '../context/ToastContext'
 import { initials as getInitials } from '../utils/initials'
@@ -25,6 +28,17 @@ const ACCENT_COLORS: Record<AccentColor, string> = {
 
 type Tab = 'profile' | 'api_keys' | 'security'
 type TopTab = 'app' | 'project'
+
+// Each scope's body is the panel of the tablist above it, so both ids are
+// needed up front to wire aria-controls / aria-labelledby.
+const APP_PANEL_ID = 'config-app-panel'
+const PROJECT_PANEL_ID = 'config-project-panel'
+
+// Tab ids get their own namespace per tablist: the scope tabs point at whichever
+// panel is showing, so deriving their ids from the panel id would collide with
+// the section tabs' the moment the two key sets overlapped.
+const SCOPE_TABS_ID = 'config-scope'
+const SECTION_TABS_ID = 'config-sections'
 
 const IKey = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
@@ -126,85 +140,88 @@ export function ConfigPage() {
     }
   }
 
-  const tabs: { key: Tab; label: string; icon: React.ReactNode; disabled?: boolean }[] = [
-    { key: 'profile', label: t('config.profile'), icon: <IUser /> },
-    { key: 'api_keys', label: t('config.api_keys'), icon: <IKey />, disabled: true },
-    { key: 'security', label: t('config.security'), icon: <IShield /> },
-  ]
+  // Memoised because Tabs re-scrolls its active tab into view whenever `items`
+  // changes, and a fresh array on every keystroke in the password form would
+  // count as a change.
+  const scopeTabs = useMemo(
+    () => [
+      { key: 'app', label: t('config.app_settings') },
+      { key: 'project', label: t('config.project_settings') },
+    ],
+    [t]
+  )
+
+  const tabs = useMemo(
+    () => [
+      { key: 'profile', label: t('config.profile'), icon: <IUser /> },
+      { key: 'api_keys', label: t('config.api_keys'), icon: <IKey />, disabled: true },
+      { key: 'security', label: t('config.security'), icon: <IShield /> },
+    ],
+    [t]
+  )
 
   const initials = user ? getInitials(user.name) : '?'
 
   return (
     <div className="flex-1 flex flex-col">
       <div className="px-7 pt-6 pb-3 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
-        <h1 className="text-[22px] font-semibold tracking-tight mb-3">{t('config.title')}</h1>
-        <div className="flex gap-1">
-          {(['app', 'project'] as const).map((tt) => (
-            <button
-              key={tt}
-              onClick={() => setTopTab(tt)}
-              className={`px-3 py-1.5 text-[12.5px] rounded-md transition-colors ${
-                topTab === tt
-                  ? 'bg-stone-100 dark:bg-stone-900 font-medium text-stone-900 dark:text-stone-100'
-                  : 'text-stone-500 hover:text-stone-800 dark:hover:text-stone-200'
-              }`}
-            >
-              {tt === 'app' ? t('config.app_settings') : t('config.project_settings')}
-            </button>
-          ))}
-        </div>
+        <h1 className="text-ui-3xl font-semibold tracking-tight mb-3">{t('config.title')}</h1>
+        <Tabs
+          items={scopeTabs}
+          value={topTab}
+          onChange={(key) => setTopTab(key as TopTab)}
+          label={t('config.settings_scope')}
+          panelId={topTab === 'app' ? APP_PANEL_ID : PROJECT_PANEL_ID}
+          idPrefix={SCOPE_TABS_ID}
+        />
       </div>
 
       {topTab === 'app' && (
-        <div className="flex-1 grid grid-cols-[200px_1fr]">
-          <nav className="border-r border-stone-200 dark:border-stone-800 px-3 py-4 space-y-0.5 bg-white dark:bg-stone-950">
-            {tabs.map(({ key, label, icon, disabled }) => (
-              <button
-                key={key}
-                onClick={() => {
-                  if (!disabled) {
-                    setTab(key)
-                    setPwChanged(false)
-                  }
-                }}
-                disabled={disabled}
-                className={`w-full flex items-center gap-2.5 text-left px-2 py-1.5 rounded-md text-[13px] transition-colors ${
-                  disabled
-                    ? 'text-stone-400 dark:text-stone-600 cursor-not-allowed'
-                    : tab === key
-                      ? 'bg-stone-100 dark:bg-stone-900 font-medium text-stone-900 dark:text-stone-100'
-                      : 'text-stone-600 dark:text-stone-300 hover:bg-stone-100/60 dark:hover:bg-stone-900/60'
-                }`}
-              >
-                <span className={disabled ? 'text-stone-300 dark:text-stone-600' : 'text-stone-400'}>{icon}</span>
-                {label}
-              </button>
-            ))}
-          </nav>
+        <div className="flex-1 flex flex-col lg:grid lg:grid-cols-[200px_1fr]">
+          <Tabs
+            items={tabs}
+            value={tab}
+            onChange={(key) => {
+              setTab(key as Tab)
+              setPwChanged(false)
+            }}
+            label={t('config.settings_sections')}
+            orientation="vertical-lg"
+            panelId={APP_PANEL_ID}
+            idPrefix={SECTION_TABS_ID}
+            className="border-b lg:border-b-0 lg:border-r border-stone-200 dark:border-stone-800 px-3 py-2 lg:py-4 bg-white dark:bg-stone-950"
+          />
 
-          <div className="px-8 py-6 max-w-2xl space-y-6">
+          <div
+            id={APP_PANEL_ID}
+            role="tabpanel"
+            aria-labelledby={tabId(SECTION_TABS_ID, tab)}
+            // flex-1 fills the height the grid used to give the body below lg;
+            // it is inert on a grid item, so the desktop column is unchanged.
+            className="flex-1 px-4 py-5 md:px-8 md:py-6 max-w-2xl space-y-6"
+          >
             {tab === 'profile' && (
               <>
                 <section className="rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-5">
                   <div className="flex items-center gap-4">
-                    <span className="w-14 h-14 rounded-full av-2 inline-flex items-center justify-center text-white text-[14px] font-semibold shrink-0">
+                    <span className="w-14 h-14 rounded-full av-2 inline-flex items-center justify-center text-white text-ui-lg font-semibold shrink-0">
                       {initials}
                     </span>
                     <div>
-                      <div className="text-[15px] font-medium">{user?.name}</div>
-                      <div className="text-[12.5px] text-stone-500">{user?.email} · <span className="capitalize">{user?.role}</span></div>
+                      <div className="text-ui-xl font-medium">{user?.name}</div>
+                      <div className="text-ui-md text-stone-500">{user?.email} · <span className="capitalize">{user?.role}</span></div>
                     </div>
                   </div>
                 </section>
 
                 <section className="rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-5 space-y-5">
-                  <h3 className="text-[14px] font-medium">{t('config.appearance')}</h3>
+                  <h3 className="text-ui-lg font-medium">{t('config.appearance')}</h3>
                   <div>
-                    <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-2">{t('config.theme')}</label>
+                    <label className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium mb-2">{t('config.theme')}</label>
                     <ThemeSwitcher />
                   </div>
                   <div>
-                    <label className="text-[11px] uppercase tracking-wider text-stone-400 font-medium">{t('config.accent_colour')}</label>
+                    <label className="text-ui-xs uppercase tracking-wider text-stone-400 font-medium">{t('config.accent_colour')}</label>
                     <div className="flex gap-2 mt-2">
                       {(['indigo','violet','emerald','rose','amber','stone'] as const).map(a => (
                         <button
@@ -218,7 +235,7 @@ export function ConfigPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-2">{t('config.locale')}</label>
+                    <label className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium mb-2">{t('config.locale')}</label>
                     <LocaleSwitcher />
                   </div>
                 </section>
@@ -228,8 +245,8 @@ export function ConfigPage() {
             {tab === 'api_keys' && (
               <section className="rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 overflow-hidden">
                 <div className="px-5 py-4 border-b border-stone-100 dark:border-stone-800">
-                  <h3 className="text-[14px] font-medium">{t('config.api_keys')}</h3>
-                  <p className="text-[12px] text-stone-500 mt-0.5">{t('config.api_keys_desc')}</p>
+                  <h3 className="text-ui-lg font-medium">{t('config.api_keys')}</h3>
+                  <p className="text-ui-sm text-stone-500 mt-0.5">{t('config.api_keys_desc')}</p>
                 </div>
                 <div className="p-5">
                   <ApiKeyList />
@@ -240,10 +257,10 @@ export function ConfigPage() {
             {tab === 'security' && (
               <>
                 <section className="rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-5">
-                  <h3 className="text-[14px] font-medium mb-4">{t('config.change_password')}</h3>
+                  <h3 className="text-ui-lg font-medium mb-4">{t('config.change_password')}</h3>
                   <form onSubmit={handleChangePassword} className="space-y-4 max-w-sm">
                     <div>
-                      <label htmlFor="current-password" className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1.5">
+                      <label htmlFor="current-password" className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium mb-1.5">
                         {t('config.current_password')}
                       </label>
                       <input
@@ -253,14 +270,14 @@ export function ConfigPage() {
                         onChange={(e) => setCurrentPw(e.target.value)}
                         autoComplete="current-password"
                         required
-                        className="w-full px-3 py-1.5 text-[13px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
+                        className="w-full px-3 py-1.5 text-ui-md rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
                       />
                       {pwError?.field === 'current' && (
-                        <p className="mt-1 text-[12px] text-red-500">{pwError.message}</p>
+                        <p className="mt-1 text-ui-sm text-red-500">{pwError.message}</p>
                       )}
                     </div>
                     <div>
-                      <label htmlFor="new-password" className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1.5">
+                      <label htmlFor="new-password" className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium mb-1.5">
                         {t('config.new_password')}
                       </label>
                       <input
@@ -270,11 +287,11 @@ export function ConfigPage() {
                         onChange={(e) => setNewPw(e.target.value)}
                         autoComplete="new-password"
                         required
-                        className="w-full px-3 py-1.5 text-[13px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
+                        className="w-full px-3 py-1.5 text-ui-md rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
                       />
                     </div>
                     <div>
-                      <label htmlFor="confirm-password" className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1.5">
+                      <label htmlFor="confirm-password" className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium mb-1.5">
                         {t('config.confirm_new_password')}
                       </label>
                       <input
@@ -284,48 +301,50 @@ export function ConfigPage() {
                         onChange={(e) => setConfirmPw(e.target.value)}
                         autoComplete="new-password"
                         required
-                        className="w-full px-3 py-1.5 text-[13px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
+                        className="w-full px-3 py-1.5 text-ui-md rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
                       />
                       {pwError?.field === 'confirm' && (
-                        <p className="mt-1 text-[12px] text-red-500">{pwError.message}</p>
+                        <p className="mt-1 text-ui-sm text-red-500">{pwError.message}</p>
                       )}
                     </div>
                     <button
                       type="submit"
                       disabled={pwLoading}
-                      className="px-4 py-1.5 text-[12px] rounded-md accent-bg text-white disabled:opacity-50"
+                      className="px-4 py-1.5 text-ui-sm rounded-md accent-bg text-white disabled:opacity-50"
                     >
                       {pwLoading ? t('common.saving') : t('config.update_password')}
                     </button>
                   </form>
                 </section>
 
-                {pwChanged && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                    <div className="bg-white dark:bg-stone-800 rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
-                      <h3 className="text-[16px] font-semibold text-stone-900 dark:text-stone-100 mb-2">
-                        {t('config.password_changed_title')}
-                      </h3>
-                      <p className="text-[13px] text-stone-500 dark:text-stone-300 mb-5">
-                        {t('config.password_changed_body')}
-                      </p>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => setPwChanged(false)}
-                          className="flex-1 px-4 py-2 text-[13px] rounded-md border border-stone-300 dark:border-stone-600 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700"
-                        >
-                          {t('config.stay_logged_in')}
-                        </button>
-                        <button
-                          onClick={() => { logout(); navigate('/login') }}
-                          className="flex-1 px-4 py-2 text-[13px] rounded-md accent-bg text-white"
-                        >
-                          {t('auth.logout')}
-                        </button>
-                      </div>
+                <Modal
+                  open={pwChanged}
+                  onClose={() => setPwChanged(false)}
+                  title={t('config.password_changed_title')}
+                  size="sm"
+                  footer={
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPwChanged(false)}
+                        className="flex-1 px-4 py-2 text-ui-md rounded-md border border-stone-300 dark:border-stone-600 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700 tap-safe"
+                      >
+                        {t('config.stay_logged_in')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { logout(); navigate('/login') }}
+                        className="flex-1 px-4 py-2 text-ui-md rounded-md accent-bg text-white tap-safe"
+                      >
+                        {t('auth.logout')}
+                      </button>
                     </div>
-                  </div>
-                )}
+                  }
+                >
+                  <p className="text-ui-md text-stone-500 dark:text-stone-300">
+                    {t('config.password_changed_body')}
+                  </p>
+                </Modal>
               </>
             )}
           </div>
@@ -333,15 +352,20 @@ export function ConfigPage() {
       )}
 
       {topTab === 'project' && (
-        <div className="flex-1 px-8 py-6 max-w-2xl space-y-6">
+        <div
+          id={PROJECT_PANEL_ID}
+          role="tabpanel"
+          aria-labelledby={tabId(SCOPE_TABS_ID, 'project')}
+          className="flex-1 px-4 py-5 md:px-8 md:py-6 max-w-2xl space-y-6"
+        >
           <div>
-            <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-2">
+            <label className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium mb-2">
               {t('config.select_project')}
             </label>
             <select
               value={selectedProjectId}
               onChange={(e) => setSelectedProjectId(e.target.value)}
-              className="px-3 py-1.5 text-[13px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-64"
+              className="px-3 py-1.5 text-ui-md rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-64"
             >
               <option value="">— {t('config.select_project')} —</option>
               {projects.map((p) => (
@@ -353,7 +377,7 @@ export function ConfigPage() {
             <>
               <ProjectStatusManager projectId={selectedProjectId} isManager={isManager} />
               <div className="mt-6 pt-6 border-t border-stone-200 dark:border-stone-800">
-                <h3 className="text-[12px] font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-3">
+                <h3 className="text-ui-sm font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-3">
                   {t('effort.unit_label')}
                 </h3>
                 <label className="flex items-center gap-2 mb-3 cursor-pointer select-none">
@@ -363,19 +387,19 @@ export function ConfigPage() {
                     onChange={(e) => setEffortEnabled(e.target.checked)}
                     className="accent-[var(--accent)]"
                   />
-                  <span className="text-[13px]">{t('effort.enable')}</span>
+                  <span className="text-ui-md">{t('effort.enable')}</span>
                 </label>
                 {effortEnabled && (
                   <div className="flex gap-2 items-center">
                     <input
-                      className="px-2.5 py-1.5 text-[13px] rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-32"
+                      className="px-2.5 py-1.5 text-ui-md rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-32"
                       value={effortUnit}
                       onChange={(e) => setEffortUnit(e.target.value)}
                       placeholder="sp"
                       maxLength={20}
                     />
                     <button
-                      className="px-3 py-1.5 text-[12px] rounded-md accent-bg text-white transition-colors disabled:opacity-50"
+                      className="px-3 py-1.5 text-ui-sm rounded-md accent-bg text-white transition-colors disabled:opacity-50"
                       onClick={handleSaveEffortUnit}
                       disabled={savingEffort}
                     >
@@ -385,7 +409,7 @@ export function ConfigPage() {
                 )}
                 {!effortEnabled && (
                   <button
-                    className="px-3 py-1.5 text-[12px] rounded-md border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 disabled:opacity-50"
+                    className="px-3 py-1.5 text-ui-sm rounded-md border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 disabled:opacity-50"
                     onClick={handleSaveEffortUnit}
                     disabled={savingEffort}
                   >

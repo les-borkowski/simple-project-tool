@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -12,6 +12,10 @@ import { PriorityBars } from '../components/common/PriorityBars'
 import { MarkdownEditor } from '../components/common/MarkdownEditor'
 import { SkeletonCard } from '../components/common/Skeleton'
 import { DetailField } from '../components/common/DetailField'
+import { DetailRail } from '../components/common/DetailRail'
+import { Breadcrumbs } from '../components/common/Breadcrumbs'
+import type { Crumb } from '../components/common/Breadcrumbs'
+import { PageHeader } from '../components/layout/PageHeader'
 import { useToast } from '../context/ToastContext'
 import { CommentList } from '../components/comments/CommentList'
 import { StatusHistoryTimeline } from '../components/status-history/StatusHistoryTimeline'
@@ -24,7 +28,7 @@ const ICaret = () => (
 )
 
 export function TaskDetailPage() {
-  const { storyId, taskId } = useParams<{ storyId: string; taskId: string }>()
+  const { taskId } = useParams<{ storyId: string; taskId: string }>()
   const { t } = useTranslation()
   const { addToast } = useToast()
 
@@ -206,9 +210,29 @@ export function TaskDetailPage() {
 
   const priorities: Priority[] = ['low', 'medium', 'high']
 
+  // Handed to both branches so the loading header reserves the same boxes the
+  // loaded one fills. A task under a story is a four-crumb trail (Projects /
+  // project / story / task); a project-level task (no story) is three —
+  // Breadcrumbs only collapses below md when it is handed more than three.
+  const crumbs: Crumb[] = story
+    ? [
+        { label: t('projects.title'), to: '/projects' },
+        { label: projectName || '…', to: `/projects/${story.project_id}` },
+        { label: story.title, to: `/projects/${story.project_id}/stories/${story.id}` },
+        { label: task?.title ?? '' },
+      ]
+    : task?.project_id
+      ? [
+          { label: t('projects.title'), to: '/projects' },
+          { label: projectName || '…', to: `/projects/${task.project_id}` },
+          { label: task?.title ?? '' },
+        ]
+      : [{ label: t('projects.title'), to: '/projects' }]
+
   if (loading) return (
     <div className="flex-1 flex flex-col">
-      <div className="px-7 pt-6 pb-4">
+      <PageHeader loading title={task?.title ?? ''} breadcrumbs={<Breadcrumbs items={crumbs} />} meta={<span />} />
+      <div className="px-7 py-5">
         <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}</div>
       </div>
     </div>
@@ -219,135 +243,91 @@ export function TaskDetailPage() {
 
   return (
     <div className="flex-1 flex flex-col">
-      {/* Header */}
-      <div className="px-7 pt-5 pb-4 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-950">
-        <div className="flex items-center gap-2 text-[11.5px] text-stone-500 mb-2">
-          <Link to="/projects" className="hover:text-stone-800 dark:hover:text-stone-200">{t('projects.title')}</Link>
-          <span>/</span>
-          {story ? (
-            <>
-              <Link to={`/projects/${story.project_id}`} className="hover:text-stone-800 dark:hover:text-stone-200">{projectName || '…'}</Link>
-              <span>/</span>
-              <Link to={`/projects/${story.project_id}/stories/${storyId}`} className="hover:text-stone-800 dark:hover:text-stone-200">{story.title}</Link>
-              <span>/</span>
-            </>
-          ) : task.project_id ? (
-            <>
-              <Link to={`/projects/${task.project_id}`} className="hover:text-stone-800 dark:hover:text-stone-200">{projectName || '…'}</Link>
-              <span>/</span>
-            </>
-          ) : null}
-          <span>{task.title}</span>
-        </div>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            {editingTitle ? (
-              <input
+      <PageHeader
+        title={task.title}
+        onTitleClick={() => { setTitleDraft(task.title); setEditingTitle(true) }}
+        titleEditor={
+          editingTitle ? (
+            <input
+              autoFocus
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={handleSaveTitle}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveTitle()
+                if (e.key === 'Escape') { setTitleDraft(task.title); setEditingTitle(false) }
+              }}
+              className="text-ui-3xl font-semibold tracking-tight w-full bg-transparent border-b border-stone-300 dark:border-stone-600 outline-none py-0.5"
+            />
+          ) : undefined
+        }
+        breadcrumbs={<Breadcrumbs items={crumbs} />}
+        meta={
+          <>
+            {editingStatus ? (
+              <select
                 autoFocus
-                value={titleDraft}
-                onChange={(e) => setTitleDraft(e.target.value)}
-                onBlur={handleSaveTitle}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSaveTitle()
-                  if (e.key === 'Escape') { setTitleDraft(task.title); setEditingTitle(false) }
-                }}
-                className="text-[22px] font-semibold tracking-tight leading-tight w-full bg-transparent border-b border-stone-300 dark:border-stone-600 outline-none py-0.5"
-              />
+                defaultValue={task.status}
+                onChange={(e) => handleStatusChange(e.target.value as Status)}
+                onBlur={() => setEditingStatus(false)}
+                className="text-ui-sm px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
+              >
+                {projectStatuses.map((ps) => (
+                  <option key={ps.slug} value={ps.slug}>{ps.name}</option>
+                ))}
+              </select>
             ) : (
-              <h1
-                className="text-[22px] font-semibold tracking-tight leading-tight cursor-text hover:text-stone-600 dark:hover:text-stone-300"
-                onClick={() => { setTitleDraft(task.title); setEditingTitle(true) }}
-                title="Click to edit"
-              >{task.title}</h1>
+              <button
+                onClick={() => setEditingStatus(true)}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-stone-100 dark:hover:bg-stone-900"
+              >
+                <StatusPill status={task.status} statuses={projectStatuses} /> <ICaret />
+              </button>
             )}
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              {editingStatus ? (
-                <select
-                  autoFocus
-                  defaultValue={task.status}
-                  onChange={(e) => handleStatusChange(e.target.value as Status)}
-                  onBlur={() => setEditingStatus(false)}
-                  className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
-                >
-                  {projectStatuses.map((ps) => (
-                    <option key={ps.slug} value={ps.slug}>{ps.name}</option>
-                  ))}
-                </select>
-              ) : (
-                <button
-                  onClick={() => setEditingStatus(true)}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-stone-100 dark:hover:bg-stone-900"
-                >
-                  <StatusPill status={task.status} statuses={projectStatuses} /> <ICaret />
-                </button>
-              )}
-              {editingPriority ? (
-                <select
-                  autoFocus
-                  defaultValue={task.priority}
-                  onChange={(e) => handlePriorityChange(e.target.value as Priority)}
-                  onBlur={() => setEditingPriority(false)}
-                  className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
-                >
-                  {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
-                </select>
-              ) : (
-                <button
-                  onClick={() => setEditingPriority(true)}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-stone-100 dark:hover:bg-stone-900"
-                >
-                  <PriorityBars priority={task.priority} withLabel /> <ICaret />
-                </button>
-              )}
-              {assignee && (
-                <span className="text-[11.5px] text-stone-500">· {t('detail.assigned_to', { name: assignee.name })}</span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+            {editingPriority ? (
+              <select
+                autoFocus
+                defaultValue={task.priority}
+                onChange={(e) => handlePriorityChange(e.target.value as Priority)}
+                onBlur={() => setEditingPriority(false)}
+                className="text-ui-sm px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
+              >
+                {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
+              </select>
+            ) : (
+              <button
+                onClick={() => setEditingPriority(true)}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-stone-100 dark:hover:bg-stone-900"
+              >
+                <PriorityBars priority={task.priority} withLabel /> <ICaret />
+              </button>
+            )}
+            {assignee && (
+              <span className="text-ui-sm text-stone-500">· {t('detail.assigned_to', { name: assignee.name })}</span>
+            )}
+          </>
+        }
+      />
 
-      {/* Two-column layout */}
+      {/* Two-column layout: the rail comes first in the DOM so the phone reader
+          meets it before the description and the comment thread, and the page
+          scrolls as one document rather than nesting a scroller. The rail
+          takes itself back to the right-hand track at lg. */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_300px] min-h-0">
-        {/* Main */}
-        <div className="px-7 py-5 space-y-8 overflow-y-auto">
-          {/* Description */}
-          <section>
-            <h2 className="text-[13px] font-medium text-stone-700 dark:text-stone-200 mb-2">{t('detail.description')}</h2>
-            <div className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-4">
-              {editingDesc ? (
-                <div className="space-y-2">
-                  <MarkdownEditor value={desc} onChange={setDesc} rows={10} autoExpand maxHeight="calc(100vh - 240px)" />
-                  <div className="flex gap-2">
-                    <button onClick={handleSaveDesc} className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md">{t('actions.save')}</button>
-                    <button onClick={() => { setEditingDesc(false); setDesc(task.description ?? '') }} className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300">{t('actions.cancel')}</button>
-                  </div>
-                </div>
-              ) : (
-                <button onClick={() => setEditingDesc(true)} className="w-full text-left">
-                  {task.description
-                    ? <div className="prose prose-sm dark:prose-invert max-w-none text-[13.5px] leading-relaxed"><ReactMarkdown remarkPlugins={[remarkGfm]}>{task.description}</ReactMarkdown></div>
-                    : <p className="text-[13px] text-stone-400 italic">{t('detail.add_description')}</p>}
-                </button>
-              )}
-            </div>
-          </section>
-
-          {/* Comments */}
-          <section>
-            <h2 className="text-[13px] font-medium text-stone-700 dark:text-stone-200 mb-3">{t('comments.title')}</h2>
-            <CommentList itemType="task" itemId={taskId!} />
-          </section>
-        </div>
-
         {/* Right rail */}
-        <aside className="border-l border-stone-200 dark:border-stone-800 bg-stone-50/40 dark:bg-stone-950/30 px-5 py-5 space-y-5 text-[12.5px]">
+        <DetailRail
+          label={t('detail.details')}
+          secondary={{
+            label: t('history.title'),
+            children: <StatusHistoryTimeline itemType="task" itemId={taskId!} statuses={projectStatuses} />,
+          }}
+        >
           {/* Status */}
           <DetailField label={t('detail.status')}>
             <select
               value={task.status}
               onChange={(e) => handleStatusChange(e.target.value as Status)}
-              className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
+              className="text-ui-sm px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
             >
               {projectStatuses.map((ps) => (
                 <option key={ps.slug} value={ps.slug}>{ps.name}</option>
@@ -360,7 +340,7 @@ export function TaskDetailPage() {
             <select
               value={task.priority}
               onChange={(e) => handlePriorityChange(e.target.value as Priority)}
-              className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
+              className="text-ui-sm px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
             >
               {priorities.map((p) => <option key={p} value={p}>{t(`priority.${p}`)}</option>)}
             </select>
@@ -371,7 +351,7 @@ export function TaskDetailPage() {
             <select
               value={task.assignee_id ?? ''}
               onChange={(e) => handleAssigneeChange(e.target.value)}
-              className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
+              className="text-ui-sm px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
             >
               <option value="">{t('tasks.unassigned')}</option>
               {members.map((m) => (
@@ -385,7 +365,7 @@ export function TaskDetailPage() {
             <select
               value={task.story_id ?? ''}
               onChange={(e) => handleStoryChange(e.target.value)}
-              className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
+              className="text-ui-sm px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
             >
               {[...stories].sort((a, b) => a.is_default === b.is_default ? 0 : a.is_default ? -1 : 1).map((s) => (
                 <option key={s.id} value={s.id}>{s.title}</option>
@@ -398,7 +378,7 @@ export function TaskDetailPage() {
             <select
               value={task.sprint_id ?? ''}
               onChange={(e) => handleSprintChange(e.target.value)}
-              className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
+              className="text-ui-sm px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
             >
               <option value="">{t('sprints.no_sprint')}</option>
               {sprints.map((s) => (
@@ -417,7 +397,7 @@ export function TaskDetailPage() {
               onBlur={(e) => handleEffortChange(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
               placeholder="—"
-              className="text-[12px] px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
+              className="text-ui-sm px-2 py-1 rounded border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 w-full"
             />
           </DetailField>
 
@@ -425,13 +405,38 @@ export function TaskDetailPage() {
           <DetailField label={t('detail.project')}><span className="text-stone-700 dark:text-stone-200">{projectName}</span></DetailField>
           {/* Created */}
           <DetailField label={t('detail.created')}><span className="text-stone-500">{formatRelative(task.created_at)}</span></DetailField>
+        </DetailRail>
 
-          {/* Status history */}
-          <div>
-            <div className="text-[10.5px] uppercase tracking-wider text-stone-400 mb-2 font-medium">{t('history.title')}</div>
-            <StatusHistoryTimeline itemType="task" itemId={taskId!} statuses={projectStatuses} />
-          </div>
-        </aside>
+        {/* Main */}
+        <div className="px-7 py-5 space-y-8 overflow-visible lg:overflow-y-auto">
+          {/* Description */}
+          <section>
+            <h2 className="text-ui-md font-medium text-stone-700 dark:text-stone-200 mb-2">{t('detail.description')}</h2>
+            <div className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-4">
+              {editingDesc ? (
+                <div className="space-y-2">
+                  <MarkdownEditor value={desc} onChange={setDesc} rows={10} autoExpand maxHeight="calc(100dvh - 240px)" />
+                  <div className="flex gap-2">
+                    <button onClick={handleSaveDesc} className="px-3 py-1.5 text-ui-md accent-bg rounded-md">{t('actions.save')}</button>
+                    <button onClick={() => { setEditingDesc(false); setDesc(task.description ?? '') }} className="px-3 py-1.5 text-ui-md border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300">{t('actions.cancel')}</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setEditingDesc(true)} className="w-full text-left">
+                  {task.description
+                    ? <div className="prose prose-sm dark:prose-invert max-w-none text-ui-lg leading-relaxed"><ReactMarkdown remarkPlugins={[remarkGfm]}>{task.description}</ReactMarkdown></div>
+                    : <p className="text-ui-md text-stone-400 italic">{t('detail.add_description')}</p>}
+                </button>
+              )}
+            </div>
+          </section>
+
+          {/* Comments */}
+          <section>
+            <h2 className="text-ui-md font-medium text-stone-700 dark:text-stone-200 mb-3">{t('comments.title')}</h2>
+            <CommentList itemType="task" itemId={taskId!} />
+          </section>
+        </div>
       </div>
     </div>
   )

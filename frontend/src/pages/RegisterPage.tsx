@@ -49,23 +49,23 @@ export function RegisterPage() {
 
   if (registered) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 px-4">
+      <div className="min-h-dvh flex items-center justify-center bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 px-4">
         <div className="w-full max-w-sm">
           <div className="flex items-center gap-2 mb-8">
-            <span className="w-7 h-7 rounded-md accent-bg flex items-center justify-center text-[12px] font-semibold">SP</span>
-            <span className="text-[15px] font-semibold">Simple Project Tool</span>
+            <span className="w-7 h-7 rounded-md accent-bg flex items-center justify-center text-ui-sm font-semibold">SP</span>
+            <span className="text-ui-xl font-semibold">Simple Project Tool</span>
           </div>
           <div className="bg-white dark:bg-stone-900 rounded-xl shadow-sm border border-stone-200 dark:border-stone-800 p-8 text-center">
-            <p className="text-[20px] font-semibold tracking-tight mb-2">{t('auth.check_email_title')}</p>
-            <p className="text-[13px] text-stone-500">{t('auth.check_email_subtitle', { email: registeredEmail })}</p>
+            <p className="text-ui-2xl font-semibold tracking-tight mb-2">{t('auth.check_email_title')}</p>
+            <p className="text-ui-md text-stone-500">{t('auth.check_email_subtitle', { email: registeredEmail })}</p>
             <div className="mt-5">
               {resendSent ? (
-                <p className="text-[12.5px] text-emerald-600 dark:text-emerald-400">{t('auth.resend_email_sent')}</p>
+                <p className="text-ui-md text-emerald-600 dark:text-emerald-400">{t('auth.resend_email_sent')}</p>
               ) : (
                 <button
                   onClick={handleResend}
                   disabled={resendLoading}
-                  className="text-[12.5px] accent-text hover:underline disabled:opacity-50"
+                  className="text-ui-md accent-text hover:underline disabled:opacity-50"
                 >
                   {t('auth.resend_email')}
                 </button>
@@ -78,72 +78,72 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 px-4">
+    <div className="min-h-dvh flex items-center justify-center bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 px-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex items-center gap-2 mb-8">
-          <span className="w-7 h-7 rounded-md accent-bg flex items-center justify-center text-[12px] font-semibold">SP</span>
-          <span className="text-[15px] font-semibold">Simple Project Tool</span>
+          <span className="w-7 h-7 rounded-md accent-bg flex items-center justify-center text-ui-sm font-semibold">SP</span>
+          <span className="text-ui-xl font-semibold">Simple Project Tool</span>
         </div>
 
         <div className="bg-white dark:bg-stone-900 rounded-xl shadow-sm border border-stone-200 dark:border-stone-800 p-8">
-          <h2 className="text-[20px] font-semibold tracking-tight mb-1">{t('auth.register')}</h2>
-          <p className="text-[12.5px] text-stone-500 mb-6">{t('auth.register_subtitle')}</p>
+          <h2 className="text-ui-2xl font-semibold tracking-tight mb-1">{t('auth.register')}</h2>
+          <p className="text-ui-md text-stone-500 mb-6">{t('auth.register_subtitle')}</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1">{t('auth.name')}</label>
+              <label className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium mb-1">{t('auth.name')}</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md focus-ring"
               />
             </div>
             <div>
-              <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1">{t('auth.email')}</label>
+              <label className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium mb-1">{t('auth.email')}</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md focus-ring"
               />
             </div>
             <div>
-              <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1">{t('auth.password')}</label>
+              <label className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium mb-1">{t('auth.password')}</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={8}
-                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md focus-ring"
               />
             </div>
             <div>
-              <label className="block text-[11px] uppercase tracking-wider text-stone-400 font-medium mb-1">{t('auth.confirm_password')}</label>
+              <label className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium mb-1">{t('auth.confirm_password')}</label>
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 minLength={8}
-                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md focus-ring"
               />
             </div>
-            {error && <p className="text-[12.5px] text-rose-600 dark:text-rose-400">{error}</p>}
+            {error && <p className="text-ui-md text-rose-600 dark:text-rose-400">{error}</p>}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 rounded-md accent-bg text-[13.5px] font-medium disabled:opacity-50"
+              className="w-full py-2.5 rounded-md accent-bg text-ui-lg font-medium disabled:opacity-50"
             >
               {loading ? t('auth.registering') : t('auth.register')}
             </button>
           </form>
 
-          <p className="mt-5 text-[12.5px] text-stone-500">
+          <p className="mt-5 text-ui-md text-stone-500">
             {t('auth.have_account')}{' '}
             <Link to="/login" className="accent-text hover:underline">{t('auth.login')}</Link>
           </p>

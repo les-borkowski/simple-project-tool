@@ -5,9 +5,6 @@ import {
   DndContext,
   DragOverlay,
   closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
   useDroppable,
   type DragEndEvent,
   type DragStartEvent,
@@ -24,16 +21,25 @@ import type { SprintResponse, TaskResponse, ProjectStatusResponse } from '../ser
 import { useProjectSprints } from '../hooks/useProjectSprints'
 import { useProjectStatuses } from '../hooks/useProjectStatuses'
 import { useRole } from '../hooks/useRole'
+import { useDragSensors } from '../hooks/useDragSensors'
 import { useToast } from '../context/ToastContext'
+import { Menu, MenuItem } from '../components/common/Menu'
 import { StatusPill } from '../components/common/StatusPill'
 import { PriorityBars } from '../components/common/PriorityBars'
 import { ConfirmDialog } from '../components/common/ConfirmDialog'
 import { EmptyState } from '../components/common/EmptyState'
+import { Modal } from '../components/common/Modal'
 import { taskHref } from '../utils/links'
 
 const IPlus = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M12 5v14M5 12h14"/>
+  </svg>
+)
+
+const IAssignSprint = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+    <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
   </svg>
 )
 
@@ -87,11 +93,11 @@ function TaskRow({
     >
       <div className="flex-1 min-w-0 flex items-center gap-2">
         <PriorityBars priority={task.priority} />
-        <span className="text-[12.5px] text-stone-700 dark:text-stone-300 truncate">{task.title}</span>
+        <span className="text-ui-md text-stone-700 dark:text-stone-300 truncate">{task.title}</span>
       </div>
       <div className="flex items-center gap-2 shrink-0">
         {task.effort !== null && effortUnit && (
-          <span className="text-[11px] bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 px-1.5 py-0.5 rounded">
+          <span className="text-ui-xs bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 px-1.5 py-0.5 rounded">
             {task.effort} {effortUnit}
           </span>
         )}
@@ -106,14 +112,19 @@ function SortableTaskRow({
   sprintId,
   effortUnit,
   statuses,
+  sprints,
+  onAssignSprint,
   dragOverlay,
 }: {
   task: TaskResponse
   sprintId: string | null
   effortUnit: string | null
   statuses: ProjectStatusResponse[]
+  sprints: SprintResponse[]
+  onAssignSprint: (taskId: string, destSprintId: string | null) => void
   dragOverlay?: boolean
 }) {
+  const { t } = useTranslation()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     data: { sprintId },
@@ -124,25 +135,66 @@ function SortableTaskRow({
     opacity: isDragging ? 0.4 : 1,
   }
   const href = taskHref(task)
+  const otherSprints = sprints.filter((s) => s.id !== task.sprint_id)
   return (
-    <div ref={setNodeRef} style={dragOverlay ? undefined : style} {...attributes} {...listeners}>
-      <Link
-        to={href}
-        className="flex items-center gap-3 px-4 py-2 pl-8 hover:bg-stone-50/80 dark:hover:bg-stone-800/50 border-t border-stone-100 dark:border-stone-800/60 first:border-t-0"
-      >
-        <div className="flex-1 min-w-0 flex items-center gap-2">
-          <PriorityBars priority={task.priority} />
-          <span className="text-[12.5px] text-stone-700 dark:text-stone-300 truncate">{task.title}</span>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {task.effort !== null && effortUnit && (
-            <span className="text-[11px] bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 px-1.5 py-0.5 rounded">
-              {task.effort} {effortUnit}
-            </span>
-          )}
-          <StatusPill status={task.status} statuses={statuses} />
-        </div>
+    <div
+      ref={setNodeRef}
+      className="drag-row flex items-center gap-3 px-4 py-2 pl-8 hover:bg-stone-50/80 dark:hover:bg-stone-800/50 border-t border-stone-100 dark:border-stone-800/60 first:border-t-0"
+      style={dragOverlay ? undefined : style}
+      {...attributes}
+      {...listeners}
+    >
+      <Link to={href} className="flex-1 min-w-0 flex items-center gap-2">
+        <PriorityBars priority={task.priority} />
+        <span className="text-ui-md text-stone-700 dark:text-stone-300 truncate">{task.title}</span>
       </Link>
+      <div className="flex items-center gap-2 shrink-0">
+        {task.effort !== null && effortUnit && (
+          <span className="text-ui-xs bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 px-1.5 py-0.5 rounded">
+            {task.effort} {effortUnit}
+          </span>
+        )}
+        <StatusPill status={task.status} statuses={statuses} />
+        {/* Tap-pill-to-edit idiom (T07): non-drag fallback for reassigning a
+            task's sprint. This sits as a *sibling* of the <Link> above rather
+            than nested inside it — a <button> descendant of an <a> is invalid
+            content per the HTML spec and real browsers get confused about
+            which element owns Enter/Space activation, so keyboard users could
+            never open the menu even though a jsdom test (which activates the
+            button directly via .focus(), bypassing real tab order and native
+            nested-control quirks) didn't catch it. The wrapping span only
+            needs to stop Enter/Space from bubbling to the row's drag-listener
+            wrapper, whose sortable keyboard handling would otherwise treat
+            them as a drag-activation key; every other key (notably Escape,
+            which the open Menu listens for on `document`) must keep bubbling. */}
+        <span
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
+          }}
+        >
+          <Menu
+            trigger={
+              <button
+                aria-label={t('sprints.assign_sprint')}
+                className="p-1 rounded hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-400"
+              >
+                <IAssignSprint />
+              </button>
+            }
+          >
+            {otherSprints.map((s) => (
+              <MenuItem key={s.id} onSelect={() => onAssignSprint(task.id, s.id)}>
+                {s.name}
+              </MenuItem>
+            ))}
+            {task.sprint_id !== null && (
+              <MenuItem onSelect={() => onAssignSprint(task.id, null)}>
+                {t('sprints.no_sprint')}
+              </MenuItem>
+            )}
+          </Menu>
+        </span>
+      </div>
     </div>
   )
 }
@@ -152,6 +204,8 @@ function SprintCard({
   tasks,
   effortUnit,
   statuses,
+  sprints,
+  onAssignSprint,
   isManager,
   sortable,
   locale,
@@ -161,6 +215,8 @@ function SprintCard({
   tasks: TaskResponse[]
   effortUnit: string | null
   statuses: ProjectStatusResponse[]
+  sprints: SprintResponse[]
+  onAssignSprint: (taskId: string, destSprintId: string | null) => void
   isManager: boolean
   sortable: boolean
   locale: string
@@ -205,23 +261,29 @@ function SprintCard({
         </span>
         <Link
           to={`/projects/${sprint.project_id}/sprints/${sprint.id}`}
-          className="text-[13.5px] font-medium flex-1 min-w-0 truncate hover:accent-text"
+          className="text-ui-lg font-medium flex-1 min-w-0 truncate hover:accent-text"
           onClick={(e) => e.stopPropagation()}
         >{sprint.name}</Link>
         <div className="flex items-center gap-3 shrink-0">
-          <span className="text-[11.5px] text-stone-400">
+          <span className="text-ui-sm text-stone-400">
             {formatDateRange(sprint.start_date, sprint.end_date, locale)}
           </span>
           {effortLabel && (
-            <span className="text-[11.5px] text-stone-500">{effortLabel}</span>
+            <span className="text-ui-sm text-stone-500">{effortLabel}</span>
           )}
           {isOverCapacity && (
-            <span className="text-[10.5px] font-medium bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded-full">
+            <span className="text-ui-xs font-medium bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded-full">
               {t('sprints.over_capacity')}
             </span>
           )}
-          <span className="text-[11px] text-stone-400 tabular-nums">
-            {sprint.task_count} {t('tasks.title').toLowerCase()}
+          <span className="text-ui-xs text-stone-400 tabular-nums">
+            {/* Derived from the live `tasks` prop rather than the fetched
+                `sprint.task_count` field (T07 review, finding 4): reassigning
+                a task via the tap-menu or drag updates `allTasks` in
+                SprintView's state immediately, but never refetches the
+                sprints list, so `sprint.task_count` itself would stay stuck
+                at whatever it was when the page loaded. */}
+            {tasks.length} {t('tasks.title').toLowerCase()}
           </span>
           {isManager && (
             <button
@@ -229,7 +291,7 @@ function SprintCard({
                 e.stopPropagation()
                 onDelete(sprint.id)
               }}
-              className="text-[11px] text-rose-400 hover:text-rose-600"
+              className="text-ui-xs text-rose-400 hover:text-rose-600"
             >
               {t('actions.delete')}
             </button>
@@ -243,7 +305,7 @@ function SprintCard({
           {sortedTasks.length === 0 ? (
             <div
               ref={sortable ? setDropRef : undefined}
-              className={`px-4 py-3 pl-8 text-[12px] text-stone-400 italic transition-colors${
+              className={`px-4 py-3 pl-8 text-ui-sm text-stone-400 italic transition-colors${
                 sortable && isDropOver ? ' bg-stone-50 dark:bg-stone-800/50' : ''
               }`}
             >
@@ -258,6 +320,8 @@ function SprintCard({
                   sprintId={sprint.id}
                   effortUnit={effortUnit}
                   statuses={statuses}
+                  sprints={sprints}
+                  onAssignSprint={onAssignSprint}
                 />
               ))}
             </SortableContext>
@@ -301,7 +365,7 @@ export function SprintView({ projectId }: { projectId: string }) {
   // Delete confirmation
   const [deleteSprintId, setDeleteSprintId] = useState<string | null>(null)
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  const sensors = useDragSensors()
 
   useEffect(() => {
     if (!projectId) return
@@ -323,6 +387,16 @@ export function SprintView({ projectId }: { projectId: string }) {
       .finally(() => setTasksLoading(false))
   }, [projectId, addToast])
 
+  // Single reset shared by every close path (Escape, backdrop, Cancel,
+  // successful submit) so a reopened dialog never shows stale input.
+  const closeCreateSprint = () => {
+    setShowCreate(false)
+    setNewName('')
+    setNewStartDate('')
+    setNewEndDate('')
+    setNewCapacity('')
+  }
+
   const handleCreateSprint = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreating(true)
@@ -333,11 +407,7 @@ export function SprintView({ projectId }: { projectId: string }) {
         end_date: newEndDate,
         capacity: newCapacity ? Number(newCapacity) : null,
       })
-      setShowCreate(false)
-      setNewName('')
-      setNewStartDate('')
-      setNewEndDate('')
-      setNewCapacity('')
+      closeCreateSprint()
       refresh()
       addToast(t('sprints.created'), 'success')
     } finally {
@@ -362,6 +432,53 @@ export function SprintView({ projectId }: { projectId: string }) {
     setActiveTaskId(event.active.id as string)
   }
 
+  // Shared by both the cross-sprint drag-and-drop move and the tap
+  // reassignment menu on SortableTaskRow (T07) — one code path moves a task
+  // to a (possibly different) sprint, optimistically and with rollback on
+  // failure. `overTaskId` positions the moved task ahead of a specific task
+  // in the destination list (used by drag); the tap path omits it and the
+  // task is appended to the end.
+  const moveTaskToSprint = (taskId: string, destSprintId: string | null, overTaskId?: string) => {
+    const snapshot = allTasks
+    const taskToMove = allTasks.find((t) => t.id === taskId)
+    if (!taskToMove) return
+    const sourceSprintId = taskToMove.sprint_id
+
+    const newSourceList = allTasks
+      .filter((t) => t.sprint_id === sourceSprintId && t.id !== taskId)
+      .sort(byPosition)
+      .map((t, i) => ({ ...t, position: i }))
+
+    const destList = allTasks.filter((t) => t.sprint_id === destSprintId).sort(byPosition)
+    const overIndex = overTaskId ? destList.findIndex((t) => t.id === overTaskId) : -1
+    const insertAt = overIndex === -1 ? destList.length : overIndex
+    const movedTask = { ...taskToMove, sprint_id: destSprintId }
+    const newDestList = [
+      ...destList.slice(0, insertAt),
+      movedTask,
+      ...destList.slice(insertAt),
+    ].map((t, i) => ({ ...t, position: i }))
+
+    setAllTasks((prev) => [
+      ...prev.filter((t) => t.sprint_id !== sourceSprintId && t.sprint_id !== destSprintId),
+      ...newSourceList,
+      ...newDestList,
+    ])
+
+    tasksApi.update(taskId, { sprint_id: destSprintId })
+      .then(() => {
+        tasksApi.reorder(projectId, newDestList.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
+        if (newSourceList.length > 0) {
+          tasksApi.reorder(projectId, newSourceList.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
+        }
+      })
+      .catch((e: unknown) => {
+        if (isDemoBlockedError(e)) return
+        setAllTasks(snapshot)
+        addToast(t('sprints.failed_move'), 'error')
+      })
+  }
+
   const handleSprintDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     setActiveTaskId(null)
@@ -379,43 +496,7 @@ export function SprintView({ projectId }: { projectId: string }) {
       setAllTasks((prev) => [...prev.filter((t) => t.sprint_id !== sourceSprintId), ...reordered])
       tasksApi.reorder(projectId, reordered.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
     } else {
-      const snapshot = allTasks
-      const taskToMove = allTasks.find((t) => t.id === active.id)
-      if (!taskToMove) return
-
-      const newSourceList = allTasks
-        .filter((t) => t.sprint_id === sourceSprintId && t.id !== active.id)
-        .sort(byPosition)
-        .map((t, i) => ({ ...t, position: i }))
-
-      const destList = allTasks.filter((t) => t.sprint_id === destSprintId).sort(byPosition)
-      const overIndex = destList.findIndex((t) => t.id === over.id)
-      const insertAt = overIndex === -1 ? destList.length : overIndex
-      const movedTask = { ...taskToMove, sprint_id: destSprintId }
-      const newDestList = [
-        ...destList.slice(0, insertAt),
-        movedTask,
-        ...destList.slice(insertAt),
-      ].map((t, i) => ({ ...t, position: i }))
-
-      setAllTasks((prev) => [
-        ...prev.filter((t) => t.sprint_id !== sourceSprintId && t.sprint_id !== destSprintId),
-        ...newSourceList,
-        ...newDestList,
-      ])
-
-      tasksApi.update(active.id as string, { sprint_id: destSprintId })
-        .then(() => {
-          tasksApi.reorder(projectId, newDestList.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
-          if (newSourceList.length > 0) {
-            tasksApi.reorder(projectId, newSourceList.map((t) => ({ task_id: t.id, position: t.position }))).catch(() => {})
-          }
-        })
-        .catch((e: unknown) => {
-          if (isDemoBlockedError(e)) return
-          setAllTasks(snapshot)
-          addToast(t('sprints.failed_move'), 'error')
-        })
+      moveTaskToSprint(active.id as string, destSprintId, over.id as string)
     }
   }
 
@@ -440,14 +521,14 @@ export function SprintView({ projectId }: { projectId: string }) {
     <div className="flex-1 px-7 py-5">
       {/* Toolbar */}
       <div className="flex items-center justify-between mb-5">
-        <h2 className="text-[13px] font-medium text-stone-700 dark:text-stone-200">
+        <h2 className="text-ui-md font-medium text-stone-700 dark:text-stone-200">
           {t('sprints.title')}
           <span className="text-stone-400 font-normal ml-2">{sprints.length}</span>
         </h2>
         {isManager && (
           <button
             onClick={() => setShowCreate(true)}
-            className="px-2.5 py-1.5 text-[12px] rounded-md accent-bg inline-flex items-center gap-1.5"
+            className="px-2.5 py-1.5 text-ui-sm rounded-md accent-bg inline-flex items-center gap-1.5"
           >
             <IPlus /> {t('sprints.create')}
           </button>
@@ -486,6 +567,8 @@ export function SprintView({ projectId }: { projectId: string }) {
                 tasks={sprintTaskMap[sprint.id] ?? []}
                 effortUnit={effortUnit}
                 statuses={statuses}
+                sprints={sprints}
+                onAssignSprint={moveTaskToSprint}
                 isManager={isManager}
                 sortable={isManager}
                 locale={locale}
@@ -497,10 +580,10 @@ export function SprintView({ projectId }: { projectId: string }) {
             {sortedUnassigned.length > 0 && (
               <div className="rounded-lg border border-dashed border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 overflow-hidden">
                 <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-800">
-                  <span className="text-[13px] font-medium text-stone-500 dark:text-stone-400 italic">
+                  <span className="text-ui-md font-medium text-stone-500 dark:text-stone-400 italic">
                     {t('sprints.unassigned')}
                   </span>
-                  <span className="ml-2 text-[11px] text-stone-400 tabular-nums">{sortedUnassigned.length}</span>
+                  <span className="ml-2 text-ui-xs text-stone-400 tabular-nums">{sortedUnassigned.length}</span>
                 </div>
                 {isManager ? (
                   <SortableContext items={sortedUnassigned.map((t) => t.id)} strategy={verticalListSortingStrategy}>
@@ -511,6 +594,8 @@ export function SprintView({ projectId }: { projectId: string }) {
                         sprintId={null}
                         effortUnit={effortUnit}
                         statuses={statuses}
+                        sprints={sprints}
+                        onAssignSprint={moveTaskToSprint}
                       />
                     ))}
                   </SortableContext>
@@ -535,6 +620,8 @@ export function SprintView({ projectId }: { projectId: string }) {
                 sprintId={null}
                 effortUnit={effortUnit}
                 statuses={statuses}
+                sprints={sprints}
+                onAssignSprint={moveTaskToSprint}
                 dragOverlay
               />
             ) : null}
@@ -544,80 +631,81 @@ export function SprintView({ projectId }: { projectId: string }) {
 
       {/* Create Sprint Modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 w-[min(90vw,_480px)] mx-4">
-            <h3 className="text-[15px] font-semibold mb-5">{t('sprints.create')}</h3>
-            <form onSubmit={handleCreateSprint} className="space-y-4">
+        <Modal
+          open
+          onClose={closeCreateSprint}
+          title={t('sprints.create')}
+          onSubmit={handleCreateSprint}
+          footer={
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeCreateSprint}
+                className="px-3 py-1.5 text-ui-md border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 tap-safe"
+              >
+                {t('actions.cancel')}
+              </button>
+              <button
+                type="submit"
+                disabled={creating}
+                className="px-3 py-1.5 text-ui-md accent-bg rounded-md disabled:opacity-50 tap-safe"
+              >
+                {t('actions.create')}
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <label htmlFor="cs-name" className="text-ui-sm font-medium text-stone-500">{t('sprints.name')}</label>
+              <input
+                id="cs-name"
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                required
+                placeholder={t('sprints.name')}
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md focus-ring"
+              />
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-[11.5px] font-medium text-stone-500">{t('sprints.name')}</label>
+                <label htmlFor="cs-start-date" className="text-ui-sm font-medium text-stone-500">{t('sprints.start_date')}</label>
                 <input
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
+                  id="cs-start-date"
+                  type="date"
+                  value={newStartDate}
+                  onChange={(e) => setNewStartDate(e.target.value)}
                   required
-                  autoFocus
-                  placeholder={t('sprints.name')}
-                  className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
+                  className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md"
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[11.5px] font-medium text-stone-500">{t('sprints.start_date')}</label>
-                  <input
-                    type="date"
-                    value={newStartDate}
-                    onChange={(e) => setNewStartDate(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[11.5px] font-medium text-stone-500">{t('sprints.end_date')}</label>
-                  <input
-                    type="date"
-                    value={newEndDate}
-                    onChange={(e) => setNewEndDate(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-                  />
-                </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[11.5px] font-medium text-stone-500">{t('sprints.capacity_optional')}</label>
+                <label htmlFor="cs-end-date" className="text-ui-sm font-medium text-stone-500">{t('sprints.end_date')}</label>
                 <input
-                  type="number"
-                  value={newCapacity}
-                  onChange={(e) => setNewCapacity(e.target.value)}
-                  min="0"
-                  placeholder={t('sprints.capacity_optional')}
-                  className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
+                  id="cs-end-date"
+                  type="date"
+                  value={newEndDate}
+                  onChange={(e) => setNewEndDate(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md"
                 />
               </div>
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCreate(false)
-                    setNewName('')
-                    setNewStartDate('')
-                    setNewEndDate('')
-                    setNewCapacity('')
-                  }}
-                  className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
-                >
-                  {t('actions.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating}
-                  className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md disabled:opacity-50"
-                >
-                  {t('actions.create')}
-                </button>
-              </div>
-            </form>
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="cs-capacity" className="text-ui-sm font-medium text-stone-500">{t('sprints.capacity_optional')}</label>
+              <input
+                id="cs-capacity"
+                type="number"
+                value={newCapacity}
+                onChange={(e) => setNewCapacity(e.target.value)}
+                min="0"
+                placeholder={t('sprints.capacity_optional')}
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md"
+              />
+            </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Delete confirmation */}

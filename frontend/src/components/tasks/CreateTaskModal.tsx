@@ -7,6 +7,7 @@ import { useProjectStatuses } from '../../hooks/useProjectStatuses'
 import { useProjectSprints } from '../../hooks/useProjectSprints'
 import { useStories } from '../../hooks/useStories'
 import { MarkdownEditor } from '../common/MarkdownEditor'
+import { Modal } from '../common/Modal'
 
 interface CreateTaskModalProps {
   projectId: string
@@ -67,15 +68,6 @@ export function CreateTaskModal({
     projectsApi.listMembers(projectId).then((res) => setMembers(res.data)).catch(() => {})
   }, [projectId])
 
-  // Escape key closes modal
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreating(true)
@@ -97,147 +89,151 @@ export function CreateTaskModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-6 w-[min(90vw,_900px)] min-w-[67vw] mx-4">
-        <h3 className="text-[15px] font-semibold mb-5">{t('tasks.create')}</h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            placeholder={t('board.col_title')}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-            autoFocus
-            className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px] focus-ring"
-          />
-          <MarkdownEditor
-            value={description}
-            onChange={setDescription}
-            rows={4}
-            placeholder={t('tasks.description')}
-            autoExpand
-          />
-          <div className="grid grid-cols-2 gap-4">
-            {/* Status */}
-            <div className="space-y-1">
-              <label htmlFor="ctm-status" className="text-[11.5px] font-medium text-stone-500">
-                {t('filter.status')}
-              </label>
-              <select
-                id="ctm-status"
-                value={taskStatus}
-                onChange={(e) => setTaskStatus(e.target.value as Status)}
-                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-              >
-                {statuses.map((ps) => (
-                  <option key={ps.slug} value={ps.slug}>{ps.name}</option>
-                ))}
-              </select>
-            </div>
-            {/* Priority */}
-            <div className="space-y-1">
-              <label htmlFor="ctm-priority" className="text-[11.5px] font-medium text-stone-500">
-                {t('filter.priority')}
-              </label>
-              <select
-                id="ctm-priority"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as Priority)}
-                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-              >
-                {priorities.map((p) => (
-                  <option key={p} value={p}>{t(`priority.${p}`)}</option>
-                ))}
-              </select>
-            </div>
-            {/* Story - hidden when defaultStoryId is provided */}
-            {!defaultStoryId && (
-              <div className="space-y-1">
-                <label htmlFor="ctm-story" className="text-[11.5px] font-medium text-stone-500">
-                  {t('tasks.story')}
-                </label>
-                <select
-                  id="ctm-story"
-                  value={storyId}
-                  onChange={(e) => setStoryId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-                >
-                  {[...storiesHook.items].sort((a, b) => a.is_default === b.is_default ? 0 : a.is_default ? -1 : 1).map((s) => (
-                    <option key={s.id} value={s.id}>{s.title}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {/* Sprint - hidden when defaultSprintId is provided */}
-            {!defaultSprintId && (
-              <div className="space-y-1">
-                <label htmlFor="ctm-sprint" className="text-[11.5px] font-medium text-stone-500">
-                  {t('detail.sprint')}
-                </label>
-                <select
-                  id="ctm-sprint"
-                  value={sprintId}
-                  onChange={(e) => setSprintId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-                >
-                  <option value="">{t('sprints.no_sprint')}</option>
-                  {sprints.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {/* Assignee */}
-            <div className="space-y-1">
-              <label htmlFor="ctm-assignee" className="text-[11.5px] font-medium text-stone-500">
-                {t('tasks.assignee')}
-              </label>
-              <select
-                id="ctm-assignee"
-                value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
-                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-              >
-                <option value="">{t('tasks.unassigned')}</option>
-                {members.map((m) => (
-                  <option key={m.user_id} value={m.user_id}>{m.name}</option>
-                ))}
-              </select>
-            </div>
-            {/* Effort */}
-            <div className="space-y-1">
-              <label htmlFor="ctm-effort" className="text-[11.5px] font-medium text-stone-500">
-                {t('detail.effort')}
-              </label>
-              <input
-                id="ctm-effort"
-                type="number"
-                min="0"
-                placeholder="—"
-                value={effort}
-                onChange={(e) => setEffort(e.target.value)}
-                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-[13px]"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-3 py-1.5 text-[12.5px] border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
+    <Modal
+      open
+      onClose={onClose}
+      title={t('tasks.create')}
+      size="lg"
+      onSubmit={handleSubmit}
+      footer={
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1.5 text-ui-md border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 tap-safe"
+          >
+            {t('actions.cancel')}
+          </button>
+          <button
+            type="submit"
+            disabled={creating}
+            className="px-3 py-1.5 text-ui-md accent-bg rounded-md disabled:opacity-50 tap-safe"
+          >
+            {t('actions.create')}
+          </button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        <input
+          type="text"
+          placeholder={t('board.col_title')}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+          className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md focus-ring"
+        />
+        <MarkdownEditor
+          value={description}
+          onChange={setDescription}
+          rows={4}
+          placeholder={t('tasks.description')}
+          autoExpand
+        />
+        <div className="grid sm:grid-cols-2 gap-4">
+          {/* Status */}
+          <div className="space-y-1">
+            <label htmlFor="ctm-status" className="text-ui-sm font-medium text-stone-500">
+              {t('filter.status')}
+            </label>
+            <select
+              id="ctm-status"
+              value={taskStatus}
+              onChange={(e) => setTaskStatus(e.target.value as Status)}
+              className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md"
             >
-              {t('actions.cancel')}
-            </button>
-            <button
-              type="submit"
-              disabled={creating}
-              className="px-3 py-1.5 text-[12.5px] accent-bg rounded-md disabled:opacity-50"
-            >
-              {t('actions.create')}
-            </button>
+              {statuses.map((ps) => (
+                <option key={ps.slug} value={ps.slug}>{ps.name}</option>
+              ))}
+            </select>
           </div>
-        </form>
+          {/* Priority */}
+          <div className="space-y-1">
+            <label htmlFor="ctm-priority" className="text-ui-sm font-medium text-stone-500">
+              {t('filter.priority')}
+            </label>
+            <select
+              id="ctm-priority"
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as Priority)}
+              className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md"
+            >
+              {priorities.map((p) => (
+                <option key={p} value={p}>{t(`priority.${p}`)}</option>
+              ))}
+            </select>
+          </div>
+          {/* Story - hidden when defaultStoryId is provided */}
+          {!defaultStoryId && (
+            <div className="space-y-1">
+              <label htmlFor="ctm-story" className="text-ui-sm font-medium text-stone-500">
+                {t('tasks.story')}
+              </label>
+              <select
+                id="ctm-story"
+                value={storyId}
+                onChange={(e) => setStoryId(e.target.value)}
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md"
+              >
+                {[...storiesHook.items].sort((a, b) => a.is_default === b.is_default ? 0 : a.is_default ? -1 : 1).map((s) => (
+                  <option key={s.id} value={s.id}>{s.title}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {/* Sprint - hidden when defaultSprintId is provided */}
+          {!defaultSprintId && (
+            <div className="space-y-1">
+              <label htmlFor="ctm-sprint" className="text-ui-sm font-medium text-stone-500">
+                {t('detail.sprint')}
+              </label>
+              <select
+                id="ctm-sprint"
+                value={sprintId}
+                onChange={(e) => setSprintId(e.target.value)}
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md"
+              >
+                <option value="">{t('sprints.no_sprint')}</option>
+                {sprints.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {/* Assignee */}
+          <div className="space-y-1">
+            <label htmlFor="ctm-assignee" className="text-ui-sm font-medium text-stone-500">
+              {t('tasks.assignee')}
+            </label>
+            <select
+              id="ctm-assignee"
+              value={assigneeId}
+              onChange={(e) => setAssigneeId(e.target.value)}
+              className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md"
+            >
+              <option value="">{t('tasks.unassigned')}</option>
+              {members.map((m) => (
+                <option key={m.user_id} value={m.user_id}>{m.name}</option>
+              ))}
+            </select>
+          </div>
+          {/* Effort */}
+          <div className="space-y-1">
+            <label htmlFor="ctm-effort" className="text-ui-sm font-medium text-stone-500">
+              {t('detail.effort')}
+            </label>
+            <input
+              id="ctm-effort"
+              type="number"
+              min="0"
+              placeholder="—"
+              value={effort}
+              onChange={(e) => setEffort(e.target.value)}
+              className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md"
+            />
+          </div>
+        </div>
       </div>
-    </div>
+    </Modal>
   )
 }
