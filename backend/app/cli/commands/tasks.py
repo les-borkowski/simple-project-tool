@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 import typer
 from rich.table import Table
 
@@ -10,10 +12,10 @@ from ..output import console, fmt_date, load_locale, priority_label, short_id, s
 app = typer.Typer(help="Task commands")
 
 
-def _setup() -> tuple[CLIConfig, APIClient]:
+def _setup(api_key: str | None = None) -> tuple[CLIConfig, APIClient]:
     config = CLIConfig.load()
     load_locale(config.locale)
-    return config, APIClient(config)
+    return config, APIClient(config, api_key=api_key)
 
 
 @app.command("list")
@@ -113,3 +115,65 @@ def assign(
     config, client = _setup()
     client.patch(f"/tasks/{task_id}", json={"assignee_id": user_id})
     console.print(t("task.assigned"))
+
+
+@app.command()
+def capture(
+    project_id: str = typer.Argument(...),
+    text: str = typer.Argument(...),
+    yes: bool = typer.Option(False, "--yes", "-y"),
+    api_key: str | None = typer.Option(None, "--api-key", envvar="SPT_API_KEY"),
+) -> None:
+    """Extract candidate tasks from free text and create them after confirmation."""
+    config, client = _setup(api_key=api_key)
+    reference_date = date.today().isoformat()
+    result = client.post(
+        f"/projects/{project_id}/tasks/capture",
+        json={"text": text, "reference_date": reference_date},
+    )
+
+    if result.get("unparseable"):
+        console.print(t("capture.unparseable"))
+        raise typer.Exit(0)
+    if not result.get("tasks"):
+        console.print(t("capture.no_tasks"))
+        raise typer.Exit(0)
+
+    for w in result.get("warnings", []):
+        console.print(f"[yellow]{w}[/yellow]")
+
+    table = Table(title=t("capture.preview_title"))
+    table.add_column(t("col.title"))
+    table.add_column(t("col.due_date"))
+    table.add_column(t("col.assignee"))
+    table.add_column(t("col.story"))
+    table.add_column(t("col.priority"))
+    for task in result["tasks"]:
+        table.add_row(
+            task["title"],
+            fmt_date(task.get("due_date")),
+            task.get("assignee_hint") or "—",
+            task.get("story_hint") or "—",
+            priority_label(task.get("priority") or ""),
+            style="yellow" if task.get("low_confidence") else None,
+        )
+    console.print(table)
+
+    if not yes:
+        typer.confirm(t("capture.confirm_prompt"), abort=True)
+
+    body = {
+        "tasks": [
+            {
+                "title": item["title"],
+                "description": item.get("description"),
+                "story_id": item.get("story_id"),
+                "assignee_id": item.get("assignee_id"),
+                "due_date": item.get("due_date"),
+                "priority": item.get("priority"),
+            }
+            for item in result["tasks"]
+        ]
+    }
+    created = client.post(f"/projects/{project_id}/tasks/capture/confirm", json=body)
+    console.print(t("capture.created", count=len(created.get("created", []))))

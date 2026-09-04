@@ -373,6 +373,123 @@ def test_config_get(tmp_path):
     assert result.exit_code == 0
 
 
+def _preview_data(low_confidence: bool = False) -> dict:
+    return {
+        "tasks": [
+            {
+                "title": "Fix the login bug",
+                "description": None,
+                "story_hint": "Auth",
+                "story_id": "story-uuid-1",
+                "story_resolved": True,
+                "assignee_hint": "Alice",
+                "assignee_id": "user-uuid-1",
+                "assignee_resolved": True,
+                "due_date": "2026-09-10",
+                "priority": "high",
+                "confidence": 0.4 if low_confidence else 0.9,
+                "low_confidence": low_confidence,
+            }
+        ],
+        "unparseable": False,
+        "needs_confirmation": True,
+        "warnings": [],
+        "model": "test-model",
+        "prompt_version": "v1",
+        "latency_ms": 10,
+    }
+
+
+def test_tasks_capture_happy_path_with_yes(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    preview = _preview_data()
+    confirm = {"created": [{"id": "t-1"}]}
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch(
+            "httpx.Client.request",
+            side_effect=[make_resp(200, preview), make_resp(201, confirm)],
+        ):
+            result = runner.invoke(app, ["tasks", "capture", "proj-1", "some text", "--yes"])
+    assert result.exit_code == 0
+    assert "1 task(s) created." in result.output
+
+
+def test_tasks_capture_declined_prompt(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    preview = _preview_data()
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request", return_value=make_resp(200, preview)) as mock_req:
+            result = runner.invoke(app, ["tasks", "capture", "proj-1", "some text"], input="n\n")
+    assert result.exit_code != 0
+    assert mock_req.call_count == 1
+    assert "task(s) created" not in result.output
+
+
+def test_tasks_capture_unparseable(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    preview = {
+        "tasks": [],
+        "unparseable": True,
+        "needs_confirmation": True,
+        "warnings": [],
+        "model": "test-model",
+        "prompt_version": "v1",
+        "latency_ms": 5,
+    }
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request", return_value=make_resp(200, preview)) as mock_req:
+            result = runner.invoke(app, ["tasks", "capture", "proj-1", "gibberish", "--yes"])
+    assert result.exit_code == 0
+    assert "Could not extract any tasks from that text." in result.output
+    assert mock_req.call_count == 1
+
+
+def test_tasks_capture_api_key_flag(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path, access_token="stored-bearer-token")
+    preview = _preview_data()
+    confirm = {"created": [{"id": "t-1"}]}
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch(
+            "httpx.Client.request",
+            side_effect=[make_resp(200, preview), make_resp(201, confirm)],
+        ) as mock_req:
+            result = runner.invoke(
+                app,
+                ["tasks", "capture", "proj-1", "some text", "--yes", "--api-key", "some-key"],
+            )
+    assert result.exit_code == 0
+    first_call_headers = mock_req.call_args_list[0].kwargs.get("headers", {})
+    assert first_call_headers.get("X-API-Key") == "some-key"
+    assert "Authorization" not in first_call_headers
+
+
+def test_tasks_capture_api_key_env_var(tmp_path, monkeypatch):
+    from app.cli.main import app
+
+    monkeypatch.setenv("SPT_API_KEY", "some-key")
+    p = mock_config(tmp_path, access_token="stored-bearer-token")
+    preview = _preview_data()
+    confirm = {"created": [{"id": "t-1"}]}
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch(
+            "httpx.Client.request",
+            side_effect=[make_resp(200, preview), make_resp(201, confirm)],
+        ) as mock_req:
+            result = runner.invoke(app, ["tasks", "capture", "proj-1", "some text", "--yes"])
+    assert result.exit_code == 0
+    first_call_headers = mock_req.call_args_list[0].kwargs.get("headers", {})
+    assert first_call_headers.get("X-API-Key") == "some-key"
+    assert "Authorization" not in first_call_headers
+
+
 def test_config_api_keys_list(tmp_path):
     from app.cli.main import app
 

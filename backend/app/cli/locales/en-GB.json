@@ -55,5 +55,12 @@
   "config.updated": "Configuration updated.",
   "time.total_time": "Total Time",
   "time.status_breakdown": "Status Breakdown",
-  "time.changed_at": "Changed At"
+  "time.changed_at": "Changed At",
+  "capture.preview_title": "Extracted Tasks",
+  "capture.confirm_prompt": "Create these tasks?",
+  "capture.unparseable": "Could not extract any tasks from that text.",
+  "capture.no_tasks": "No tasks found.",
+  "capture.created": "{count} task(s) created.",
+  "col.due_date": "Due Date",
+  "col.story": "Story"
 }

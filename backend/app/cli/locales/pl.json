@@ -55,5 +55,12 @@
   "config.updated": "Konfiguracja zaktualizowana.",
   "time.total_time": "Całkowity czas",
   "time.status_breakdown": "Podział według statusu",
-  "time.changed_at": "Zmieniono"
+  "time.changed_at": "Zmieniono",
+  "capture.preview_title": "Wyodrębnione zadania",
+  "capture.confirm_prompt": "Utworzyć te zadania?",
+  "capture.unparseable": "Nie udało się wyodrębnić żadnych zadań z tego tekstu.",
+  "capture.no_tasks": "Nie znaleziono zadań.",
+  "capture.created": "Utworzono {count} zadanie(a).",
+  "col.due_date": "Termin",
+  "col.story": "Wątek"
 }
