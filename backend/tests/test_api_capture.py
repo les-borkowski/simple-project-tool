@@ -760,3 +760,151 @@ async def test_confirm_no_assignee_stays_unassigned(
     assert resp.status_code == 201
     task = resp.json()["created"][0]
     assert task["assignee_id"] is None
+
+
+# ---------------------------------------------------------------------------
+# API-key auth (X-API-Key) — capture and confirm routes require write:tasks
+# ---------------------------------------------------------------------------
+
+
+async def _create_api_key(
+    api_client: AsyncClient, headers: dict, scopes: list[str], label: str = "test key"
+) -> tuple[str, str]:
+    """Mint an API key via the config route. Returns (raw_key, key_id)."""
+    resp = await api_client.post(
+        "/api/v1/config/api-keys",
+        json={"label": label, "scopes": scopes},
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    return data["key"], data["id"]
+
+
+@pytest.mark.asyncio
+async def test_capture_api_key_with_write_tasks_scope_succeeds(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict, set_llm_client
+):
+    pid = test_project["id"]
+    raw_key, _ = await _create_api_key(api_client, manager_headers, ["write:tasks"])
+    fake = set_llm_client(FakeLLMClient((_extraction_json([_task()]), "gemini-3.6-flash")))
+
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture",
+        json={"text": "Fix the login bug"},
+        headers={"X-API-Key": raw_key},
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["needs_confirmation"] is True
+    assert len(data["tasks"]) == 1
+    assert len(fake.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_confirm_api_key_with_write_tasks_scope_creates_task(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict
+):
+    pid = test_project["id"]
+    raw_key, _ = await _create_api_key(api_client, manager_headers, ["write:tasks"])
+
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture/confirm",
+        json={"tasks": [{"title": "Fix the login bug via API key"}]},
+        headers={"X-API-Key": raw_key},
+    )
+    assert resp.status_code == 201
+    created = resp.json()["created"][0]
+
+    list_resp = await api_client.get(f"/api/v1/projects/{pid}/tasks", headers=manager_headers)
+    assert list_resp.status_code == 200
+    titles = [t["title"] for t in list_resp.json()["items"]]
+    assert "Fix the login bug via API key" in titles
+    assert any(t["id"] == created["id"] for t in list_resp.json()["items"])
+
+
+@pytest.mark.asyncio
+async def test_capture_api_key_missing_write_scope_forbidden(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict, set_llm_client
+):
+    pid = test_project["id"]
+    raw_key, _ = await _create_api_key(api_client, manager_headers, ["read:tasks"])
+    fake = set_llm_client(FakeLLMClient((_extraction_json([_task()]), "gemini-3.6-flash")))
+
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture",
+        json={"text": "Fix the login bug"},
+        headers={"X-API-Key": raw_key},
+    )
+
+    assert resp.status_code == 403
+    body = resp.json()
+    assert "write:tasks" in body["error"]["code"]
+    assert "write:tasks" in body["error"]["message"]
+    assert fake.calls == []
+
+
+@pytest.mark.asyncio
+async def test_confirm_api_key_missing_write_scope_forbidden(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict
+):
+    pid = test_project["id"]
+    raw_key, _ = await _create_api_key(api_client, manager_headers, ["read:tasks"])
+
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture/confirm",
+        json={"tasks": [{"title": "Should not be created"}]},
+        headers={"X-API-Key": raw_key},
+    )
+
+    assert resp.status_code == 403
+    assert "write:tasks" in resp.json()["error"]["code"]
+
+
+@pytest.mark.asyncio
+async def test_capture_revoked_api_key_unauthorized(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict, set_llm_client
+):
+    pid = test_project["id"]
+    raw_key, key_id = await _create_api_key(api_client, manager_headers, ["write:tasks"])
+    fake = set_llm_client(FakeLLMClient((_extraction_json([_task()]), "gemini-3.6-flash")))
+
+    revoke_resp = await api_client.delete(
+        f"/api/v1/config/api-keys/{key_id}", headers=manager_headers
+    )
+    assert revoke_resp.status_code == 204
+
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture",
+        json={"text": "Fix the login bug"},
+        headers={"X-API-Key": raw_key},
+    )
+
+    assert resp.status_code == 401
+    assert fake.calls == []
+
+
+@pytest.mark.asyncio
+async def test_capture_api_key_owner_not_member_of_project_forbidden(
+    api_client: AsyncClient,
+    manager_headers: dict,
+    global_manager_headers: dict,
+    test_project: dict,
+    set_llm_client,
+):
+    """The outsider manager owns a valid write:tasks key but isn't a member of
+    test_project, so project RBAC still applies at the service layer.
+    """
+    pid = test_project["id"]
+    raw_key, _ = await _create_api_key(api_client, global_manager_headers, ["write:tasks"])
+    fake = set_llm_client(FakeLLMClient((_extraction_json([_task()]), "gemini-3.6-flash")))
+
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture",
+        json={"text": "Fix the login bug"},
+        headers={"X-API-Key": raw_key},
+    )
+
+    assert resp.status_code == 403
+    assert fake.calls == []

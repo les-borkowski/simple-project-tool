@@ -1,5 +1,6 @@
 """Integration tests for app.auth.dependencies using a minimal FastAPI TestClient app."""
 
+import json
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -7,9 +8,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import bcrypt
 import jwt
+import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.main import app as main_app
 from app.auth.dependencies import (
     get_current_user,
     get_current_user_or_api_key,
@@ -17,8 +22,11 @@ from app.auth.dependencies import (
     require_scope,
 )
 from app.core.config import settings
+from app.core.llm import get_llm_client
+from app.core.llm.base import LLMResponse
 from app.db.base import RoleEnum
 from app.db.database import get_db
+from app.db.models import APIKey
 
 # ---------------------------------------------------------------------------
 # Minimal FastAPI app wired up for testing
@@ -378,3 +386,69 @@ def test_require_scope_api_key_missing_scope_returns_403():
         assert resp.status_code == 403
     finally:
         app.dependency_overrides.clear()
+
+
+# ---------------------------------------------------------------------------
+# Tests: last_used_at durability on read-only routes (real app + real DB)
+# ---------------------------------------------------------------------------
+
+
+class _FakeLLMClient:
+    """Minimal stub returning a single valid extraction response."""
+
+    async def complete(self, system, user, *, json_schema=None, max_tokens, temperature):
+        text = json.dumps(
+            {
+                "tasks": [
+                    {
+                        "title": "Fix the login bug",
+                        "description": None,
+                        "story_hint": None,
+                        "assignee_hint": None,
+                        "due_date": None,
+                        "priority": None,
+                        "confidence": 0.9,
+                    }
+                ],
+                "not_a_task": False,
+                "notes": None,
+            }
+        )
+        return LLMResponse(
+            text=text, model="gemini-3.6-flash", prompt_tokens=1, completion_tokens=1, latency_ms=1
+        )
+
+
+@pytest.mark.asyncio
+async def test_api_key_last_used_at_persists_after_readonly_capture_route(
+    api_client: AsyncClient, manager_headers: dict, api_db: AsyncSession, test_project: dict
+):
+    """The capture preview endpoint never commits itself; get_current_user_or_api_key
+    must commit its own last_used_at update or it's silently lost (rolled back).
+    """
+    create_resp = await api_client.post(
+        "/api/v1/config/api-keys",
+        json={"label": "test", "scopes": ["write:tasks"]},
+        headers=manager_headers,
+    )
+    assert create_resp.status_code == 201
+    created = create_resp.json()
+    raw_key = created["key"]
+    key_id = created["id"]
+
+    key_before = await api_db.get(APIKey, uuid.UUID(key_id))
+    assert key_before.last_used_at is None
+
+    main_app.dependency_overrides[get_llm_client] = lambda: _FakeLLMClient()
+    try:
+        capture_resp = await api_client.post(
+            f"/api/v1/projects/{test_project['id']}/tasks/capture",
+            json={"text": "Fix the login bug"},
+            headers={"X-API-Key": raw_key},
+        )
+        assert capture_resp.status_code == 200
+    finally:
+        main_app.dependency_overrides.pop(get_llm_client, None)
+
+    key_after = await api_db.get(APIKey, uuid.UUID(key_id), populate_existing=True)
+    assert key_after.last_used_at is not None

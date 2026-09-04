@@ -66,8 +66,9 @@ async def get_current_user_or_api_key(
         candidates = (await db.scalars(stmt)).all()
         for key_record in candidates:
             if bcrypt.checkpw(api_key_header.encode(), key_record.key_hash.encode()):
-                key_record.last_used_at = datetime.now(UTC)
+                key_record.last_used_at = datetime.now(UTC).replace(tzinfo=None)
                 request.state.api_key = key_record
+                await db.commit()
                 user = await db.get(User, key_record.user_id)
                 if not user:
                     raise HTTPException(status_code=401, detail="User not found")

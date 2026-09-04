@@ -18,7 +18,7 @@ from app.api.schemas.task import (
     TaskUpdate,
 )
 from app.api.services import capture_resolution_service, task_service
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, require_scope
 from app.core.llm import get_llm_client
 from app.core.llm.base import LLMClient, LLMNotConfigured, LLMUnavailable
 from app.db.base import PriorityEnum
@@ -86,7 +86,7 @@ async def capture_tasks(
     project_id: uuid.UUID,
     payload: CaptureRequest,
     request: Request,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("write:tasks")),
     db: AsyncSession = Depends(get_db),
     client: LLMClient = Depends(get_llm_client),
 ):
@@ -109,7 +109,7 @@ async def capture_tasks(
 async def confirm_capture_tasks(
     project_id: uuid.UUID,
     payload: ConfirmRequest,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("write:tasks")),
     db: AsyncSession = Depends(get_db),
 ):
     """Create tasks from a reviewed capture batch. All-or-nothing; calls no LLM."""
