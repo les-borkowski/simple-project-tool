@@ -1,8 +1,9 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.schemas.capture import CaptureRequest, CaptureResponse
 from app.api.schemas.common import PaginatedResponse
 from app.api.schemas.task import (
     TaskCreate,
@@ -11,8 +12,10 @@ from app.api.schemas.task import (
     TaskResponse,
     TaskUpdate,
 )
-from app.api.services import task_service
+from app.api.services import capture_resolution_service, task_service
 from app.auth.dependencies import get_current_user
+from app.core.llm import get_llm_client
+from app.core.llm.base import LLMClient, LLMNotConfigured, LLMUnavailable
 from app.db.base import PriorityEnum
 from app.db.database import get_db
 from app.db.models import User
@@ -71,6 +74,26 @@ async def create_task_for_project(
 ):
     """Create a task directly under a project (no story required)."""
     return await task_service.create_task_for_project(project_id, data, user, db)
+
+
+@router.post("/projects/{project_id}/tasks/capture", response_model=CaptureResponse)
+async def capture_tasks(
+    project_id: uuid.UUID,
+    payload: CaptureRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    client: LLMClient = Depends(get_llm_client),
+):
+    """Extract candidate tasks from free text. Writes nothing, ever."""
+    try:
+        return await capture_resolution_service.preview_capture(
+            project_id, payload, user, db, client, request
+        )
+    except LLMNotConfigured as e:
+        raise HTTPException(status_code=503, detail="LLM_NOT_CONFIGURED") from e
+    except LLMUnavailable as e:
+        raise HTTPException(status_code=503, detail="LLM_UNAVAILABLE") from e
 
 
 @router.get("/stories/{story_id}/tasks", response_model=PaginatedResponse[TaskResponse])

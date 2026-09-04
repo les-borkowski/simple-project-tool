@@ -1,3 +1,4 @@
+import uuid
 from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -21,3 +22,37 @@ class ExtractionResult(BaseModel):
     tasks: list[ExtractedTask] = Field(default_factory=list)
     not_a_task: bool = False
     notes: str | None = None
+
+
+class CaptureRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    text: str = Field(min_length=1, max_length=4000)
+    reference_date: date | None = None
+    story_id: uuid.UUID | None = None
+
+
+class CapturedTask(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: str
+    description: str | None
+    story_hint: str | None
+    story_id: uuid.UUID | None
+    story_resolved: bool
+    assignee_hint: str | None
+    assignee_id: uuid.UUID | None
+    assignee_resolved: bool
+    due_date: date | None
+    priority: PriorityEnum | None
+    confidence: float
+    low_confidence: bool
+
+
+class CaptureResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    tasks: list[CapturedTask]
+    unparseable: bool
+    needs_confirmation: bool
+    warnings: list[str]
+    model: str
+    prompt_version: str
+    latency_ms: int

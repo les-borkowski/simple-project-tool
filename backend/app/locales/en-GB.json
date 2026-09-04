@@ -21,5 +21,9 @@
   "INVALID_UUID": "Invalid ID format",
   "STATUS_UNCHANGED": "Status did not change",
   "INVALID_INVITATION_STATUS": "Invitation email does not match your account",
-  "EMAIL_NOT_CONFIRMED": "Please confirm your email address before signing in."
+  "EMAIL_NOT_CONFIRMED": "Please confirm your email address before signing in.",
+  "LLM_NOT_CONFIGURED": "AI task capture is not configured",
+  "LLM_UNAVAILABLE": "AI task capture is temporarily unavailable",
+  "CAPTURE_UNPARSEABLE": "Could not understand the input as a task",
+  "CAPTURE_NOT_A_TASK": "This does not look like a task request"
 }
