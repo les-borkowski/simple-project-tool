@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173"
     ADMIN_EMAIL: str = ""
 
+    # LLM / natural-language capture
+    LLM_PROVIDER: str = "google"
+    # gemini-2.5-flash is dead for new API keys as of 2026-09; confirmed live
+    LLM_MODEL: str = "gemini-3.6-flash"
+    GOOGLE_API_KEY: str = ""
+    LLM_TIMEOUT_SECONDS: int = 30
+    LLM_CAPTURE_MIN_CONFIDENCE: float = 0.5
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
