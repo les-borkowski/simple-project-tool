@@ -178,6 +178,17 @@
   "board.col_tasks": "Tasks",
   "board.col_updated": "Updated",
 
+  "capture.quick_capture": "Quick capture",
+  "capture.title": "Quick capture",
+  "capture.placeholder": "Describe one or more tasks in your own words…",
+  "capture.extract": "Preview tasks",
+  "capture.unavailable": "Capture is temporarily unavailable. Please try again later.",
+  "capture.low_confidence": "Low confidence",
+  "capture.due_date": "Due date",
+  "capture.no_priority": "No priority",
+  "capture.no_tasks_selected": "Check at least one task to create it.",
+  "capture.title_required": "Each selected task needs a title.",
+
   "detail.status": "Status",
   "detail.priority": "Priority",
   "detail.project": "Project",

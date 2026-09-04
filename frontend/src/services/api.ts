@@ -384,6 +384,54 @@ export const storiesApi = {
 // Tasks API
 // ---------------------------------------------------------------------------
 
+export interface CapturePreviewTask {
+  title: string
+  description: string | null
+  story_hint: string | null
+  story_id: string | null
+  story_resolved: boolean
+  assignee_hint: string | null
+  assignee_id: string | null
+  assignee_resolved: boolean
+  due_date: string | null
+  priority: Priority | null
+  confidence: number
+  low_confidence: boolean
+}
+
+export interface CaptureResponse {
+  tasks: CapturePreviewTask[]
+  unparseable: boolean
+  needs_confirmation: boolean
+  warnings: string[]
+  model: string
+  prompt_version: string
+  latency_ms: number
+}
+
+export interface CaptureConfirmTaskItem {
+  title: string
+  description?: string | null
+  story_id?: string | null
+  assignee_id?: string | null
+  due_date?: string | null
+  priority?: Priority | null
+}
+
+export interface CaptureConfirmResponse {
+  created: TaskResponse[]
+}
+
+export const captureApi = {
+  preview: (projectId: string, text: string, referenceDate: string) =>
+    api.post<CaptureResponse>(`/projects/${projectId}/tasks/capture`, {
+      text,
+      reference_date: referenceDate,
+    }),
+  confirm: (projectId: string, tasks: CaptureConfirmTaskItem[]) =>
+    api.post<CaptureConfirmResponse>(`/projects/${projectId}/tasks/capture/confirm`, { tasks }),
+}
+
 export const tasksApi = {
   list: (storyId: string, params?: Record<string, unknown>) =>
     api.get<PaginatedResponse<TaskResponse>>(`/stories/${storyId}/tasks`, { params }),

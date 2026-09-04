@@ -188,6 +188,17 @@
   "board.col_tasks": "Zadania",
   "board.col_updated": "Zaktualizowano",
 
+  "capture.quick_capture": "Szybkie dodawanie",
+  "capture.title": "Szybkie dodawanie",
+  "capture.placeholder": "Opisz jedno lub więcej zadań własnymi słowami…",
+  "capture.extract": "Podgląd zadań",
+  "capture.unavailable": "Szybkie dodawanie jest chwilowo niedostępne. Spróbuj ponownie później.",
+  "capture.low_confidence": "Niska pewność",
+  "capture.due_date": "Termin",
+  "capture.no_priority": "Brak priorytetu",
+  "capture.no_tasks_selected": "Zaznacz przynajmniej jedno zadanie, aby je utworzyć.",
+  "capture.title_required": "Każde zaznaczone zadanie musi mieć tytuł.",
+
   "detail.status": "Status",
   "detail.priority": "Priorytet",
   "detail.project": "Projekt",
