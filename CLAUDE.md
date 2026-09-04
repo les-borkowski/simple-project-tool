@@ -55,9 +55,10 @@ npm run lint                      # Lint
 **Critical pattern**: Routes call services. Services enforce permissions and query DB. No direct DB queries in routes.
 
 **Data model**:
-- Project → Story (optional) → Task
-- Task can exist without a story (directly under project)
+- Project → Story → Task
+- Every project has a default "Backlog" story (`Story.is_default=True`); "project-level" tasks are auto-assigned to it by `create_task_for_project()` (they are never storyless)
 - Each level has: status, priority, comments, status history
+- Status is a string slug, not an enum; each project owns its status set in the `project_statuses` table (seeded with `to_do`, `in_progress`, `in_review`, `done`), validated by `validate_status_slug`
 - Status history is immutable (audit trail + time tracking)
 
 ## Working with the Code
@@ -92,8 +93,9 @@ npm run lint                      # Lint
 | Service layer | Centralized permission + business logic checking |
 | Status history | Immutable append-only audit trail + time tracking |
 | `(project_id, story_id, task_id)` FK pattern | DB-level referential integrity; no polymorphic mess |
-| Tasks without stories | Board view can show project-level tasks + story-level tasks |
-| Project-level task URL | `/projects/:projectId/tasks/:taskId` — no default/phantom story; backend `GET /tasks/{id}` needs no story_id; frontend route added alongside `/stories/:storyId/tasks/:taskId` |
+| Default "Backlog" story per project | Project-level tasks attach to it, so the board can show project-level + story-level tasks without a storyless case |
+| Per-project status sets | Projects configure their own workflow; status stored as a slug string validated against `project_statuses` |
+| Project-level task URL | `/projects/:projectId/tasks/:taskId` — board addresses the task without a story in the URL; backend `GET /tasks/{id}` needs no story_id; route added alongside `/stories/:storyId/tasks/:taskId` |
 
 ## Important Notes
 

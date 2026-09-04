@@ -5,7 +5,7 @@
 ## Project Purpose & Features
 
 A three-level work hierarchy (Project → Story → Task) with:
-- Status tracking: `to_do`, `in_progress`, `in_review`, `in_testing`, `done`
+- Status tracking: each project owns its own ordered status set (stored in the `project_statuses` table); new projects are seeded with `to_do`, `in_progress`, `in_review`, `done`
 - Priority levels: `low`, `medium`, `high`
 - Role-based access control: Manager (create/delete/manage) vs Contributor (view/update status/comment)
 - Global + per-project role overrides
@@ -41,7 +41,8 @@ Schema, ORM models, migrations. No business logic.
   - `user.py` — Users, roles, API keys
   - `project.py` — Projects, members, metadata
   - `story.py` — Stories (medium-level work items)
-  - `task.py` — Tasks (smallest work items; optional story binding; direct project binding)
+  - `task.py` — Tasks (smallest work items; always bound to a story — project-level tasks use the project's default Backlog story)
+  - `project_status.py` — Per-project status definitions (slug, name, colour, order)
   - `comment.py` — Comments on projects, stories, tasks
   - `status_history.py` — Immutable append-only status changes
   - `invitation.py` — Project member invitations
@@ -51,7 +52,7 @@ Schema, ORM models, migrations. No business logic.
 
 - **migrations/** — Alembic version control (one reversible migration per schema change)
 - **database.py** — Connection pooling, session management
-- **base.py** — Base model, enums (Status, Priority), mixins (TimestampMixin)
+- **base.py** — Base model, enums (Priority, Role, Theme, Locale, InvitationStatus), mixins (TimestampMixin). Task/story status is a free string slug, not an enum — see `project_status.py`.
 
 ### 2. Authentication Layer — `backend/app/auth/`
 
@@ -133,13 +134,12 @@ React frontend. Communicates only via REST API (no direct DB access).
 
 ```
 Project
-├── Story (optional, medium-level work)
-│   └── Task (smallest unit)
-└── Task (direct, no story binding)
+└── Story (medium-level work; every project has a default "Backlog" story)
+    └── Task (smallest unit; project-level tasks live in the Backlog story)
 ```
 
 Each level has:
-- **Status** (enum): `to_do`, `in_progress`, `in_review`, `in_testing`, `done`
+- **Status**: a string slug (`VARCHAR(100)`), not an enum. Valid values come from the owning project's `project_statuses` rows and are checked by `validate_status_slug` (HTTP 422 on an unknown slug). New projects are seeded with `to_do`, `in_progress`, `in_review`, `done`; managers can add, rename, recolour, or reorder them.
 - **Priority** (enum): `low`, `medium`, `high`
 - **Timestamps**: `created_at`, `updated_at`
 - **Author tracking**: `created_by`, `updated_by`
@@ -152,10 +152,10 @@ Each level has:
 tasks:
   id UUID PK
   project_id UUID FK → projects (NOT NULL)
-  story_id UUID FK → stories (NULLABLE)
+  story_id UUID FK → stories (NULLABLE in schema, but always set in practice — see below)
   title VARCHAR(500) NOT NULL
   description TEXT NULLABLE
-  status StatusEnum (DEFAULT 'to_do')
+  status VARCHAR(100) NOT NULL (DEFAULT 'to_do'; slug validated against project_statuses)
   priority PriorityEnum (DEFAULT 'medium')
   assignee_id UUID FK → users (NULLABLE)
   created_by UUID FK → users (NOT NULL)
@@ -168,11 +168,13 @@ tasks:
   - (assignee_id) — for filtering by assignee
 ```
 
-Tasks can exist **with or without a story**:
-- **With story**: `story_id` set, task is nested under story, shown in story detail view → URL `/stories/:storyId/tasks/:taskId`
-- **Without story** (project-level): `story_id` IS NULL, task is directly under project, shown on board → URL `/projects/:projectId/tasks/:taskId`
+Every task belongs to a story. There are two ways a task is created:
+- **Under an explicit story**: `story_id` is that story; shown in the story detail view → URL `/stories/:storyId/tasks/:taskId`
+- **Under a project** (project-level task): `create_task_for_project()` calls `get_default_story()` and assigns the project's default "Backlog" story (`Story.is_default = True`); shown on the board → URL `/projects/:projectId/tasks/:taskId`
 
-> **Decision:** project-level tasks get their own frontend route rather than being assigned to a phantom "backlog" story. The backend `GET /tasks/{id}` already requires no `story_id`; `TaskDetailPage` already handles the null case. A default-story approach was rejected because it pollutes story lists and obscures the data model.
+The `story_id` column is nullable in the schema, but the service layer always sets it. Every project has exactly one default Backlog story; `get_default_story()` raises HTTP 500 if one is missing.
+
+> **Decision:** project-level tasks keep their own frontend route (`/projects/:projectId/tasks/:taskId`) so the board can address them without a story in the URL. Backend `GET /tasks/{id}` needs no `story_id`. Data-model-wise they still hang off the default Backlog story rather than being storyless.
 
 ### Key Patterns
 
@@ -184,8 +186,8 @@ status_history:
   project_id UUID FK (NULLABLE)
   story_id UUID FK (NULLABLE)
   task_id UUID FK (NULLABLE)
-  from_status StatusEnum (NULLABLE)
-  to_status StatusEnum
+  from_status VARCHAR(100) (NULLABLE)   -- status slug, not an enum
+  to_status VARCHAR(100) NOT NULL       -- status slug, not an enum
   changed_by UUID FK → users
   created_at TIMESTAMP
   

@@ -16,7 +16,7 @@ Project
 
 Tasks can belong directly to a project or be nested inside a story. Every level supports:
 
-- **Status**: `to_do` → `in_progress` → `in_review` → `in_testing` → `done`
+- **Status**: per-project configurable workflow; each project starts with `to_do`, `in_progress`, `in_review`, `done` and can add, rename, recolour, or reorder its own statuses
 - **Priority**: `low` · `medium` · `high`
 - **Comments** with markdown support
 - **Status history** — immutable audit trail with elapsed-time tracking
