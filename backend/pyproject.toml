@@ -40,7 +40,7 @@ dev = [
     "pytest-asyncio>=0.23",
     "pytest-cov>=7.1.0",
     "anyio>=4.13.0",
-    "ruff>=0.4",
+    "ruff>=0.16.5",
 ]
 
 [tool.pytest.ini_options]
