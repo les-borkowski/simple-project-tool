@@ -48,7 +48,7 @@ def test_401_triggers_refresh_and_retry():
 
 
 def test_401_without_refresh_token_raises_exit():
-    from click.exceptions import Exit
+    from typer import Exit
 
     from app.cli.http import APIClient
 
@@ -64,7 +64,7 @@ def test_401_without_refresh_token_raises_exit():
 
 
 def test_non_success_raises_exit():
-    from click.exceptions import Exit
+    from typer import Exit
 
     from app.cli.http import APIClient
 
