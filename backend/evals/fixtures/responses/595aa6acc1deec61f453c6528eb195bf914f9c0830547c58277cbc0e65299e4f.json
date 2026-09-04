@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"Update the README\",\n      \"confidence\": 1.0\n    },\n    {\n      \"title\": \"Bump the version\",\n      \"confidence\": 1.0\n    },\n    {\n      \"title\": \"Tag the release\",\n      \"confidence\": 1.0\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 465,
+  "completion_tokens": 98,
+  "latency_ms": 19360
+}

@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"Add a retry button to the payments story\",\n      \"confidence\": 1,\n      \"story_hint\": \"Payments\"\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 461,
+  "completion_tokens": 62,
+  "latency_ms": 14547
+}

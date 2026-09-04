@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"Renew the domain\",\n      \"confidence\": 1,\n      \"due_date\": \"2026-09-11\"\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 458,
+  "completion_tokens": 66,
+  "latency_ms": 1032
+}

@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"Sprawdzi\u0107 powiadomienia\",\n      \"confidence\": 1,\n      \"assignee_hint\": \"Marta Zieli\u0144ska\",\n      \"story_hint\": \"Notifications\"\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 464,
+  "completion_tokens": 76,
+  "latency_ms": 839
+}

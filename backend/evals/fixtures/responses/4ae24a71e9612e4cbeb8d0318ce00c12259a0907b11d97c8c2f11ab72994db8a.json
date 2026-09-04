@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"Implement redemption tracking\",\n      \"confidence\": 0.9,\n      \"description\": \"Add a way to track redemption for the Loyalty Program epic.\"\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 468,
+  "completion_tokens": 67,
+  "latency_ms": 11026
+}

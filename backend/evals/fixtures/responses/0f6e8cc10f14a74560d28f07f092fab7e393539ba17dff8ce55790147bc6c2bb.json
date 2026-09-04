@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"Check the deploy logs\",\n      \"confidence\": 0.8,\n      \"assignee_hint\": null,\n      \"description\": \"Marek needs to check the deploy logs.\"\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 460,
+  "completion_tokens": 75,
+  "latency_ms": 7646
+}

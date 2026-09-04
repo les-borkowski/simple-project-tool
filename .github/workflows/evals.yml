@@ -1,0 +1,44 @@
+name: NL Capture Evals
+
+on:
+  workflow_dispatch:
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v2
+        with:
+          python-version: "3.11"
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('backend/uv.lock') }}
+          restore-keys: ${{ runner.os }}-uv-
+
+      - name: Install dependencies
+        run: cd backend && uv sync
+
+      - name: Run evals (live)
+        continue-on-error: true
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          # The eval run never touches the DB or does auth work, but Settings()
+          # requires these fields to exist at import time -- values just need
+          # to be non-empty, not real.
+          DATABASE_URL: "postgresql+asyncpg://unused:unused@localhost/unused"
+          SYNC_DATABASE_URL: "postgresql+psycopg2://unused:unused@localhost/unused"
+          SECRET_KEY: "unused-in-evals-workflow"
+          ADMIN_USERNAME: "unused"
+          ADMIN_PASSWORD: "unused"
+          ADMIN_SECRET: "unused-in-evals-workflow"
+        run: cd backend && uv run python -m app.evals.run --live --delay 2
+
+      - name: Upload eval report
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: backend/evals/results/latest.md

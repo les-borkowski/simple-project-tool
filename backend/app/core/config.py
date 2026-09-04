@@ -37,8 +37,10 @@ class Settings(BaseSettings):
 
     # LLM / natural-language capture
     LLM_PROVIDER: str = "google"
-    # gemini-2.5-flash is dead for new API keys as of 2026-09; confirmed live
-    LLM_MODEL: str = "gemini-3.6-flash"
+    # gemini-2.5-flash is dead for new API keys (404); gemini-3.6-flash's free tier is capped
+    # at 20 req/day, far too low for real use; gemini-3.1-flash-lite verified live with
+    # headroom and no reasoning-token overhead
+    LLM_MODEL: str = "gemini-3.1-flash-lite"
     GOOGLE_API_KEY: str = ""
     LLM_TIMEOUT_SECONDS: int = 30
     LLM_CAPTURE_MIN_CONFIDENCE: float = 0.5

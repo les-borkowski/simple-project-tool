@@ -1,0 +1,12 @@
+{
+  "acme": {
+    "project_name": "Acme Website Relaunch",
+    "member_names": ["Anna Kowalska", "Ben Ortiz", "Anna Silva"],
+    "story_names": ["Payments", "Onboarding", "Backlog"]
+  },
+  "north": {
+    "project_name": "Northwind Mobile App",
+    "member_names": ["Marta Zielińska", "Tomasz Nowak", "Chidi Okafor"],
+    "story_names": ["Auth Refactor", "Notifications", "Backlog"]
+  }
+}

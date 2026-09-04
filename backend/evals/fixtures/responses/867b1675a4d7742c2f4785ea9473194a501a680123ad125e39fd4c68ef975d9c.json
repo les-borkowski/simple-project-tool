@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"Write the API docs\",\n      \"confidence\": 0.9\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 457,
+  "completion_tokens": 49,
+  "latency_ms": 4400
+}
