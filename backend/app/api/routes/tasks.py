@@ -3,7 +3,12 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.schemas.capture import CaptureRequest, CaptureResponse
+from app.api.schemas.capture import (
+    CaptureRequest,
+    CaptureResponse,
+    ConfirmRequest,
+    ConfirmResponse,
+)
 from app.api.schemas.common import PaginatedResponse
 from app.api.schemas.task import (
     TaskCreate,
@@ -94,6 +99,21 @@ async def capture_tasks(
         raise HTTPException(status_code=503, detail="LLM_NOT_CONFIGURED") from e
     except LLMUnavailable as e:
         raise HTTPException(status_code=503, detail="LLM_UNAVAILABLE") from e
+
+
+@router.post(
+    "/projects/{project_id}/tasks/capture/confirm",
+    response_model=ConfirmResponse,
+    status_code=201,
+)
+async def confirm_capture_tasks(
+    project_id: uuid.UUID,
+    payload: ConfirmRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create tasks from a reviewed capture batch. All-or-nothing; calls no LLM."""
+    return await capture_resolution_service.confirm_capture(project_id, payload, user, db)
 
 
 @router.get("/stories/{story_id}/tasks", response_model=PaginatedResponse[TaskResponse])

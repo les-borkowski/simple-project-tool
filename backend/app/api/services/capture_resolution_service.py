@@ -12,13 +12,22 @@ from fastapi import HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.schemas.capture import CapturedTask, CaptureRequest, CaptureResponse
+from app.api.schemas.capture import (
+    CapturedTask,
+    CaptureRequest,
+    CaptureResponse,
+    ConfirmRequest,
+    ConfirmResponse,
+)
 from app.api.schemas.project import MemberResponse
+from app.api.schemas.task import TaskCreate, TaskResponse
 from app.api.services.capture_service import ProjectContext, extract
 from app.api.services.project_service import list_members
-from app.auth.permissions import require_project_access
+from app.api.services.story_service import get_default_story
+from app.api.services.task_service import assemble_task
+from app.auth.permissions import require_not_demo, require_project_access
 from app.core.config import settings
-from app.db.models import Project, Story, User
+from app.db.models import Project, Story, Task, User
 
 
 async def build_project_context(
@@ -171,3 +180,56 @@ async def preview_capture(
         prompt_version=outcome.prompt_version,
         latency_ms=outcome.latency_ms,
     )
+
+
+async def confirm_capture(
+    project_id: uuid.UUID, payload: ConfirmRequest, user: User, db: AsyncSession
+) -> ConfirmResponse:
+    """Create real tasks from a reviewed capture batch. All-or-nothing: a 4xx creates zero tasks."""
+    require_not_demo(user)
+
+    project = await db.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="PROJECT_NOT_FOUND")
+
+    await require_project_access(user, project_id, db)
+
+    backlog = await get_default_story(project_id, db)
+
+    members = await list_members(project_id, user, db)
+    valid_assignee_ids = {project.owner_id} | {m.user_id for m in members}
+
+    # Validate the whole batch before writing anything, so a single invalid item
+    # can never leave a partial set of tasks behind.
+    for item in payload.tasks:
+        if item.story_id is not None:
+            story = await db.get(Story, item.story_id)
+            if not story or story.project_id != project_id:
+                raise HTTPException(status_code=422, detail="STORY_NOT_FOUND")
+        if item.assignee_id is not None and item.assignee_id not in valid_assignee_ids:
+            raise HTTPException(status_code=422, detail="INVALID_ASSIGNEE")
+
+    created_tasks: list[Task] = []
+    try:
+        for item in payload.tasks:
+            story_id = item.story_id if item.story_id is not None else backlog.id
+            data = TaskCreate(
+                title=item.title,
+                description=item.description,
+                status=None,
+                priority=item.priority,
+                assignee_id=item.assignee_id,
+                effort=None,
+                due_date=item.due_date,
+                sprint_id=None,
+            )
+            task = await assemble_task(
+                project_id, story_id, data, user, db, default_assignee_to_creator=False
+            )
+            created_tasks.append(task)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
+
+    return ConfirmResponse(created=[TaskResponse.model_validate(t) for t in created_tasks])

@@ -481,3 +481,282 @@ async def test_capture_text_too_long_rejected(
     assert resp.status_code == 422
     assert "error" in resp.json()
     assert fake.calls == []
+
+
+# ---------------------------------------------------------------------------
+# POST /projects/{id}/tasks/capture/confirm — writes tasks, all-or-nothing
+# ---------------------------------------------------------------------------
+
+
+async def _default_story_id(api_client: AsyncClient, project_id: str, headers: dict) -> str:
+    resp = await api_client.get(f"/api/v1/projects/{project_id}/stories", headers=headers)
+    assert resp.status_code == 200
+    backlog = next(s for s in resp.json()["items"] if s["is_default"])
+    return backlog["id"]
+
+
+@pytest.mark.asyncio
+async def test_confirm_happy_path_defaults_to_backlog(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict
+):
+    pid = test_project["id"]
+    backlog_id = await _default_story_id(api_client, pid, manager_headers)
+
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture/confirm",
+        json={"tasks": [{"title": "Fix the login bug"}, {"title": "Write the release notes"}]},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 201
+    created = resp.json()["created"]
+    assert len(created) == 2
+    assert created[0]["title"] == "Fix the login bug"
+    assert created[1]["title"] == "Write the release notes"
+    assert created[0]["story_id"] == backlog_id
+    assert created[1]["story_id"] == backlog_id
+
+
+@pytest.mark.asyncio
+async def test_confirm_explicit_story_id_overrides_backlog(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict
+):
+    pid = test_project["id"]
+    story_resp = await api_client.post(
+        f"/api/v1/projects/{pid}/stories",
+        json={"title": "Checkout Flow"},
+        headers=manager_headers,
+    )
+    assert story_resp.status_code == 201
+    story_id = story_resp.json()["id"]
+
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture/confirm",
+        json={"tasks": [{"title": "Fix the checkout bug", "story_id": story_id}]},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 201
+    created = resp.json()["created"]
+    assert created[0]["story_id"] == story_id
+
+
+@pytest.mark.asyncio
+async def test_confirm_all_or_nothing_invalid_story_id(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict
+):
+    pid = test_project["id"]
+    other_proj = await api_client.post(
+        "/api/v1/projects", json={"name": "Other Project"}, headers=manager_headers
+    )
+    assert other_proj.status_code == 201
+    other_pid = other_proj.json()["id"]
+    other_story = await api_client.post(
+        f"/api/v1/projects/{other_pid}/stories",
+        json={"title": "Foreign Story"},
+        headers=manager_headers,
+    )
+    assert other_story.status_code == 201
+    foreign_story_id = other_story.json()["id"]
+
+    before = await _task_count(api_client, pid, manager_headers)
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture/confirm",
+        json={
+            "tasks": [
+                {"title": "Valid task, first in batch"},
+                {"title": "Invalid story task", "story_id": foreign_story_id},
+            ]
+        },
+        headers=manager_headers,
+    )
+    assert resp.status_code == 422
+    assert resp.json()["error"]["code"] == "STORY_NOT_FOUND"
+
+    after = await _task_count(api_client, pid, manager_headers)
+    assert after == before
+
+
+@pytest.mark.asyncio
+async def test_confirm_all_or_nothing_invalid_assignee_id(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict
+):
+    pid = test_project["id"]
+    before = await _task_count(api_client, pid, manager_headers)
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture/confirm",
+        json={
+            "tasks": [
+                {"title": "Valid task, first in batch"},
+                {"title": "Invalid assignee task", "assignee_id": str(uuid.uuid4())},
+            ]
+        },
+        headers=manager_headers,
+    )
+    assert resp.status_code == 422
+    assert resp.json()["error"]["code"] == "INVALID_ASSIGNEE"
+
+    after = await _task_count(api_client, pid, manager_headers)
+    assert after == before
+
+
+@pytest.mark.asyncio
+async def test_confirm_demo_account_forbidden(
+    api_client: AsyncClient,
+    manager_headers: dict,
+    api_db: AsyncSession,
+    test_project: dict,
+):
+    pid = test_project["id"]
+    email = f"demo_{uuid.uuid4().hex[:8]}@test.com"
+    with patch("app.core.email.send_email", new=AsyncMock()):
+        await api_client.post(
+            "/api/v1/auth/register",
+            json={"email": email, "name": "Demo User", "password": "testpassword123"},
+        )
+    await api_db.execute(
+        update(User).where(User.email == email).values(email_confirmed=True, is_demo=True)
+    )
+    await api_db.flush()
+    login = await api_client.post(
+        "/api/v1/auth/login", json={"email": email, "password": "testpassword123"}
+    )
+    demo_headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    before = await _task_count(api_client, pid, manager_headers)
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture/confirm",
+        json={"tasks": [{"title": "Should not be created"}]},
+        headers=demo_headers,
+    )
+    assert resp.status_code == 403
+    assert resp.json()["error"]["code"] == "DEMO_ACCOUNT"
+
+    after = await _task_count(api_client, pid, manager_headers)
+    assert after == before
+
+
+@pytest.mark.asyncio
+async def test_confirm_non_member_forbidden(
+    api_client: AsyncClient,
+    manager_headers: dict,
+    global_manager_headers: dict,
+    test_project: dict,
+):
+    pid = test_project["id"]
+    before = await _task_count(api_client, pid, manager_headers)
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture/confirm",
+        json={"tasks": [{"title": "Should not be created"}]},
+        headers=global_manager_headers,
+    )
+    assert resp.status_code == 403
+
+    after = await _task_count(api_client, pid, manager_headers)
+    assert after == before
+
+
+@pytest.mark.asyncio
+async def test_confirm_project_not_found(api_client: AsyncClient, manager_headers: dict):
+    resp = await api_client.post(
+        f"/api/v1/projects/{uuid.uuid4()}/tasks/capture/confirm",
+        json={"tasks": [{"title": "Fix the login bug"}]},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_confirm_batch_cap_rejected(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict
+):
+    pid = test_project["id"]
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture/confirm",
+        json={"tasks": [{"title": f"Task {i}"} for i in range(21)]},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_confirm_extra_field_rejected(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict
+):
+    pid = test_project["id"]
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture/confirm",
+        json={"tasks": [{"title": "Fix the login bug", "status": "done"}]},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_confirm_response_shape(
+    api_client: AsyncClient,
+    manager_headers: dict,
+    api_db: AsyncSession,
+    test_project: dict,
+):
+    pid = test_project["id"]
+    _, member_id = await _register_member(api_client, api_db, manager_headers, pid, "Ada Lovelace")
+
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture/confirm",
+        json={
+            "tasks": [
+                {
+                    "title": "Fix the login bug",
+                    "assignee_id": member_id,
+                    "priority": "high",
+                    "due_date": "2026-12-25",
+                }
+            ]
+        },
+        headers=manager_headers,
+    )
+    assert resp.status_code == 201
+    task = resp.json()["created"][0]
+    assert task["assignee_id"] == member_id
+    assert task["priority"] == "high"
+    assert task["due_date"] == "2026-12-25"
+    assert task["status"] == "to_do"
+
+
+@pytest.mark.asyncio
+async def test_confirm_preserves_request_order(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict
+):
+    pid = test_project["id"]
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture/confirm",
+        json={
+            "tasks": [
+                {"title": "Zebra crossing repair"},
+                {"title": "Alpha review meeting"},
+                {"title": "Middle task about mangoes"},
+            ]
+        },
+        headers=manager_headers,
+    )
+    assert resp.status_code == 201
+    titles = [t["title"] for t in resp.json()["created"]]
+    assert titles == [
+        "Zebra crossing repair",
+        "Alpha review meeting",
+        "Middle task about mangoes",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_confirm_no_assignee_stays_unassigned(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict
+):
+    pid = test_project["id"]
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture/confirm",
+        json={"tasks": [{"title": "Fix the login bug", "assignee_id": None}]},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 201
+    task = resp.json()["created"][0]
+    assert task["assignee_id"] is None
