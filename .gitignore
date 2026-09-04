@@ -123,3 +123,4 @@ htmlcov/
 #claude
 .claude/
 .superpowers/
+.scratch/
