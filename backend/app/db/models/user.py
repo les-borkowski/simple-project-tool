@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -11,6 +11,7 @@ from app.db.base import Base, RoleEnum, TimestampMixin
 if TYPE_CHECKING:
     from app.db.models.api_key import APIKey
     from app.db.models.user_config import UserConfig
+    from app.db.models.user_llm_provider import UserLLMProvider
 
 
 class User(TimestampMixin, Base):
@@ -30,6 +31,8 @@ class User(TimestampMixin, Base):
         Boolean, nullable=False, default=False, server_default="false"
     )
     password_changed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    llm_rpm_ceiling: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    llm_tpm_ceiling: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Relationships
     config: Mapped["UserConfig"] = relationship(
@@ -37,4 +40,7 @@ class User(TimestampMixin, Base):
     )
     api_keys: Mapped[list["APIKey"]] = relationship(
         "APIKey", back_populates="user", cascade="all, delete-orphan"
+    )
+    llm_providers: Mapped[list["UserLLMProvider"]] = relationship(
+        "UserLLMProvider", back_populates="user", cascade="all, delete-orphan"
     )
