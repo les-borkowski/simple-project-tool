@@ -63,8 +63,13 @@ async def check_rate_limit(user: User, provider: str, db: AsyncSession) -> None:
                 )
             )
         ).scalar_one()
-        seconds_elapsed = (now - oldest_created_at).total_seconds()
-        retry_after = max(1, round(60 - seconds_elapsed))
+        if oldest_created_at is None:
+            # A 0 limit (fully suspended access) can trip with an empty window —
+            # nothing to time out from, so fall back to the full window length.
+            retry_after = int(WINDOW.total_seconds())
+        else:
+            seconds_elapsed = (now - oldest_created_at).total_seconds()
+            retry_after = max(1, round(60 - seconds_elapsed))
         raise HTTPException(
             status_code=429,
             detail="LLM_RATE_LIMITED",

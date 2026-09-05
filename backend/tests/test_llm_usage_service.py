@@ -175,6 +175,20 @@ async def test_admin_ceiling_overrides_default_when_no_credential_row(api_db: As
     assert exc_info.value.detail == "LLM_RATE_LIMITED"
 
 
+async def test_zero_ceiling_with_no_events_raises_cleanly(api_db: AsyncSession):
+    """A 0 RPM ceiling (fully suspended access) trips with an empty window —
+    must not crash doing arithmetic on a NULL oldest-event timestamp."""
+    user = make_user(rpm_ceiling=0, tpm_ceiling=100_000)
+    api_db.add(user)
+    await api_db.flush()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await check_rate_limit(user, PROVIDER, api_db)
+    assert exc_info.value.status_code == 429
+    assert exc_info.value.detail == "LLM_RATE_LIMITED"
+    assert exc_info.value.headers["Retry-After"] == "60"
+
+
 async def test_record_usage_inserts_row(api_db: AsyncSession):
     user = make_user(rpm_ceiling=10, tpm_ceiling=10_000)
     api_db.add(user)
