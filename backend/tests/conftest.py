@@ -13,6 +13,7 @@ from sqlalchemy.pool import NullPool
 
 from app.api.main import app
 from app.core.config import settings
+from app.core.llm import get_llm_client
 from app.db.database import get_db
 
 
@@ -157,6 +158,19 @@ async def test_story(api_client: AsyncClient, manager_headers: dict, test_projec
         headers=manager_headers,
     )
     return resp.json()
+
+
+@pytest.fixture
+def set_llm_client():
+    """Override get_llm_client for one test, clearing the override afterwards. Shared by
+    test_api_capture.py and test_mcp_tools.py so both can stub the LLM without network access."""
+
+    def _set(client):
+        app.dependency_overrides[get_llm_client] = lambda: client
+        return client
+
+    yield _set
+    app.dependency_overrides.pop(get_llm_client, None)
 
 
 @pytest_asyncio.fixture

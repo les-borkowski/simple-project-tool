@@ -5,6 +5,7 @@ import logging
 import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import date
 
 from mcp.server.fastmcp import Context, FastMCP
 
@@ -317,6 +318,70 @@ async def create_story(
     default if omitted)."""
     client: SPTClient = ctx.request_context.lifespan_context
     return await _create_story_impl(client, project_id, title, description, priority)
+
+
+async def _capture_tasks_impl(
+    client: SPTClient,
+    project_id: str,
+    text: str,
+    reference_date: str | None = None,
+    story_id: str | None = None,
+) -> dict:
+    # Mirrors `spt tasks capture` - default to today so the LLM's relative-date
+    # resolution ("tomorrow", "next Friday") has a fixed reference point.
+    reference_date = reference_date or date.today().isoformat()
+    body = {
+        "text": text,
+        "reference_date": reference_date,
+        **_non_none(story_id=story_id),
+    }
+    return await client.post(f"/projects/{project_id}/tasks/capture", json=body)
+
+
+@mcp.tool()
+@tool_errors
+async def capture_tasks(
+    ctx: Context,
+    project_id: str,
+    text: str,
+    reference_date: str | None = None,
+    story_id: str | None = None,
+) -> dict:
+    """Extract candidate tasks from a free-text message using an LLM. This writes nothing -
+    it only returns a preview batch of draft tasks (with resolved story/assignee ids where
+    the model's hints matched, and warnings where they didn't). You must review the
+    preview and call confirm_capture with the (possibly edited) tasks before anything is
+    actually created. reference_date is YYYY-MM-DD and defaults to today if omitted - it
+    anchors relative dates like "tomorrow" in the input text. story_id, if given, is used
+    as the default story for any task the model didn't resolve a story hint for."""
+    client: SPTClient = ctx.request_context.lifespan_context
+    return await _capture_tasks_impl(client, project_id, text, reference_date, story_id)
+
+
+_CONFIRM_ITEM_KEYS = {"title", "description", "story_id", "assignee_id", "due_date", "priority"}
+
+
+def _filter_confirm_item(item: dict) -> dict:
+    # capture_tasks previews carry extra fields (story_hint, confidence, etc.) that the
+    # confirm endpoint's schema forbids - drop them so passing preview items straight
+    # through to confirm_capture, as the capture_tasks docstring invites, actually works.
+    return {k: v for k, v in item.items() if k in _CONFIRM_ITEM_KEYS}
+
+
+async def _confirm_capture_impl(client: SPTClient, project_id: str, tasks: list[dict]) -> dict:
+    body = {"tasks": [_filter_confirm_item(item) for item in tasks]}
+    return await client.post(f"/projects/{project_id}/tasks/capture/confirm", json=body)
+
+
+@mcp.tool()
+@tool_errors
+async def confirm_capture(ctx: Context, project_id: str, tasks: list[dict]) -> dict:
+    """Create real tasks from a capture_tasks preview batch. tasks is a list of 1-20 items,
+    each with keys title, description, story_id, assignee_id, due_date, priority (all but
+    title are optional). This is all-or-nothing - if any item fails validation (e.g. an
+    unknown story_id or assignee_id), the whole batch is rejected and no tasks are created."""
+    client: SPTClient = ctx.request_context.lifespan_context
+    return await _confirm_capture_impl(client, project_id, tasks)
 
 
 def main() -> None:

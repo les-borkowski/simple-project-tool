@@ -1,4 +1,6 @@
 import asyncio
+import json
+from datetime import date
 
 import httpx
 import pytest
@@ -9,12 +11,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.main import app
 from app.api.schemas.api_key import APIKeyCreate
 from app.api.services import config_service
+from app.core.llm.base import LLMResponse
 from app.db.database import get_db
 from app.db.models import User
 from app.mcp.client import SPTClient
 from app.mcp.config import MCPConfig
 from app.mcp.server import (
     _add_comment_impl,
+    _capture_tasks_impl,
+    _confirm_capture_impl,
     _create_story_impl,
     _create_task_impl,
     _get_project_impl,
@@ -25,6 +30,47 @@ from app.mcp.server import (
     _search_impl,
     _update_task_impl,
 )
+
+
+class FakeLLMClient:
+    """Test double returning canned raw text - avoids a real LLM call. Mirrors the one in
+    test_api_capture.py."""
+
+    def __init__(self, responses):
+        self.calls = []
+        self._responses = responses if isinstance(responses, list) else [responses]
+
+    async def complete(self, system, user, *, json_schema=None, max_tokens, temperature):
+        self.calls.append({"system": system, "user": user})
+        idx = min(len(self.calls) - 1, len(self._responses) - 1)
+        text, model = self._responses[idx]
+        return LLMResponse(
+            text=text, model=model, prompt_tokens=1, completion_tokens=1, latency_ms=1
+        )
+
+
+def _extraction_json(tasks: list[dict], not_a_task: bool = False, notes: str | None = None) -> str:
+    return json.dumps({"tasks": tasks, "not_a_task": not_a_task, "notes": notes})
+
+
+def _extracted_task(
+    title="Fix the login bug",
+    description=None,
+    story_hint=None,
+    assignee_hint=None,
+    due_date=None,
+    priority=None,
+    confidence=0.9,
+) -> dict:
+    return {
+        "title": title,
+        "description": description,
+        "story_hint": story_hint,
+        "assignee_hint": assignee_hint,
+        "due_date": due_date,
+        "priority": priority,
+        "confidence": confidence,
+    }
 
 
 @pytest_asyncio.fixture
@@ -312,3 +358,76 @@ async def test_create_story(mcp_write_client, test_project):
     assert result["title"] == "New Story"
     assert result["project_id"] == test_project["id"]
     assert result["priority"] == "medium"
+
+
+async def test_capture_tasks_returns_preview_without_creating(
+    mcp_write_client, api_client, manager_headers, test_project, set_llm_client
+):
+    set_llm_client(FakeLLMClient((_extraction_json([_extracted_task()]), "gemini-3.6-flash")))
+
+    result = await _capture_tasks_impl(mcp_write_client, test_project["id"], "Fix the login bug")
+
+    assert result["needs_confirmation"] is True
+    assert result["unparseable"] is False
+    assert len(result["tasks"]) == 1
+    assert result["tasks"][0]["title"] == "Fix the login bug"
+
+    resp = await api_client.get(
+        f"/api/v1/projects/{test_project['id']}/tasks", headers=manager_headers
+    )
+    assert resp.json()["items"] == []
+
+
+async def test_capture_tasks_defaults_reference_date_to_today(
+    mcp_write_client, test_project, set_llm_client
+):
+    fake = set_llm_client(
+        FakeLLMClient((_extraction_json([_extracted_task()]), "gemini-3.6-flash"))
+    )
+
+    result = await _capture_tasks_impl(mcp_write_client, test_project["id"], "Fix the login bug")
+
+    assert result["unparseable"] is False
+    assert date.today().isoformat() in fake.calls[0]["user"]
+
+
+async def test_confirm_capture_creates_tasks(
+    mcp_write_client, api_client, manager_headers, test_project
+):
+    result = await _confirm_capture_impl(
+        mcp_write_client,
+        test_project["id"],
+        [{"title": "Fix the login bug"}, {"title": "Write the changelog"}],
+    )
+
+    created_titles = {t["title"] for t in result["created"]}
+    assert created_titles == {"Fix the login bug", "Write the changelog"}
+
+    resp = await api_client.get(
+        f"/api/v1/projects/{test_project['id']}/tasks", headers=manager_headers
+    )
+    titles = {t["title"] for t in resp.json()["items"]}
+    assert {"Fix the login bug", "Write the changelog"} <= titles
+
+
+async def test_confirm_capture_accepts_unmodified_preview_items(
+    mcp_write_client, api_client, manager_headers, test_project, set_llm_client
+):
+    """capture_tasks' own docstring invites passing its (possibly edited) preview items
+    straight to confirm_capture. Preview items carry extra fields (story_hint, confidence,
+    etc.) that the confirm schema forbids - confirm_capture must strip them itself rather
+    than requiring the caller to hand-reconstruct a minimal object."""
+    set_llm_client(FakeLLMClient((_extraction_json([_extracted_task()]), "gemini-3.6-flash")))
+
+    preview = await _capture_tasks_impl(mcp_write_client, test_project["id"], "Fix the login bug")
+    assert preview["tasks"], "preview must return at least one task for this test to be meaningful"
+
+    result = await _confirm_capture_impl(mcp_write_client, test_project["id"], preview["tasks"])
+
+    assert [t["title"] for t in result["created"]] == ["Fix the login bug"]
+
+    resp = await api_client.get(
+        f"/api/v1/projects/{test_project['id']}/tasks", headers=manager_headers
+    )
+    titles = {t["title"] for t in resp.json()["items"]}
+    assert "Fix the login bug" in titles

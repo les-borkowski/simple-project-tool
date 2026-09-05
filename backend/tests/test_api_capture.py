@@ -9,8 +9,6 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.api.main as main_module
-from app.api.main import app
-from app.core.llm import get_llm_client
 from app.core.llm.base import LLMNotConfigured, LLMUnavailable
 from app.db.models import User
 
@@ -59,18 +57,6 @@ class RaisingLLMClient:
     async def complete(self, *a, **kw):
         self.calls.append(1)
         raise self._exc
-
-
-@pytest.fixture
-def set_llm_client():
-    """Override get_llm_client for one test, clearing the override afterwards."""
-
-    def _set(client):
-        app.dependency_overrides[get_llm_client] = lambda: client
-        return client
-
-    yield _set
-    app.dependency_overrides.pop(get_llm_client, None)
 
 
 def _extraction_json(tasks: list[dict], not_a_task: bool = False, notes: str | None = None) -> str:
