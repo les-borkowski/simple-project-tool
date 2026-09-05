@@ -2,6 +2,16 @@
 
 All notable changes to simple-project-tool are documented here. Format: reverse chronological (newest first).
 
+## [2026-09-04] - Features: Natural-language task capture
+
+**Category**: Features
+
+Added natural-language task capture: type a sentence describing one or more tasks and get structured candidates (title, due date, assignee, story, priority) to review and confirm before anything is created. Available via the "Quick capture" action on the project board (web UI), the `spt tasks capture` CLI command, and directly through the REST API — useful for custom agent integrations.
+
+Extraction is backed by Google Gemini using a constrained-decoding response schema, and the create endpoint requires a `write:tasks`-scoped API key or a logged-in session. Extraction quality is measured by a new eval harness and guarded by a fixture-replay regression test in the standard test suite.
+
+---
+
 ## [2026-04-09] - Docs: Initial documentation structure
 
 **Category**: Docs

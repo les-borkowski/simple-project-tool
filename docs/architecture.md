@@ -128,6 +128,22 @@ React frontend. Communicates only via REST API (no direct DB access).
   - `en-GB.json` — English
   - `pl.json` — Polish
 
+### 5. LLM / Task-Capture Layer — `backend/app/core/llm/` + `backend/app/api/services/capture*.py`
+
+Backs the natural-language task capture feature: turning a free-text sentence into structured task candidates.
+
+- **`app/core/llm/`** — provider-agnostic LLM access
+  - `base.py` defines the `LLMClient` Protocol (`complete(system, user, json_schema, max_tokens, temperature) -> LLMResponse`)
+  - `GeminiClient` — real HTTP calls to Google's Gemini API. Raw `httpx`, no vendor SDK, matching the existing pattern in `app/core/email.py`. Uses constrained decoding: the response schema is passed as Gemini's `responseSchema` generation-config field so the model is forced to return matching JSON
+  - `ReplayClient` — fixture-based, offline; reads from `backend/evals/fixtures/responses/`. Used by tests and by the eval harness's default (`replay`) mode
+  - `get_llm_client()` selects an implementation based on `LLM_PROVIDER`
+
+- **`app/api/services/capture_service.py`** — pure extraction logic: builds the prompt, calls the LLM client, validates/repairs the response JSON against a Pydantic schema (`ExtractionResult`). Deliberately has no database access — its own docstring states this, and `backend/tests/test_capture_service.py::test_no_asyncsession_import` scans the module's source to assert `AsyncSession` never appears in it.
+
+- **`app/api/services/capture_resolution_service.py`** — the DB-touching layer built on top: resolves the LLM's assignee/story name hints against actual project members and stories, assembles the preview response, and performs the all-or-nothing confirm-and-create.
+
+The split exists so extraction can be tested and evaluated in complete isolation from the database: the eval harness (`app/evals/run.py`) runs `capture_service.extract()` directly against fixtures with no DB, no auth, and no running server, and a passing test suite is proof the boundary hasn't eroded.
+
 ## Data Model
 
 ### Three-Level Hierarchy

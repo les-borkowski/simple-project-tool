@@ -45,6 +45,85 @@ Every status transition is recorded. Query time-in-status metrics at the project
 - Project invitation emails
 - Admin notification on new user sign-up
 
+### Natural-Language Task Capture
+
+Type a sentence describing one or more tasks — "ask Anna to review the checkout flow by Friday" — and the system extracts structured candidates (title, due date, assignee, story, priority) using an LLM (Large Language Model). You review and edit the candidates; nothing is ever created without an explicit confirm step.
+
+**Preview → confirm, guaranteed.** `POST /projects/{id}/tasks/capture` is read-only — it never writes to the database, so it's safe to call speculatively (e.g. on every keystroke pause). `POST /projects/{id}/tasks/capture/confirm` is the only endpoint that creates tasks, and it does so all-or-nothing across the batch. This is exposed today via:
+
+- the **"Quick capture"** action on the project board (web UI)
+- `spt tasks capture <project_id> "<text>"` (CLI — supports a scoped API key via `--api-key`/`SPT_API_KEY` for headless/agent use instead of a login)
+- the two REST endpoints directly, for custom agent integrations — both require a `write:tasks`-scoped API key or a logged-in session
+
+**Configuration** (backend `.env`):
+
+| Variable | Default | Notes |
+|---|---|---|
+| `LLM_PROVIDER` | `google` | only `google` is implemented today |
+| `LLM_MODEL` | `gemini-3.1-flash-lite` | pin — see model selection note below |
+| `GOOGLE_API_KEY` | *(empty)* | leave empty to disable the capture feature entirely |
+| `LLM_TIMEOUT_SECONDS` | `30` | |
+| `LLM_CAPTURE_MIN_CONFIDENCE` | `0.5` | extracted tasks below this confidence are flagged `low_confidence` in the API/UI/CLI, not dropped |
+
+An empty `GOOGLE_API_KEY` disables the capture endpoints — they respond `503 LLM_NOT_CONFIGURED` rather than crashing the app. Capture is an optional, additive feature.
+
+The model pin went through two corrections during development: the originally-planned model had already been retired for new API keys, and a second candidate's free tier was rate-limited to 20 requests/day, too low for practical use. `gemini-3.1-flash-lite` is the model actually verified live and is the current pin.
+
+**Privacy.** When a user submits capture text, that text plus the **display names** (never emails, never internal IDs) of project members and the **names** of a project's stories are sent to Google's Gemini API, so the model can resolve references like "assign it to Anna" and match stories by name. Free-tier API terms may permit the provider to use submitted prompts to improve their products — don't point this feature at real or sensitive project data without checking the current terms for whichever tier is in use. Users should be aware that capture text leaves the local server whenever the feature is enabled.
+
+#### Eval harness
+
+Extraction quality is tracked with an eval harness in `backend/evals/`. Latest run: model `gemini-3.1-flash-lite`, prompt version `capture/v1`, run on 2026-09-04, 35 cases.
+
+**Overall**
+
+| field | rate | hits/total |
+| --- | --- | --- |
+| count | 96.6% |  |
+| title | 91.7% | 33/36 |
+| title_mean_f1 | 0.940 | - |
+| due_date | 100.0% | 36/36 |
+| assignee | 91.7% | 33/36 |
+| story | 80.6% | 29/36 |
+| priority | 91.7% | 33/36 |
+| not_a_task | 100.0% |  |
+
+**Per-tag**
+
+| tag | count | title | due_date | assignee | story | priority | not_a_task |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| assignee | 100.0% | 83.3% | 100.0% | 83.3% | 66.7% | 100.0% | N/A |
+| injection | 50.0% | 100.0% | 100.0% | 0.0% | 100.0% | 100.0% | N/A |
+| long-messy | 100.0% | 80.0% | 100.0% | 80.0% | 60.0% | 80.0% | 100.0% |
+| multi-task | 100.0% | 100.0% | 100.0% | 100.0% | 90.9% | 81.8% | N/A |
+| not-a-task | N/A | N/A | N/A | N/A | N/A | N/A | 100.0% |
+| pl | 100.0% | 100.0% | 100.0% | 100.0% | 40.0% | 100.0% | 100.0% |
+| relative-date | 100.0% | 100.0% | 100.0% | 100.0% | 75.0% | 83.3% | N/A |
+| story-association | 100.0% | 66.7% | 100.0% | 100.0% | 100.0% | 100.0% | N/A |
+
+**Story resolution is the weakest field (80.6% overall).** The model sometimes infers a story from thematic content — e.g. assigning a "login" task to an "Auth Refactor" story that was never mentioned in the input — rather than only matching an explicit story name. Several `pl` and `long-messy` cases fail solely on `story` for exactly this reason (see `backend/evals/results/latest.md`'s "Failing cases" section).
+
+**Polish relative-date resolution is strong, not weak.** The `pl` tag scores `due_date: 100.0%` — phrases like "do piątku" (by Friday) and "jutro" (tomorrow) both resolve to the correct date. The Polish weak spot is the same story-resolution issue above (`pl` tag: `story: 40.0%`), not date handling.
+
+The `injection` tag's `assignee: 0.0%` comes from a single case out of two (`count: 50.0%`, i.e. 1/2) — too small a sample to call a systemic assignee-resolution problem for adversarial inputs. Both `injection`-tagged cases are prompt-injection attempts ("ignore previous instructions...") that the model correctly treated as ordinary text to extract tasks from, rather than obeying as instructions — a meaningful positive result in its own right.
+
+Title extraction (91.7%) sometimes paraphrases or expands the literal wording (e.g. "look into the login bug" → "Investigate login bug") — a match a human reviewer would accept, but scored as a miss by the token-F1 metric. This is a known characteristic of the scoring method, not a capability gap.
+
+**Scoring method.** Predicted tasks are aligned to expected tasks by greedy best-first pairwise title-token-F1 matching before any field is scored, since an LLM's task ordering and wording aren't guaranteed to match a hand-written expected case. Each field (`title`, `due_date`, `assignee`, `story`, `priority`) is then scored independently and null-aware (correctly predicting "no due date" counts as a hit). Results are micro-averaged — sum of hits over sum of totals — both overall and per tag. Title scoring uses token-set F1 rather than an LLM-as-judge: an LLM judge would add cost, nondeterminism, and a second model's own failure modes to a component whose whole job is measuring the first model's failures, whereas token-F1 is deterministic, free, and explainable in a README.
+
+Scoring is enforced automatically: `backend/tests/test_evals.py::test_replay_gate_reads_thresholds` runs the eval in replay mode and asserts every field's score meets the floor recorded in `backend/evals/thresholds.json`, so a change that regresses extraction quality fails the normal test suite rather than only a manual report.
+
+Run it yourself:
+
+```bash
+cd backend
+uv run python -m app.evals.run                     # replay mode (default) — offline, uses committed fixtures, no API key needed
+uv run python -m app.evals.run --live --delay 2     # against the live API — needs GOOGLE_API_KEY
+uv run python -m app.evals.run --record --delay 2   # record new/changed fixtures against the live API
+```
+
+`--filter TAG` restricts a run to cases with that tag; `--format json` gives machine-readable output. A GitHub Actions workflow (`.github/workflows/evals.yml`) can also run the live variant on demand via `workflow_dispatch`; it's `continue-on-error: true` and only uploads `backend/evals/results/latest.md` as an artifact for manual review — it does not block merges. The merge-blocking gate is the pytest threshold test above.
+
 ### API Keys for AI Agents
 
 Generate scoped API keys from the config page to give AI agents or automation tools read/write access to your projects without sharing user credentials.
