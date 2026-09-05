@@ -25,6 +25,7 @@
   "EMAIL_NOT_CONFIRMED": "Please confirm your email address before signing in.",
   "LLM_NOT_CONFIGURED": "AI task capture is not configured",
   "LLM_UNAVAILABLE": "AI task capture is temporarily unavailable",
+  "LLM_RATE_LIMITED": "AI task capture is temporarily rate-limited — please try again shortly",
   "CAPTURE_UNPARSEABLE": "Could not understand the input as a task",
   "CAPTURE_NOT_A_TASK": "This does not look like a task request",
   "INVALID_ASSIGNEE": "Assignee is not a member of this project"

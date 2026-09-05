@@ -25,6 +25,7 @@
   "EMAIL_NOT_CONFIRMED": "Proszę potwierdzić adres e-mail przed zalogowaniem.",
   "LLM_NOT_CONFIGURED": "Przechwytywanie zadań AI nie jest skonfigurowane",
   "LLM_UNAVAILABLE": "Przechwytywanie zadań AI jest tymczasowo niedostępne",
+  "LLM_RATE_LIMITED": "Przechwytywanie zadań AI jest tymczasowo ograniczone — spróbuj ponownie za chwilę",
   "CAPTURE_UNPARSEABLE": "Nie udało się zrozumieć treści jako zadania",
   "CAPTURE_NOT_A_TASK": "To nie wygląda na prośbę o zadanie",
   "INVALID_ASSIGNEE": "Przypisana osoba nie jest członkiem tego projektu"
