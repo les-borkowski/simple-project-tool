@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str = ""
     LLM_TIMEOUT_SECONDS: int = 30
     LLM_CAPTURE_MIN_CONFIDENCE: float = 0.5
+    LLM_ALLOW_SERVER_KEY_FALLBACK: bool = True
+    LLM_MAX_RPM: int = 20
+    LLM_MAX_TPM: int = 100_000
 
     # Credential encryption — Fernet key for encrypting user-supplied LLM API keys at rest.
     # Dedicated from SECRET_KEY: rotating SECRET_KEY must not brick stored credentials.
