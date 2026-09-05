@@ -29,10 +29,12 @@ dependencies = [
     "jinja2>=3.1",
     "python-multipart>=0.0.9",
     "itsdangerous>=2.2.0",
+    "mcp>=1.2,<2",
 ]
 
 [project.scripts]
 spt = "app.cli.main:app"
+spt-mcp = "app.mcp.server:main"
 
 [dependency-groups]
 dev = [
