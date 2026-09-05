@@ -14,6 +14,7 @@ For detailed architecture, tech stack, data models, and API structure, see **[`d
 - **Frontend**: React 19 + TypeScript + Vite + Tailwind
 - **Auth**: JWT (stateless) + bcrypt, Role-based access control (Manager/Contributor)
 - **Features**: Three-level hierarchy, status tracking, comments, member management, API keys for agents
+- **MCP**: `spt-mcp` (`backend/app/mcp/`) exposes the API as an MCP server for LLM hosts (Claude Code, Claude Desktop)
 - **i18n**: en-GB, pl (via i18next)
 
 ## Essential Commands
@@ -70,6 +71,7 @@ npm run lint                      # Lint
 3. Add route in `backend/app/api/routes/`
 4. Update `frontend/src/services/api.ts` with client method
 5. Use in React component via `useEffect` hook or mutation
+6. If the endpoint is agent-facing, wire `require_scope` in the route and add a matching tool in `backend/app/mcp/server.py`
 
 ### Modifying Database
 

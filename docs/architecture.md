@@ -31,7 +31,7 @@ A three-level work hierarchy (Project → Story → Task) with:
 
 ## Architecture Layers
 
-The codebase follows **four clearly separated layers**, each with distinct responsibilities:
+The codebase follows **clearly separated layers**, each with distinct responsibilities:
 
 ### 1. Database Layer — `backend/app/db/`
 
@@ -143,6 +143,19 @@ Backs the natural-language task capture feature: turning a free-text sentence in
 - **`app/api/services/capture_resolution_service.py`** — the DB-touching layer built on top: resolves the LLM's assignee/story name hints against actual project members and stories, assembles the preview response, and performs the all-or-nothing confirm-and-create.
 
 The split exists so extraction can be tested and evaluated in complete isolation from the database: the eval harness (`app/evals/run.py`) runs `capture_service.extract()` directly against fixtures with no DB, no auth, and no running server, and a passing test suite is proof the boundary hasn't eroded.
+
+### 6. MCP Server Layer — `backend/app/mcp/`
+
+Exposes the REST API as an MCP (Model Context Protocol) server (`spt-mcp` console script) so an LLM host can call the tool directly.
+
+- **`config.py`** — `MCPConfig.load()` reads `SPT_API_URL`, `SPT_API_KEY` (required), `SPT_LOCALE`, `SPT_TIMEOUT_SECONDS` from the environment
+- **`client.py`** — `SPTClient`, an async `httpx` wrapper that sends `X-API-Key` and paginates cursor responses via `fetch_all()`
+- **`server.py`** — the FastMCP app and its 13 `@mcp.tool()` functions (`whoami`, `list_projects`, `get_project`, `list_stories`, `list_tasks`, `get_task`, `search`, `update_task`, `add_comment`, `create_task`, `create_story`, `capture_tasks`, `confirm_capture`) — no delete or member-management tools by design
+- **`errors.py`** — maps a failed REST call into a clean MCP tool error instead of a fake success result
+
+**Key pattern:** this layer imports no services, models, or DB session — it only speaks HTTP to the same API layer everything else uses. That's deliberate: every existing permission check (`require_project_access`, `require_manager`, `require_scope`, per-project RBAC) still runs on every MCP tool call, because the call is a normal HTTP request. The tool list enforces nothing by itself; the API key's scopes are the actual security boundary. A read-only agent is a differently-scoped API key, not a different server build.
+
+> **Dependency note:** the `mcp` package is pinned `>=1.2,<2` in `backend/pyproject.toml`. `mcp` 2.x replaces `FastMCP` with an incompatible `MCPServer` API — do not relax this pin without rewriting `server.py`.
 
 ## Data Model
 
@@ -297,7 +310,7 @@ DELETE /comments/{id}           — Delete comment (author only)
 - **Filtering**: `?status=in_progress&priority=high&q=search`
 - **Error Format**: `{"error": {"code": "...", "message": "...", "details": [...]}}`
 - **Authentication**: Bearer token in `Authorization: Bearer <token>` or `X-API-Key: <key>`
-- **API Key Scopes**: `read:projects`, `write:projects`, `read:stories`, `write:stories`, `read:tasks`, `write:tasks`, `read:comments`, `write:comments`, `admin`
+- **API Key Scopes**: `read:projects`, `write:projects`, `read:stories`, `write:stories`, `read:tasks`, `write:tasks`, `read:comments`, `write:comments`, `admin` (a `write:X` scope implies `read:X`). `write:projects` is defined but currently unused by any route — it's aspirational, only appearing as an example scope string in CLI help text. Actual scoped-key coverage per resource: GET only on projects (list, get, list members); GET/POST/PATCH on stories and tasks; GET/POST on comments (create and list — no PATCH, so an API key can't edit a comment, matching the MCP server's `add_comment`-only tool). Project create/update/archive/restore, all member management, deletes, admin/config endpoints, and most of `/auth` remain JWT-only (`GET /auth/me` is the exception: an API key can call it too, and the response includes the key's label and scopes)
 
 ### Documentation
 

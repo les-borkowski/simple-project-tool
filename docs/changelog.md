@@ -2,6 +2,20 @@
 
 All notable changes to simple-project-tool are documented here. Format: reverse chronological (newest first).
 
+## [2026-09-05] - Features: MCP server for AI agents
+
+**Category**: Features
+
+Added `spt-mcp`, an MCP (Model Context Protocol) server (`backend/app/mcp/`) that exposes the tool to LLM hosts such as Claude Code and Claude Desktop. It's a thin async HTTP client over the public REST API — no direct DB, model, or service access — so every existing permission check (`require_project_access`, `require_manager`, `require_scope`) still runs on every tool call, exactly as it would for any other API client.
+
+13 tools are exposed: `whoami`, `list_projects`, `get_project`, `list_stories`, `list_tasks`, `get_task`, `search`, `update_task`, `add_comment`, `create_task`, `create_story`, `capture_tasks`, `confirm_capture`. There are no delete tools and no member-management tools, by design. An agent's actual permissions come entirely from its API key's scopes plus normal per-project RBAC — a read-only agent is a differently-scoped key, not a different server.
+
+Scoped API keys can now do a lot more than the natural-language capture endpoints they were previously limited to: GET on projects (list, get, list members); GET/POST/PATCH on stories and tasks; GET/POST on comments (create and list, no edit). Project create/update/archive/restore, all member management, deletes, admin/config, and most of `/auth` remain JWT-only. `GET /auth/me` now also accepts an API key and reports its label and scopes.
+
+Setup: create a scoped API key (`spt config api-keys create`), then register the server with `claude mcp add` or the equivalent `claude_desktop_config.json` block — see `docs/how-to-run.md`.
+
+---
+
 ## [2026-09-04] - Features: Natural-language task capture
 
 **Category**: Features

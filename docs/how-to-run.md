@@ -88,6 +88,45 @@ spt projects list
 
 ---
 
+## 5. MCP Server (optional)
+
+`spt-mcp` exposes the API as an MCP (Model Context Protocol) server for LLM hosts like Claude Code or Claude Desktop. It authenticates with a scoped API key — an agent's permissions are exactly what that key's scopes allow, same as any other API key user.
+
+**1. Create a scoped API key:**
+
+```bash
+cd backend
+spt config api-keys create --label "claude-code" --scopes read:projects,read:stories,read:tasks,read:comments,write:tasks,write:comments
+```
+
+The key is printed once — save it.
+
+**2. Register with Claude Code:**
+
+```bash
+claude mcp add spt -e SPT_API_KEY=<key> -e SPT_API_URL=http://localhost:8000 -- spt-mcp
+```
+
+**3. Or register with Claude Desktop**, by adding this to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "spt": {
+      "command": "spt-mcp",
+      "env": {
+        "SPT_API_KEY": "<key>",
+        "SPT_API_URL": "http://localhost:8000"
+      }
+    }
+  }
+}
+```
+
+`spt-mcp` also reads `SPT_LOCALE` (defaults to `en-GB`) and `SPT_TIMEOUT_SECONDS` (defaults to `30`). If `SPT_API_URL` is omitted it falls back to the CLI's configured API URL, then to `http://localhost:8000`.
+
+---
+
 ## Environment Variables
 
 All variables live in `backend/.env`. Copy from `backend/.env.example` and fill in the values.

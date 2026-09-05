@@ -128,6 +128,23 @@ uv run python -m app.evals.run --record --delay 2   # record new/changed fixture
 
 Generate scoped API keys from the config page to give AI agents or automation tools read/write access to your projects without sharing user credentials.
 
+### MCP Server
+
+`spt-mcp` exposes the tool as an MCP (Model Context Protocol) server, so an LLM host such as Claude Code or Claude Desktop can browse and edit projects directly. It's a thin async HTTP client over the same REST API everything else uses — no direct DB or service access — so every call still goes through the normal route → service → RBAC path.
+
+13 tools: `whoami`, `list_projects`, `get_project`, `list_stories`, `list_tasks`, `get_task`, `search`, `update_task`, `add_comment`, `create_task`, `create_story`, `capture_tasks`, `confirm_capture`. There are no delete tools and no member-management tools — an agent should never destroy work or change project membership.
+
+```bash
+# 1. Create a scoped API key
+cd backend
+spt config api-keys create --label "claude-code" --scopes read:projects,read:stories,read:tasks,read:comments,write:tasks,write:comments
+
+# 2. Register the server with Claude Code
+claude mcp add spt -e SPT_API_KEY=<key> -e SPT_API_URL=http://localhost:8000 -- spt-mcp
+```
+
+**Scopes are the security boundary**, not the tool list — the server enforces nothing itself. A read-only agent is one whose API key was created with only `read:*` scopes, not a different build or configuration. See [docs/how-to-run.md](docs/how-to-run.md) for the Claude Desktop config equivalent.
+
 ### CLI
 
 Full command-line interface mirroring the web UI — authenticate, manage projects/stories/tasks, add comments, handle invitations, and query time metrics.
