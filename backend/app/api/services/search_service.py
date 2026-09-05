@@ -1,15 +1,45 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import cast, literal, null, or_, select, union_all
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.search import SearchResultItem
 from app.api.utils import escape_like
+from app.auth.security import check_scope
 from app.db.models import Project, ProjectMember, Story, Task, User
+
+if TYPE_CHECKING:
+    from app.db.models.api_key import APIKey
 
 MAX_SEARCH_RESULTS = 20
 
 
-async def search_items(q: str, user: User, db: AsyncSession) -> list[SearchResultItem]:
+def _allowed_result_types(api_key: "APIKey | None") -> set[str] | None:
+    """Result types the caller may see, or None for JWT callers (unfiltered).
+
+    Search unions projects, stories and tasks, so gating the route on read:projects alone
+    would leak the other two — SCOPE_HIERARCHY deliberately does not imply them.
+    """
+    if api_key is None:
+        return None
+    allowed = {"project"}  # the route dependency already required read:projects
+    if check_scope(api_key, "read:stories"):
+        allowed.add("story")
+    if check_scope(api_key, "read:tasks"):
+        allowed.add("task")
+    return allowed
+
+
+async def search_items(
+    q: str,
+    user: User,
+    db: AsyncSession,
+    api_key: "APIKey | None" = None,
+) -> list[SearchResultItem]:
+    """Search projects/stories/tasks. api_key=None means a JWT caller: no scope filtering."""
+    allowed_types = _allowed_result_types(api_key)
+
     project_ids_q = select(Project.id).where(
         or_(
             Project.owner_id == user.id,
@@ -34,37 +64,45 @@ async def search_items(q: str, user: User, db: AsyncSession) -> list[SearchResul
         ),
     )
 
-    stories_q = select(
-        literal("story").label("type"),
-        Story.id.label("id"),
-        Story.title.label("title"),
-        Story.project_id.label("project_id"),
-        cast(null(), PGUUID(as_uuid=True)).label("story_id"),
-        Story.updated_at.label("updated_at"),
-    ).where(
-        Story.project_id.in_(project_ids_q),
-        or_(
-            Story.title.ilike(f"%{escape_like(q)}%", escape="\\"),
-            Story.description.ilike(f"%{escape_like(q)}%", escape="\\"),
-        ),
-    )
+    parts = [projects_q]
 
-    tasks_q = select(
-        literal("task").label("type"),
-        Task.id.label("id"),
-        Task.title.label("title"),
-        Task.project_id.label("project_id"),
-        Task.story_id.label("story_id"),
-        Task.updated_at.label("updated_at"),
-    ).where(
-        Task.project_id.in_(project_ids_q),
-        or_(
-            Task.title.ilike(f"%{escape_like(q)}%", escape="\\"),
-            Task.description.ilike(f"%{escape_like(q)}%", escape="\\"),
-        ),
-    )
+    if allowed_types is None or "story" in allowed_types:
+        parts.append(
+            select(
+                literal("story").label("type"),
+                Story.id.label("id"),
+                Story.title.label("title"),
+                Story.project_id.label("project_id"),
+                cast(null(), PGUUID(as_uuid=True)).label("story_id"),
+                Story.updated_at.label("updated_at"),
+            ).where(
+                Story.project_id.in_(project_ids_q),
+                or_(
+                    Story.title.ilike(f"%{escape_like(q)}%", escape="\\"),
+                    Story.description.ilike(f"%{escape_like(q)}%", escape="\\"),
+                ),
+            )
+        )
 
-    combined = union_all(projects_q, stories_q, tasks_q).subquery()
+    if allowed_types is None or "task" in allowed_types:
+        parts.append(
+            select(
+                literal("task").label("type"),
+                Task.id.label("id"),
+                Task.title.label("title"),
+                Task.project_id.label("project_id"),
+                Task.story_id.label("story_id"),
+                Task.updated_at.label("updated_at"),
+            ).where(
+                Task.project_id.in_(project_ids_q),
+                or_(
+                    Task.title.ilike(f"%{escape_like(q)}%", escape="\\"),
+                    Task.description.ilike(f"%{escape_like(q)}%", escape="\\"),
+                ),
+            )
+        )
+
+    combined = union_all(*parts).subquery()
     stmt = select(combined).order_by(combined.c.updated_at.desc()).limit(MAX_SEARCH_RESULTS)
 
     rows = (await db.execute(stmt)).fetchall()

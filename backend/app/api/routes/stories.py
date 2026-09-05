@@ -11,7 +11,7 @@ from app.api.schemas.story import (
     StoryUpdate,
 )
 from app.api.services import story_service
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, require_scope
 from app.db.base import PriorityEnum
 from app.db.database import get_db
 from app.db.models import User
@@ -22,7 +22,7 @@ router = APIRouter(tags=["stories"])
 @router.get("/projects/{project_id}/stories", response_model=PaginatedResponse[StoryResponse])
 async def list_stories(
     project_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("read:stories")),
     db: AsyncSession = Depends(get_db),
     cursor: str | None = Query(None),
     limit: int = Query(25, ge=1, le=100),
@@ -41,7 +41,7 @@ async def list_stories(
 async def create_story(
     project_id: uuid.UUID,
     data: StoryCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("write:stories")),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a story in a project."""
@@ -51,7 +51,7 @@ async def create_story(
 @router.get("/stories/{story_id}", response_model=StoryResponse)
 async def get_story(
     story_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("read:stories")),
     db: AsyncSession = Depends(get_db),
 ):
     """Get a story by ID."""
@@ -62,7 +62,7 @@ async def get_story(
 async def update_story(
     story_id: uuid.UUID,
     data: StoryUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("write:stories")),
     db: AsyncSession = Depends(get_db),
 ):
     """Update a story."""

@@ -116,6 +116,9 @@ async def get_current_user_or_api_key(
             user = await db.get(User, key_record.user_id)
             if not user:
                 raise HTTPException(status_code=401, detail="User not found")
+            # Mirrors the JWT path: blocking an account must also kill its un-revoked keys.
+            if user.is_blocked:
+                raise HTTPException(403, "ACCOUNT_BLOCKED")
             return user
 
     raise HTTPException(401, "Not authenticated")

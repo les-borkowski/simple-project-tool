@@ -31,7 +31,7 @@ router = APIRouter(tags=["tasks"])
 @router.get("/projects/{project_id}/tasks", response_model=PaginatedResponse[TaskResponse])
 async def list_project_tasks(
     project_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("read:tasks")),
     db: AsyncSession = Depends(get_db),
     cursor: str | None = Query(None),
     limit: int = Query(25, ge=1, le=500),
@@ -74,7 +74,7 @@ async def reorder_tasks(
 async def create_task_for_project(
     project_id: uuid.UUID,
     data: TaskCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("write:tasks")),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a task directly under a project (no story required)."""
@@ -119,7 +119,7 @@ async def confirm_capture_tasks(
 @router.get("/stories/{story_id}/tasks", response_model=PaginatedResponse[TaskResponse])
 async def list_tasks(
     story_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("read:tasks")),
     db: AsyncSession = Depends(get_db),
     cursor: str | None = Query(None),
     limit: int = Query(25, ge=1, le=100),
@@ -139,7 +139,7 @@ async def list_tasks(
 async def create_task(
     story_id: uuid.UUID,
     data: TaskCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("write:tasks")),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a task in a story."""
@@ -149,7 +149,7 @@ async def create_task(
 @router.get("/tasks/{task_id}", response_model=TaskResponse)
 async def get_task(
     task_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("read:tasks")),
     db: AsyncSession = Depends(get_db),
 ):
     """Get a task by ID."""
@@ -160,7 +160,7 @@ async def get_task(
 async def update_task(
     task_id: uuid.UUID,
     data: TaskUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("write:tasks")),
     db: AsyncSession = Depends(get_db),
 ):
     """Update a task."""

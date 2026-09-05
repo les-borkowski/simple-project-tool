@@ -242,6 +242,39 @@ def test_get_current_user_or_api_key_valid_api_key():
         app.dependency_overrides.clear()
 
 
+def test_api_key_of_blocked_user_is_rejected():
+    """A blocked user's valid, un-revoked key gets 403 — same as the JWT path."""
+    user_id = uuid.uuid4()
+    raw_key = "blocked-user-raw-api-key"
+    key_hash = bcrypt.hashpw(raw_key.encode(), bcrypt.gensalt(rounds=4)).decode()
+
+    mock_user = MagicMock()
+    mock_user.id = user_id
+    mock_user.is_blocked = True
+
+    mock_api_key = MagicMock()
+    mock_api_key.key_hash = key_hash
+    mock_api_key.user_id = user_id
+    mock_api_key.revoked_at = None
+    mock_api_key.last_used_at = None
+    mock_api_key.scopes = ["read:projects"]  # scope is sufficient; blocking is what denies
+
+    mock_scalars_result = MagicMock()
+    mock_scalars_result.all.return_value = [mock_api_key]
+
+    mock_db = AsyncMock()
+    mock_db.scalars = AsyncMock(return_value=mock_scalars_result)
+    mock_db.get.return_value = mock_user
+
+    app.dependency_overrides[get_db] = db_override(mock_db)
+    try:
+        resp = client.get("/scoped", headers={"X-API-Key": raw_key})
+        assert resp.status_code == 403
+        assert resp.json()["detail"] == "ACCOUNT_BLOCKED"
+    finally:
+        app.dependency_overrides.clear()
+
+
 def test_get_current_user_or_api_key_no_auth():
     """Scenario 8: no auth at all returns 401."""
     mock_db = make_mock_db()

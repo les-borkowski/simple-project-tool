@@ -24,6 +24,13 @@ class APIKeyCreate(BaseModel):
         return v
 
 
+class APIKeyIdentity(BaseModel):
+    """The calling key's own identity, as surfaced to agents by GET /auth/me."""
+
+    label: str
+    scopes: list[str]
+
+
 class APIKeyResponse(BaseModel):
     id: UUID
     label: str
