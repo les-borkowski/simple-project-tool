@@ -384,6 +384,57 @@ async def confirm_capture(ctx: Context, project_id: str, tasks: list[dict]) -> d
     return await _confirm_capture_impl(client, project_id, tasks)
 
 
+async def _projects_resource_impl(client: SPTClient) -> list:
+    """Data for the `spt://projects` resource - same shape as list_projects()'s default call."""
+    return await _list_projects_impl(client)
+
+
+@mcp.resource("spt://projects", name="projects", mime_type="application/json")
+async def projects_resource() -> list:
+    """Browsable list of active (non-archived) projects accessible to the current user."""
+    client: SPTClient = mcp.get_context().request_context.lifespan_context
+    return await _projects_resource_impl(client)
+
+
+async def _project_resource_impl(client: SPTClient, project_id: str) -> dict:
+    """Data for the `spt://projects/{project_id}` resource - same shape as get_project()."""
+    return await _get_project_impl(client, project_id)
+
+
+@mcp.resource("spt://projects/{project_id}", name="project", mime_type="application/json")
+async def project_resource(ctx: Context, project_id: str) -> dict:
+    """Browsable brief for a single project: the project, its valid statuses, and members."""
+    client: SPTClient = ctx.request_context.lifespan_context
+    return await _project_resource_impl(client, project_id)
+
+
+async def _work_on_task_prompt_impl(client: SPTClient, task_id: str) -> str:
+    task = await _get_task_impl(client, task_id)
+    project = await _get_project_impl(client, task["project_id"])
+    slugs = ", ".join(s["slug"] for s in project["statuses"])
+    comments = task.get("comments") or []
+    comments_text = (
+        "\n".join(f"- {c['body']}" for c in comments) if comments else "(no comments yet)"
+    )
+
+    return (
+        f"Ticket: {task['title']}\n"
+        f"Status: {task['status']} | Priority: {task['priority']}\n\n"
+        f"Description:\n{task.get('description') or '(none)'}\n\n"
+        f"Comments:\n{comments_text}\n\n"
+        f"Valid statuses for this project: {slugs}\n\n"
+        "Pick this up and move it forward."
+    )
+
+
+@mcp.prompt()
+async def work_on_task(ctx: Context, task_id: str) -> str:
+    """Frame a task for an agent to pick up: the ticket, its comments, and the project's
+    valid status slugs, ending with an instruction to move it forward."""
+    client: SPTClient = ctx.request_context.lifespan_context
+    return await _work_on_task_prompt_impl(client, task_id)
+
+
 def main() -> None:
     # stdout is the JSON-RPC wire for stdio transport; logging must go to stderr only,
     # and nothing in this process may print to stdout.

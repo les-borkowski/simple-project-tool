@@ -30,8 +30,11 @@ from app.mcp.server import (
     _list_projects_impl,
     _list_stories_impl,
     _list_tasks_impl,
+    _project_resource_impl,
+    _projects_resource_impl,
     _search_impl,
     _update_task_impl,
+    _work_on_task_prompt_impl,
     mcp,
 )
 
@@ -539,6 +542,73 @@ async def test_confirm_capture_accepts_unmodified_preview_items(
     )
     titles = {t["title"] for t in resp.json()["items"]}
     assert "Fix the login bug" in titles
+
+
+async def test_projects_resource_matches_list_projects_output(mcp_client, test_project):
+    resource_result = await _projects_resource_impl(mcp_client)
+    tool_result = await _list_projects_impl(mcp_client)
+
+    assert resource_result == tool_result
+    ids = [p["id"] for p in resource_result]
+    assert test_project["id"] in ids
+
+
+async def test_project_resource_matches_get_project_output(mcp_client, test_project):
+    resource_result = await _project_resource_impl(mcp_client, test_project["id"])
+    tool_result = await _get_project_impl(mcp_client, test_project["id"])
+
+    assert resource_result == tool_result
+    assert resource_result["project"]["id"] == test_project["id"]
+
+
+async def test_project_resource_not_a_member_surfaces_forbidden_error(mcp_client, other_project):
+    with pytest.raises(Exception) as exc_info:
+        await _project_resource_impl(mcp_client, other_project["id"])
+
+    assert "not a project member" in str(exc_info.value).lower()
+
+
+async def test_work_on_task_prompt_includes_ticket_comments_and_statuses(
+    mcp_client, api_client, manager_headers, test_task
+):
+    await api_client.post(
+        f"/api/v1/tasks/{test_task['id']}/comments",
+        json={"body": "please prioritize this"},
+        headers=manager_headers,
+    )
+
+    prompt_text = await _work_on_task_prompt_impl(mcp_client, test_task["id"])
+
+    assert isinstance(prompt_text, str)
+    assert test_task["title"] in prompt_text
+    assert test_task["status"] in prompt_text
+    assert test_task["priority"] in prompt_text
+    assert "please prioritize this" in prompt_text
+    assert "to_do" in prompt_text and "in_progress" in prompt_text
+    assert "move it forward" in prompt_text.lower()
+
+
+async def test_work_on_task_prompt_no_comments_says_so(mcp_client, test_task):
+    prompt_text = await _work_on_task_prompt_impl(mcp_client, test_task["id"])
+
+    assert "no comments yet" in prompt_text.lower()
+
+
+async def test_registered_resources_match_expected_set_exactly():
+    """FastMCP registers a zero-param `spt://projects` resource as a plain resource, and
+    `spt://projects/{project_id}` as a resource template (it has a URI parameter) - see
+    ResourceManager.list_resources / list_templates."""
+    resources = await mcp.list_resources()
+    templates = await mcp.list_resource_templates()
+
+    assert {str(r.uri) for r in resources} == {"spt://projects"}
+    assert {t.uriTemplate for t in templates} == {"spt://projects/{project_id}"}
+
+
+async def test_registered_prompts_match_expected_set_exactly():
+    prompts = await mcp.list_prompts()
+
+    assert {p.name for p in prompts} == {"work_on_task"}
 
 
 EXPECTED_TOOL_NAMES = {
