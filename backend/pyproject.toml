@@ -30,6 +30,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "itsdangerous>=2.2.0",
     "mcp>=1.2,<2",
+    "cryptography>=44",
 ]
 
 [project.scripts]

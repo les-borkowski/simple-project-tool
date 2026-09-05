@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     LLM_TIMEOUT_SECONDS: int = 30
     LLM_CAPTURE_MIN_CONFIDENCE: float = 0.5
 
+    # Credential encryption — Fernet key for encrypting user-supplied LLM API keys at rest.
+    # Dedicated from SECRET_KEY: rotating SECRET_KEY must not brick stored credentials.
+    # Empty disables BYO credentials.
+    CREDENTIAL_ENCRYPTION_KEY: str = ""
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
