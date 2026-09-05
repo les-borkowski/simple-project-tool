@@ -13,7 +13,12 @@ class CredentialEncryptionUnavailable(Exception):
 
 @lru_cache(maxsize=1)
 def _fernet_for_key(key: str) -> Fernet:
-    return Fernet(key.encode())
+    try:
+        return Fernet(key.encode())
+    except ValueError as exc:
+        raise CredentialEncryptionUnavailable(
+            "CREDENTIAL_ENCRYPTION_KEY is not a valid Fernet key"
+        ) from exc
 
 
 def _fernet() -> Fernet:

@@ -49,3 +49,16 @@ def test_wrong_key_degrades_gracefully(monkeypatch):
 
     with pytest.raises(CredentialEncryptionUnavailable):
         decrypt_secret(ciphertext)
+
+
+def test_malformed_key_degrades_gracefully(monkeypatch):
+    monkeypatch.setattr(settings, "CREDENTIAL_ENCRYPTION_KEY", "not-a-valid-key")
+
+    with pytest.raises(CredentialEncryptionUnavailable):
+        encrypt_secret("hello")
+
+    with pytest.raises(CredentialEncryptionUnavailable):
+        decrypt_secret("some-ciphertext")
+
+    # a raising Fernet() construction isn't cached by lru_cache — confirm no stale entry lingers
+    assert crypto._fernet_for_key.cache_info().currsize == 0
