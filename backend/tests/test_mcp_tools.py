@@ -1,11 +1,14 @@
 import asyncio
 import json
+import uuid
 from datetime import date
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.main import app
@@ -29,6 +32,7 @@ from app.mcp.server import (
     _list_tasks_impl,
     _search_impl,
     _update_task_impl,
+    mcp,
 )
 
 
@@ -129,6 +133,52 @@ async def mcp_write_client(api_client: AsyncClient, api_db: AsyncSession, manage
         manager_user,
         "mcp-write-test-key",
         ["write:projects", "write:stories", "write:tasks", "write:comments"],
+    )
+    yield client
+    await client.aclose()
+
+
+@pytest_asyncio.fixture
+async def mcp_read_only_client(api_client: AsyncClient, api_db: AsyncSession, manager_user: User):
+    """API key scoped to read:tasks only (no write:tasks) - for scope-enforcement tests."""
+    client = await _make_mcp_client(api_db, manager_user, "mcp-read-only-test-key", ["read:tasks"])
+    yield client
+    await client.aclose()
+
+
+@pytest_asyncio.fixture
+async def other_project(api_client: AsyncClient, global_manager_headers: dict) -> dict:
+    """A project owned by a manager the mcp_client/mcp_write_client user is not a member of."""
+    resp = await api_client.post(
+        "/api/v1/projects",
+        json={"name": "Other Manager's Project"},
+        headers=global_manager_headers,
+    )
+    return resp.json()
+
+
+@pytest_asyncio.fixture
+async def demo_user(api_client: AsyncClient, api_db: AsyncSession) -> User:
+    """Register a user and mark is_demo=True, mirroring test_demo_account.py's demo_headers."""
+    email = f"mcp_demo_{uuid.uuid4().hex[:8]}@example.com"
+    with patch("app.core.email.send_email", new=AsyncMock()):
+        await api_client.post(
+            "/api/v1/auth/register",
+            json={"email": email, "name": "Demo User", "password": "testpassword123"},
+        )
+    await api_db.execute(
+        update(User).where(User.email == email).values(email_confirmed=True, is_demo=True)
+    )
+    await api_db.flush()
+    return (await api_db.scalars(select(User).where(User.email == email))).one()
+
+
+@pytest_asyncio.fixture
+async def mcp_demo_write_client(api_db: AsyncSession, demo_user: User):
+    """Demo-account API key with write scope - proves require_not_demo runs through the
+    HTTP path even when the scope check itself passes."""
+    client = await _make_mcp_client(
+        api_db, demo_user, "mcp-demo-test-key", ["write:projects", "write:stories", "write:tasks"]
     )
     yield client
     await client.aclose()
@@ -290,8 +340,66 @@ async def test_update_task_no_fields_returns_error_without_http_call(
 
 
 async def test_update_task_invalid_status_surfaces_error(mcp_write_client, test_task):
-    with pytest.raises(Exception):
+    with pytest.raises(Exception) as exc_info:
         await _update_task_impl(mcp_write_client, test_task["id"], status="not-a-real-status")
+
+    assert "not-a-real-status" in str(exc_info.value)
+
+
+async def test_update_task_insufficient_scope_surfaces_error(mcp_read_only_client, test_task):
+    """A read:tasks-only key hits require_scope("write:tasks") before the service layer
+    even runs - proves the route-level scope dependency is reachable via MCP too."""
+    with pytest.raises(Exception) as exc_info:
+        await _update_task_impl(mcp_read_only_client, test_task["id"], status="in_progress")
+
+    assert "INSUFFICIENT_SCOPE" in str(exc_info.value)
+
+
+async def test_get_project_not_a_member_surfaces_forbidden_error(mcp_client, other_project):
+    """require_project_access raises detail="Not a project member" (not a literal
+    "FORBIDDEN" code - verified against app/auth/permissions.py) when the key's owner
+    has no ProjectMember row and doesn't own the project."""
+    with pytest.raises(Exception) as exc_info:
+        await _get_project_impl(mcp_client, other_project["id"])
+
+    assert "not a project member" in str(exc_info.value).lower()
+
+
+async def test_list_tasks_not_a_member_surfaces_forbidden_error(mcp_client, other_project):
+    with pytest.raises(Exception) as exc_info:
+        await _list_tasks_impl(mcp_client, other_project["id"])
+
+    assert "not a project member" in str(exc_info.value).lower()
+
+
+async def test_create_task_demo_account_blocked(mcp_demo_write_client, test_project):
+    """Demo accounts are rejected by require_not_demo before require_project_access runs
+    (see app/api/services/task_service.py), so this fires even though the demo user isn't
+    a member of test_project."""
+    with pytest.raises(Exception) as exc_info:
+        await _create_task_impl(mcp_demo_write_client, test_project["id"], "Should not be created")
+
+    assert "DEMO_ACCOUNT" in str(exc_info.value)
+
+
+async def test_list_tasks_project_scope_includes_all_stories_story_scope_is_narrower(
+    mcp_client, mcp_write_client, test_project, test_story, test_task
+):
+    """Project-scoped list_tasks hits /projects/{id}/tasks and returns every task under the
+    project regardless of story; story-scoped list_tasks hits /stories/{id}/tasks and is
+    narrower - a task created without story_id (attached to the default Backlog story)
+    proves the two routes aren't interchangeable."""
+    backlog_task = await _create_task_impl(mcp_write_client, test_project["id"], "Backlog Task")
+
+    project_tasks = await _list_tasks_impl(mcp_client, test_project["id"])
+    story_tasks = await _list_tasks_impl(mcp_client, test_project["id"], story_id=test_story["id"])
+
+    project_ids = {t["id"] for t in project_tasks}
+    story_ids = {t["id"] for t in story_tasks}
+
+    assert {test_task["id"], backlog_task["id"]} <= project_ids
+    assert test_task["id"] in story_ids
+    assert backlog_task["id"] not in story_ids
 
 
 async def test_add_comment_to_task(mcp_write_client, test_task):
@@ -431,3 +539,34 @@ async def test_confirm_capture_accepts_unmodified_preview_items(
     )
     titles = {t["title"] for t in resp.json()["items"]}
     assert "Fix the login bug" in titles
+
+
+EXPECTED_TOOL_NAMES = {
+    "whoami",
+    "list_projects",
+    "get_project",
+    "list_stories",
+    "list_tasks",
+    "get_task",
+    "search",
+    "update_task",
+    "add_comment",
+    "create_task",
+    "create_story",
+    "capture_tasks",
+    "confirm_capture",
+}
+
+
+async def test_registered_tools_match_expected_set_exactly():
+    tools = await mcp.list_tools()
+
+    assert {t.name for t in tools} == EXPECTED_TOOL_NAMES
+
+
+async def test_registered_tools_all_have_descriptions():
+    tools = await mcp.list_tools()
+
+    assert len(tools) == len(EXPECTED_TOOL_NAMES)
+    for tool in tools:
+        assert tool.description and tool.description.strip(), f"{tool.name} has no description"
