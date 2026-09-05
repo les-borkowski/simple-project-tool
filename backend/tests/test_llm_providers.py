@@ -1,3 +1,6 @@
+from dataclasses import replace
+from unittest.mock import MagicMock, patch
+
 import pytest
 from fastapi import HTTPException
 
@@ -65,3 +68,28 @@ def test_get_llm_client_for_google_returns_client():
     from app.core.llm.gemini_client import GeminiClient
 
     assert isinstance(get_llm_client_for("google"), GeminiClient)
+
+
+def test_get_llm_client_unknown_provider_names_env_var():
+    import app.core.llm as llm_pkg
+
+    with patch.object(llm_pkg, "settings", MagicMock(LLM_PROVIDER="bogus")):
+        with pytest.raises(ValueError, match="unknown LLM_PROVIDER"):
+            llm_pkg.get_llm_client()
+
+
+def test_declared_available_but_no_adapter_is_a_wiring_bug_not_unavailable():
+    """A provider marked available=True with no matching _ADAPTERS entry is a
+    misconfiguration, not an expected "not implemented" case — must not be
+    reported the same way as anthropic/openai."""
+    import app.core.llm as llm_pkg
+    from app.core.llm.providers import PROVIDERS
+
+    fake_spec = replace(PROVIDERS["anthropic"], id="fake", available=True)
+    patched_providers = {**PROVIDERS, "fake": fake_spec}
+
+    with patch.object(llm_pkg, "PROVIDERS", patched_providers):
+        with pytest.raises(ValueError, match="wiring bug") as excinfo:
+            llm_pkg.get_llm_client_for("fake")
+
+    assert "not yet available" not in str(excinfo.value)
