@@ -4,7 +4,7 @@ import json
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import bcrypt
 import jwt
@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.main import app as main_app
 from app.auth.dependencies import (
+    LAST_USED_THROTTLE,
     get_current_user,
     get_current_user_or_api_key,
     optional_auth,
@@ -219,6 +220,7 @@ def test_get_current_user_or_api_key_valid_api_key():
     mock_api_key.key_hash = key_hash
     mock_api_key.user_id = user_id
     mock_api_key.revoked_at = None
+    mock_api_key.last_used_at = None
 
     # db.scalars(...).all() returns a list with the mock api key
     mock_scalars_result = MagicMock()
@@ -233,8 +235,9 @@ def test_get_current_user_or_api_key_valid_api_key():
         resp = client.get("/me-or-key", headers={"X-API-Key": raw_key})
         assert resp.status_code == 200
         assert resp.json()["user_id"] == str(user_id)
-        # Verify last_used_at was set (best-effort update)
-        assert mock_api_key.last_used_at is not None
+        # last_used_at is stamped by a conditional UPDATE, not by mutating the instance
+        assert mock_db.execute.await_count == 1
+        assert mock_db.commit.await_count == 1
     finally:
         app.dependency_overrides.clear()
 
@@ -315,6 +318,7 @@ def test_require_scope_api_key_with_scope_passes():
     mock_api_key.key_hash = key_hash
     mock_api_key.user_id = user_id
     mock_api_key.revoked_at = None
+    mock_api_key.last_used_at = None
     mock_api_key.scopes = ["read:projects"]
 
     mock_scalars_result = MagicMock()
@@ -341,6 +345,7 @@ def test_get_current_user_or_api_key_deleted_user_raises_401():
     mock_api_key = MagicMock()
     mock_api_key.key_hash = key_hash
     mock_api_key.user_id = uuid.uuid4()
+    mock_api_key.last_used_at = None
 
     mock_db = AsyncMock()
     mock_db.scalars.return_value = MagicMock(all=MagicMock(return_value=[mock_api_key]))
@@ -371,6 +376,7 @@ def test_require_scope_api_key_missing_scope_returns_403():
     mock_api_key.key_hash = key_hash
     mock_api_key.user_id = user_id
     mock_api_key.revoked_at = None
+    mock_api_key.last_used_at = None
     mock_api_key.scopes = []  # no scopes at all
 
     mock_scalars_result = MagicMock()
@@ -452,3 +458,121 @@ async def test_api_key_last_used_at_persists_after_readonly_capture_route(
 
     key_after = await api_db.get(APIKey, uuid.UUID(key_id), populate_existing=True)
     assert key_after.last_used_at is not None
+
+
+# ---------------------------------------------------------------------------
+# Tests: prefix lookup, last_used_at throttling and scope error code
+# (real app + real DB)
+# ---------------------------------------------------------------------------
+
+
+async def _mint_api_key(
+    api_client: AsyncClient, headers: dict, scopes: list[str], label: str = "test key"
+) -> tuple[str, uuid.UUID]:
+    """Create an API key via the config route. Returns (raw_key, key_id)."""
+    resp = await api_client.post(
+        "/api/v1/config/api-keys",
+        json={"label": label, "scopes": scopes},
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    return data["key"], uuid.UUID(data["id"])
+
+
+async def _make_legacy(api_db: AsyncSession, key_id: uuid.UUID) -> None:
+    """Blank out key_prefix, the state left by the prefix migration's server_default."""
+    key = await api_db.get(APIKey, key_id)
+    key.key_prefix = ""
+    await api_db.flush()
+
+
+async def _confirm_task(api_client: AsyncClient, project_id: str, raw_key: str, title: str):
+    """Call the scope-gated confirm route (no LLM involved) with an API key."""
+    return await api_client.post(
+        f"/api/v1/projects/{project_id}/tasks/capture/confirm",
+        json={"tasks": [{"title": title}]},
+        headers={"X-API-Key": raw_key},
+    )
+
+
+@pytest.mark.asyncio
+async def test_known_prefix_key_does_one_bcrypt(
+    api_client: AsyncClient, manager_headers: dict, api_db: AsyncSession, test_project: dict
+):
+    """A key with a real prefix is found in the first pass, so only its own hash is checked."""
+    # The legacy row is seeded first so a single-query lookup would hash-check it first.
+    _, legacy_id = await _mint_api_key(api_client, manager_headers, ["write:tasks"], "legacy")
+    await _make_legacy(api_db, legacy_id)
+    raw_key, _ = await _mint_api_key(api_client, manager_headers, ["write:tasks"], "prefixed")
+
+    with patch("app.auth.dependencies.bcrypt.checkpw", wraps=bcrypt.checkpw) as spy:
+        resp = await _confirm_task(api_client, test_project["id"], raw_key, "Prefixed key task")
+
+    assert resp.status_code == 201
+    assert spy.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_legacy_prefix_key_still_authenticates(
+    api_client: AsyncClient, manager_headers: dict, api_db: AsyncSession, test_project: dict
+):
+    """A key_prefix='' row is found by the second pass and authenticates."""
+    raw_key, key_id = await _mint_api_key(api_client, manager_headers, ["write:tasks"], "legacy")
+    await _make_legacy(api_db, key_id)
+
+    resp = await _confirm_task(api_client, test_project["id"], raw_key, "Legacy key task")
+
+    assert resp.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_last_used_at_throttled(
+    api_client: AsyncClient, manager_headers: dict, api_db: AsyncSession, test_project: dict
+):
+    """A second request inside the throttle window leaves last_used_at untouched."""
+    raw_key, key_id = await _mint_api_key(api_client, manager_headers, ["write:tasks"])
+
+    first = await _confirm_task(api_client, test_project["id"], raw_key, "First task")
+    assert first.status_code == 201
+    after_first = (await api_db.get(APIKey, key_id, populate_existing=True)).last_used_at
+    assert after_first is not None
+
+    second = await _confirm_task(api_client, test_project["id"], raw_key, "Second task")
+    assert second.status_code == 201
+    after_second = (await api_db.get(APIKey, key_id, populate_existing=True)).last_used_at
+
+    assert after_second == after_first
+
+
+@pytest.mark.asyncio
+async def test_last_used_at_updates_after_window(
+    api_client: AsyncClient, manager_headers: dict, api_db: AsyncSession, test_project: dict
+):
+    """A key last used beyond the throttle window gets a fresh last_used_at."""
+    raw_key, key_id = await _mint_api_key(api_client, manager_headers, ["write:tasks"])
+
+    stale = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=10)
+    key = await api_db.get(APIKey, key_id)
+    key.last_used_at = stale
+    await api_db.flush()
+
+    resp = await _confirm_task(api_client, test_project["id"], raw_key, "Stale key task")
+    assert resp.status_code == 201
+
+    refreshed = (await api_db.get(APIKey, key_id, populate_existing=True)).last_used_at
+    assert refreshed > stale
+    assert datetime.now(UTC).replace(tzinfo=None) - refreshed < LAST_USED_THROTTLE
+
+
+@pytest.mark.asyncio
+async def test_insufficient_scope_error_code(
+    api_client: AsyncClient, manager_headers: dict, test_project: dict
+):
+    """A key without the required scope gets a 403 with the INSUFFICIENT_SCOPE code."""
+    raw_key, _ = await _mint_api_key(api_client, manager_headers, ["read:tasks"])
+
+    resp = await _confirm_task(api_client, test_project["id"], raw_key, "Should not be created")
+
+    assert resp.status_code == 403
+    assert resp.json()["error"]["code"] == "INSUFFICIENT_SCOPE"

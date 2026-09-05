@@ -16,6 +16,7 @@
   "TOKEN_EXPIRED": "Token wygasł",
   "INVALID_TOKEN": "Nieprawidłowy token",
   "MANAGER_ROLE_REQUIRED": "Wymagana rola menadżera",
+  "INSUFFICIENT_SCOPE": "Klucz API nie ma wymaganego uprawnienia",
   "FIELD_REQUIRED": "Pole jest wymagane",
   "INVALID_EMAIL": "Nieprawidłowy adres email",
   "INVALID_UUID": "Nieprawidłowy format ID",

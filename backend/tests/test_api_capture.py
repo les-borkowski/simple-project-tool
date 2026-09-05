@@ -840,8 +840,10 @@ async def test_capture_api_key_missing_write_scope_forbidden(
 
     assert resp.status_code == 403
     body = resp.json()
-    assert "write:tasks" in body["error"]["code"]
-    assert "write:tasks" in body["error"]["message"]
+    assert body["error"]["code"] == "INSUFFICIENT_SCOPE"
+    # Asserted verbatim: translate() falls back to the raw code, so only checking the
+    # message catches a missing locale entry.
+    assert body["error"]["message"] == "API key is missing a required permission"
     assert fake.calls == []
 
 
@@ -859,7 +861,7 @@ async def test_confirm_api_key_missing_write_scope_forbidden(
     )
 
     assert resp.status_code == 403
-    assert "write:tasks" in resp.json()["error"]["code"]
+    assert resp.json()["error"]["code"] == "INSUFFICIENT_SCOPE"
 
 
 @pytest.mark.asyncio

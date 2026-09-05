@@ -16,6 +16,7 @@
   "TOKEN_EXPIRED": "Token expired",
   "INVALID_TOKEN": "Invalid token",
   "MANAGER_ROLE_REQUIRED": "Manager role required",
+  "INSUFFICIENT_SCOPE": "API key is missing a required permission",
   "FIELD_REQUIRED": "Field is required",
   "INVALID_EMAIL": "Invalid email address",
   "INVALID_UUID": "Invalid ID format",
