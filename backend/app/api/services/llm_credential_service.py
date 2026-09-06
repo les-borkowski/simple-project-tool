@@ -5,10 +5,12 @@ appear on any response model — only `api_key_hint` (last 4 chars) is surfaced.
 """
 
 import logging
+import uuid
 from dataclasses import dataclass
 
 from fastapi import HTTPException
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.llm_provider import UserLLMProviderResponse, UserLLMProviderUpdate
@@ -46,6 +48,19 @@ def _to_response(row: UserLLMProvider, user: User) -> UserLLMProviderResponse:
     )
 
 
+async def _get_existing_row(
+    user_id: uuid.UUID, provider_id: str, db: AsyncSession
+) -> UserLLMProvider | None:
+    return (
+        await db.scalars(
+            select(UserLLMProvider).where(
+                UserLLMProvider.user_id == user_id,
+                UserLLMProvider.provider == provider_id,
+            )
+        )
+    ).one_or_none()
+
+
 async def list_providers(user: User, db: AsyncSession) -> list[UserLLMProviderResponse]:
     stmt = select(UserLLMProvider).where(UserLLMProvider.user_id == user.id)
     rows = (await db.scalars(stmt)).all()
@@ -55,11 +70,12 @@ async def list_providers(user: User, db: AsyncSession) -> list[UserLLMProviderRe
 async def _validate_key_live(provider_id: str, api_key: str) -> None:
     """One minimal generation call to catch a pasted typo/wrong key.
 
-    Only LLMAuthError (401/403) blocks the save — a provider outage or any other
-    transient failure must not stop the user from storing what may be a valid key.
+    Only LLMAuthError (401/403) blocks the save — a provider outage, timeout, or even
+    a wiring bug in the adapter registry must not stop the user from storing what may
+    be a perfectly valid key, so `get_llm_client_for` itself is inside the try.
     """
-    client = get_llm_client_for(provider_id)
     try:
+        client = get_llm_client_for(provider_id)
         await client.complete(
             "You are a test.", "Reply with OK.", max_tokens=1, temperature=0.0, api_key=api_key
         )
@@ -77,14 +93,7 @@ async def upsert_provider(
     if not spec.available:
         raise HTTPException(status_code=422, detail="PROVIDER_NOT_AVAILABLE")
 
-    existing = (
-        await db.scalars(
-            select(UserLLMProvider).where(
-                UserLLMProvider.user_id == user.id,
-                UserLLMProvider.provider == provider_id,
-            )
-        )
-    ).one_or_none()
+    existing = await _get_existing_row(user.id, provider_id, db)
 
     has_new_key = bool(data.api_key)
     if existing is None and not has_new_key:
@@ -93,15 +102,20 @@ async def upsert_provider(
     encrypted: str | None = None
     hint: str | None = None
     if has_new_key:
-        await _validate_key_live(provider_id, data.api_key)
+        # Encrypt first: it's cheap and doesn't depend on validation, so a
+        # misconfigured server (no CREDENTIAL_ENCRYPTION_KEY) 503s before we ever
+        # burn a real call against the user's provider quota.
         try:
             encrypted = encrypt_secret(data.api_key)
         except CredentialEncryptionUnavailable as exc:
             raise HTTPException(status_code=503, detail="CREDENTIAL_STORAGE_UNAVAILABLE") from exc
         hint = data.api_key[-4:]
+        await _validate_key_live(provider_id, data.api_key)
 
     is_first_ever = False
-    if existing is None:
+    if existing is not None:
+        row = existing
+    else:
         existing_count = await db.scalar(
             select(func.count())
             .select_from(UserLLMProvider)
@@ -115,28 +129,38 @@ async def upsert_provider(
             api_key_encrypted=encrypted,
             api_key_hint=hint,
         )
-        if data.model is not None:
-            row.model = data.model
-        if data.rpm_limit is not None:
-            row.rpm_limit = data.rpm_limit
-        if data.tpm_limit is not None:
-            row.tpm_limit = data.tpm_limit
-        if data.enabled is not None:
-            row.enabled = data.enabled
         db.add(row)
-    else:
-        row = existing
-        if has_new_key:
-            row.api_key_encrypted = encrypted
-            row.api_key_hint = hint
-        if data.model is not None:
-            row.model = data.model
-        if data.rpm_limit is not None:
-            row.rpm_limit = data.rpm_limit
-        if data.tpm_limit is not None:
-            row.tpm_limit = data.tpm_limit
-        if data.enabled is not None:
-            row.enabled = data.enabled
+        try:
+            await db.flush()
+        except IntegrityError:
+            # Two near-simultaneous upserts for the same (user, provider) both saw
+            # `existing is None` — the loser here falls back to updating the
+            # winner's row instead of propagating an opaque 500.
+            await db.rollback()
+            # rollback() unconditionally expires every object in the session (unlike
+            # commit(), it ignores expire_on_commit=False) — refresh `user` explicitly
+            # now, in a properly awaited context, so later attribute access (here and
+            # in the clamping/_to_response calls below) can't hit a bare, un-awaited
+            # lazy-load and blow up with MissingGreenlet.
+            await db.refresh(user)
+            row = await _get_existing_row(user.id, provider_id, db)
+            if row is None:
+                raise
+            is_first_ever = False
+
+    # Field assignments applied exactly once, regardless of which branch above
+    # produced `row` — new, pre-existing, or the race-fallback re-fetch.
+    if has_new_key:
+        row.api_key_encrypted = encrypted
+        row.api_key_hint = hint
+    if data.model is not None:
+        row.model = data.model
+    if data.rpm_limit is not None:
+        row.rpm_limit = data.rpm_limit
+    if data.tpm_limit is not None:
+        row.tpm_limit = data.tpm_limit
+    if data.enabled is not None:
+        row.enabled = data.enabled
 
     # Clamp to the effective ceiling rather than rejecting an over-the-ceiling request.
     if row.rpm_limit is not None:
@@ -165,14 +189,7 @@ async def upsert_provider(
 
 async def delete_provider(user: User, provider_id: str, db: AsyncSession) -> None:
     require_not_demo(user)
-    row = (
-        await db.scalars(
-            select(UserLLMProvider).where(
-                UserLLMProvider.user_id == user.id,
-                UserLLMProvider.provider == provider_id,
-            )
-        )
-    ).one_or_none()
+    row = await _get_existing_row(user.id, provider_id, db)
     if row is None:
         return
     await db.delete(row)

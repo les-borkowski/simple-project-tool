@@ -11,13 +11,16 @@ import pytest
 import pytest_asyncio
 from cryptography.fernet import Fernet
 from httpx import AsyncClient
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.api.services.llm_credential_service as svc
+from app.api.schemas.llm_provider import UserLLMProviderUpdate
 from app.core.config import settings
+from app.core.crypto import encrypt_secret
 from app.core.llm.base import LLMAuthError, LLMResponse
-from app.db.models import User
+from app.db.base import RoleEnum
+from app.db.models import User, UserLLMProvider
 
 RAW_KEY = "AIzaSy-super-secret-test-key-000111222"
 
@@ -76,17 +79,17 @@ async def demo_headers(api_client: AsyncClient, api_db: AsyncSession) -> dict:
 
 
 @pytest.mark.asyncio
-async def test_put_valid_key_stores_hint_not_raw_key(api_client: AsyncClient, auth_headers: dict):
-    put_resp = await api_client.put(
+async def test_patch_valid_key_stores_hint_not_raw_key(api_client: AsyncClient, auth_headers: dict):
+    patch_resp = await api_client.patch(
         "/api/v1/config/llm-providers/google",
         json={"api_key": RAW_KEY},
         headers=auth_headers,
     )
-    assert put_resp.status_code == 200
-    body = put_resp.json()
+    assert patch_resp.status_code == 200
+    body = patch_resp.json()
     assert body["provider"] == "google"
     assert body["api_key_hint"] == RAW_KEY[-4:]
-    assert RAW_KEY not in put_resp.text
+    assert RAW_KEY not in patch_resp.text
 
     get_resp = await api_client.get("/api/v1/config/llm-providers", headers=auth_headers)
     assert get_resp.status_code == 200
@@ -97,8 +100,8 @@ async def test_put_valid_key_stores_hint_not_raw_key(api_client: AsyncClient, au
 
 
 @pytest.mark.asyncio
-async def test_put_unavailable_provider_rejected(api_client: AsyncClient, auth_headers: dict):
-    resp = await api_client.put(
+async def test_patch_unavailable_provider_rejected(api_client: AsyncClient, auth_headers: dict):
+    resp = await api_client.patch(
         "/api/v1/config/llm-providers/anthropic",
         json={"api_key": "sk-ant-whatever"},
         headers=auth_headers,
@@ -108,8 +111,8 @@ async def test_put_unavailable_provider_rejected(api_client: AsyncClient, auth_h
 
 
 @pytest.mark.asyncio
-async def test_put_unknown_provider_rejected(api_client: AsyncClient, auth_headers: dict):
-    resp = await api_client.put(
+async def test_patch_unknown_provider_rejected(api_client: AsyncClient, auth_headers: dict):
+    resp = await api_client.patch(
         "/api/v1/config/llm-providers/made-up-provider",
         json={"api_key": "whatever"},
         headers=auth_headers,
@@ -119,8 +122,8 @@ async def test_put_unknown_provider_rejected(api_client: AsyncClient, auth_heade
 
 
 @pytest.mark.asyncio
-async def test_put_as_demo_forbidden(api_client: AsyncClient, demo_headers: dict):
-    resp = await api_client.put(
+async def test_patch_as_demo_forbidden(api_client: AsyncClient, demo_headers: dict):
+    resp = await api_client.patch(
         "/api/v1/config/llm-providers/google",
         json={"api_key": RAW_KEY},
         headers=demo_headers,
@@ -149,9 +152,9 @@ async def test_get_as_demo_succeeds(api_client: AsyncClient, demo_headers: dict)
 
 
 @pytest.mark.asyncio
-async def test_put_invalid_key_rejected(api_client: AsyncClient, auth_headers: dict, monkeypatch):
+async def test_patch_invalid_key_rejected(api_client: AsyncClient, auth_headers: dict, monkeypatch):
     monkeypatch.setattr(svc, "get_llm_client_for", lambda provider_id: _FakeAuthErrorClient())
-    resp = await api_client.put(
+    resp = await api_client.patch(
         "/api/v1/config/llm-providers/google",
         json={"api_key": "bad-key"},
         headers=auth_headers,
@@ -161,11 +164,11 @@ async def test_put_invalid_key_rejected(api_client: AsyncClient, auth_headers: d
 
 
 @pytest.mark.asyncio
-async def test_put_encryption_unavailable_returns_503(
+async def test_patch_encryption_unavailable_returns_503(
     api_client: AsyncClient, auth_headers: dict, monkeypatch
 ):
     monkeypatch.setattr(settings, "CREDENTIAL_ENCRYPTION_KEY", "")
-    resp = await api_client.put(
+    resp = await api_client.patch(
         "/api/v1/config/llm-providers/google",
         json={"api_key": RAW_KEY},
         headers=auth_headers,
@@ -175,8 +178,8 @@ async def test_put_encryption_unavailable_returns_503(
 
 
 @pytest.mark.asyncio
-async def test_put_rpm_limit_clamped_to_ceiling(api_client: AsyncClient, auth_headers: dict):
-    resp = await api_client.put(
+async def test_patch_rpm_limit_clamped_to_ceiling(api_client: AsyncClient, auth_headers: dict):
+    resp = await api_client.patch(
         "/api/v1/config/llm-providers/google",
         json={"api_key": RAW_KEY, "rpm_limit": 999_999},
         headers=auth_headers,
@@ -188,7 +191,7 @@ async def test_put_rpm_limit_clamped_to_ceiling(api_client: AsyncClient, auth_he
 
 
 @pytest.mark.asyncio
-async def test_put_second_provider_default_clears_first(
+async def test_patch_second_provider_default_clears_first(
     api_client: AsyncClient, auth_headers: dict, monkeypatch
 ):
     """PROVIDERS only has one available real provider, so register a second fake
@@ -211,7 +214,7 @@ async def test_put_second_provider_default_clears_first(
         ),
     )
 
-    first = await api_client.put(
+    first = await api_client.patch(
         "/api/v1/config/llm-providers/google",
         json={"api_key": RAW_KEY},
         headers=auth_headers,
@@ -219,7 +222,7 @@ async def test_put_second_provider_default_clears_first(
     assert first.status_code == 200
     assert first.json()["is_default"] is True  # first credential ever → forced default
 
-    second = await api_client.put(
+    second = await api_client.patch(
         "/api/v1/config/llm-providers/test-provider-2",
         json={"api_key": "another-secret-key", "is_default": True},
         headers=auth_headers,
@@ -236,12 +239,12 @@ async def test_put_second_provider_default_clears_first(
 
 @pytest.mark.asyncio
 async def test_delete_removes_credential(api_client: AsyncClient, auth_headers: dict):
-    put_resp = await api_client.put(
+    patch_resp = await api_client.patch(
         "/api/v1/config/llm-providers/google",
         json={"api_key": RAW_KEY},
         headers=auth_headers,
     )
-    assert put_resp.status_code == 200
+    assert patch_resp.status_code == 200
 
     delete_resp = await api_client.delete(
         "/api/v1/config/llm-providers/google", headers=auth_headers
@@ -257,7 +260,7 @@ async def test_delete_removes_credential(api_client: AsyncClient, auth_headers: 
 async def test_raw_key_never_leaks_across_all_endpoints(
     api_client: AsyncClient, auth_headers: dict
 ):
-    put_resp = await api_client.put(
+    patch_resp = await api_client.patch(
         "/api/v1/config/llm-providers/google",
         json={"api_key": RAW_KEY},
         headers=auth_headers,
@@ -267,7 +270,7 @@ async def test_raw_key_never_leaks_across_all_endpoints(
         "/api/v1/config/llm-providers/available", headers=auth_headers
     )
 
-    for resp in (put_resp, get_resp, available_resp):
+    for resp in (patch_resp, get_resp, available_resp):
         assert RAW_KEY not in resp.text
         assert RAW_KEY not in json.dumps(resp.json())
 
@@ -276,3 +279,78 @@ async def test_raw_key_never_leaks_across_all_endpoints(
     )
     assert delete_resp.status_code == 204
     assert RAW_KEY not in delete_resp.text
+
+
+@pytest.mark.asyncio
+async def test_concurrent_upsert_falls_back_to_update_instead_of_500(
+    api_db: AsyncSession, monkeypatch
+):
+    """Simulates two near-simultaneous PATCHes for the same (user, provider): both
+    see `existing is None`, and the loser's INSERT collides on the unique
+    constraint. It must fall back to updating the winner's row, not 500."""
+    user = User(
+        email=f"race_{uuid.uuid4().hex[:8]}@example.com",
+        name="Race Tester",
+        password_hash="x",
+        role=RoleEnum.manager,
+        email_confirmed=True,
+    )
+    api_db.add(user)
+    await api_db.commit()
+
+    # The concurrent "winner": a row that already committed by the time our
+    # request's own flush runs, even though its own existence check (below) is
+    # forced to miss it.
+    winner = UserLLMProvider(
+        user_id=user.id,
+        provider="google",
+        api_key_encrypted=encrypt_secret("winner-key"),
+        api_key_hint="winr",
+        is_default=True,
+    )
+    api_db.add(winner)
+    await api_db.commit()
+
+    real_get_existing_row = svc._get_existing_row
+    calls = {"n": 0}
+
+    async def flaky_get_existing_row(user_arg, provider_id_arg, db_arg):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return None
+        return await real_get_existing_row(user_arg, provider_id_arg, db_arg)
+
+    monkeypatch.setattr(svc, "_get_existing_row", flaky_get_existing_row)
+
+    result = await svc.upsert_provider(
+        user, "google", UserLLMProviderUpdate(api_key="loser-key"), api_db
+    )
+
+    assert result.provider == "google"
+    assert result.api_key_hint == "loser-key"[-4:]
+
+    rows = (
+        await api_db.scalars(select(UserLLMProvider).where(UserLLMProvider.user_id == user.id))
+    ).all()
+    assert len(rows) == 1
+    assert rows[0].api_key_hint == "loser-key"[-4:]
+
+
+@pytest.mark.asyncio
+async def test_patch_api_key_too_long_rejected(api_client: AsyncClient, auth_headers: dict):
+    resp = await api_client.patch(
+        "/api/v1/config/llm-providers/google",
+        json={"api_key": "x" * 513},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_patch_model_too_long_rejected(api_client: AsyncClient, auth_headers: dict):
+    resp = await api_client.patch(
+        "/api/v1/config/llm-providers/google",
+        json={"api_key": RAW_KEY, "model": "x" * 101},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422

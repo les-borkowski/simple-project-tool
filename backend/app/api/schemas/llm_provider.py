@@ -1,9 +1,12 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UserLLMProviderUpdate(BaseModel):
-    api_key: str | None = None
-    model: str | None = None
+    # 512 is generous for any realistic provider key; 100 matches the DB column
+    # (String(100)) — both reject absurdly long input at the boundary with a clean
+    # 422 instead of an eventual DB error.
+    api_key: str | None = Field(default=None, max_length=512)
+    model: str | None = Field(default=None, max_length=100)
     rpm_limit: int | None = None
     tpm_limit: int | None = None
     is_default: bool | None = None

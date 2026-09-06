@@ -93,7 +93,7 @@ async def list_llm_providers(
     return await llm_credential_service.list_providers(user, db)
 
 
-@router.put("/llm-providers/{provider}", response_model=UserLLMProviderResponse)
+@router.patch("/llm-providers/{provider}", response_model=UserLLMProviderResponse)
 async def upsert_llm_provider(
     provider: str,
     data: UserLLMProviderUpdate,
