@@ -6,6 +6,7 @@ import { useTheme, type AccentColor } from '../context/theme-context'
 import { LocaleSwitcher } from '../components/config/LocaleSwitcher'
 import { ThemeSwitcher } from '../components/config/ThemeSwitcher'
 import { ApiKeyList } from '../components/config/ApiKeyList'
+import { AiProvidersList } from '../components/config/AiProvidersList'
 import { projectsApi, authApi, isDemoBlockedError } from '../services/api'
 import type { ProjectResponse } from '../services/api'
 import { ProjectStatusManager } from '../components/config/ProjectStatusManager'
@@ -26,7 +27,7 @@ const ACCENT_COLORS: Record<AccentColor, string> = {
   stone: '#44403c',
 }
 
-type Tab = 'profile' | 'api_keys' | 'security'
+type Tab = 'profile' | 'api_keys' | 'ai_providers' | 'security'
 type TopTab = 'app' | 'project'
 
 // Each scope's body is the panel of the tablist above it, so both ids are
@@ -53,6 +54,11 @@ const IUser = () => (
 const IShield = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
     <path d="M12 2L3 7v5c0 5 3.9 9.7 9 11 5.1-1.3 9-6 9-11V7z"/>
+  </svg>
+)
+const ISparkle = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+    <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"/>
   </svg>
 )
 
@@ -175,6 +181,7 @@ export function ConfigPage() {
     () => [
       { key: 'profile', label: t('config.profile'), icon: <IUser /> },
       { key: 'api_keys', label: t('config.api_keys'), icon: <IKey />, disabled: true },
+      { key: 'ai_providers', label: t('config.ai_providers'), icon: <ISparkle /> },
       { key: 'security', label: t('config.security'), icon: <IShield /> },
     ],
     [t]
@@ -270,6 +277,18 @@ export function ConfigPage() {
                 </div>
                 <div className="p-5">
                   <ApiKeyList />
+                </div>
+              </section>
+            )}
+
+            {tab === 'ai_providers' && (
+              <section className="rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 overflow-hidden">
+                <div className="px-5 py-4 border-b border-stone-100 dark:border-stone-800">
+                  <h3 className="text-ui-lg font-medium">{t('config.ai_providers')}</h3>
+                  <p className="text-ui-sm text-stone-500 mt-0.5">{t('config.ai_providers_desc')}</p>
+                </div>
+                <div className="p-5">
+                  <AiProvidersList />
                 </div>
               </section>
             )}

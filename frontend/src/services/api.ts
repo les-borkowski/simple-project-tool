@@ -176,6 +176,37 @@ export interface UserConfigResponse {
   display_preferences: Record<string, unknown>
 }
 
+export interface UserLlmProviderResponse {
+  provider: string
+  label: string
+  api_key_hint: string
+  model: string | null
+  rpm_limit: number | null
+  tpm_limit: number | null
+  effective_rpm: number
+  effective_tpm: number
+  is_default: boolean
+  enabled: boolean
+}
+
+export interface LlmProviderCatalogueItem {
+  id: string
+  label: string
+  default_model: string
+  available: boolean
+  key_hint: string
+  docs_url: string
+}
+
+export interface UserLlmProviderUpdate {
+  api_key?: string
+  model?: string
+  rpm_limit?: number
+  tpm_limit?: number
+  is_default?: boolean
+  enabled?: boolean
+}
+
 export interface PaginatedResponse<T> {
   items: T[]
   next_cursor: string | null
@@ -526,6 +557,11 @@ export const configApi = {
   createApiKey: (data: { label: string; scopes: string[] }) =>
     api.post<ApiKeyCreatedResponse>('/config/api-keys', data),
   revokeApiKey: (id: string) => api.delete(`/config/api-keys/${id}`),
+  listLlmProviders: () => api.get<UserLlmProviderResponse[]>('/config/llm-providers'),
+  availableLlmProviders: () => api.get<LlmProviderCatalogueItem[]>('/config/llm-providers/available'),
+  setLlmProvider: (provider: string, data: UserLlmProviderUpdate) =>
+    api.patch<UserLlmProviderResponse>(`/config/llm-providers/${provider}`, data),
+  deleteLlmProvider: (provider: string) => api.delete(`/config/llm-providers/${provider}`),
 }
 
 // ---------------------------------------------------------------------------

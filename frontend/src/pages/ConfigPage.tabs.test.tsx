@@ -33,6 +33,15 @@ vi.mock('../services/api', async (importOriginal) => {
       listMembers: vi.fn(),
     },
     authApi: { ...actual.authApi, changePassword: vi.fn() },
+    // The new AI Providers tab now sits between the disabled API Keys tab and
+    // Security, so arrowing past it briefly mounts AiProvidersList — stub its
+    // fetches to resolved empty lists rather than let real axios calls hit the
+    // network in jsdom.
+    configApi: {
+      ...actual.configApi,
+      listLlmProviders: vi.fn().mockResolvedValue({ data: [] }),
+      availableLlmProviders: vi.fn().mockResolvedValue({ data: [] }),
+    },
   }
 })
 
@@ -256,12 +265,17 @@ describe('ConfigPage app settings section nav', () => {
     expect(screen.getByText('Appearance')).toBeInTheDocument()
   })
 
-  it('arrows straight past the disabled API Keys section from Profile to Security', async () => {
+  it('arrows past the disabled API Keys section from Profile to AI Providers, then on to Security', async () => {
     const user = userEvent.setup()
     setViewportWidth(1280)
     renderConfigPage()
 
     screen.getByRole('tab', { name: /Profile/ }).focus()
+    await user.keyboard('{ArrowDown}')
+
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: /AI Providers/ }))
+    expect(screen.getByRole('tab', { name: /API Keys/ })).toHaveAttribute('aria-selected', 'false')
+
     await user.keyboard('{ArrowDown}')
 
     expect(document.activeElement).toBe(screen.getByRole('tab', { name: /Security/ }))
