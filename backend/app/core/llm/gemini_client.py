@@ -9,13 +9,22 @@ from .base import LLMAuthError, LLMNotConfigured, LLMResponse, LLMUnavailable
 from .schema_adapter import to_gemini_schema
 
 
-def _is_api_key_invalid_error(body: dict) -> bool:
+def _is_api_key_invalid_error(body: object) -> bool:
     """Gemini rejects an invalid key with 400 INVALID_ARGUMENT, not 401/403 — match
     its specific error.details[].reason == "API_KEY_INVALID" shape so other
     malformed-request 400s (e.g. a bad schema during a real capture call, unrelated
     to the key) aren't misclassified as a credential problem.
+
+    `body` is arbitrary JSON-decoded input (a misbehaving gateway/proxy could send
+    a 400 with any valid-JSON shape, not just Gemini's own dict-of-dict), so every
+    level is type-checked before `.get()` — this must degrade to False, never raise.
     """
-    details = body.get("error", {}).get("details")
+    if not isinstance(body, dict):
+        return False
+    error = body.get("error")
+    if not isinstance(error, dict):
+        return False
+    details = error.get("details")
     if not isinstance(details, list):
         return False
     return any(isinstance(d, dict) and d.get("reason") == "API_KEY_INVALID" for d in details)

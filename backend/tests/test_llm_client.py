@@ -247,6 +247,41 @@ async def test_gemini_400_without_api_key_invalid_reason_raises_unavailable():
     assert not isinstance(excinfo.value, LLMAuthError)
 
 
+async def test_gemini_400_non_dict_body_raises_unavailable_not_attributeerror():
+    """A misbehaving gateway/proxy could send a 400 with any valid-JSON shape — a
+    bare list must degrade to the generic LLMUnavailable, not crash with
+    AttributeError (which the caller's broad except Exception would otherwise
+    swallow as "transient", silently accepting an unvalidated key)."""
+    from app.core.llm.base import LLMAuthError, LLMUnavailable
+    from app.core.llm.gemini_client import GeminiClient
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(400, json=[])
+
+    with _patch_gemini_settings():
+        client = GeminiClient(transport=httpx.MockTransport(handler))
+        with pytest.raises(LLMUnavailable) as excinfo:
+            await client.complete("SYS", "USR", max_tokens=32, temperature=0)
+
+    assert not isinstance(excinfo.value, LLMAuthError)
+
+
+async def test_gemini_400_non_dict_error_value_raises_unavailable_not_attributeerror():
+    """Same defensiveness for a dict body whose "error" value isn't itself a dict."""
+    from app.core.llm.base import LLMAuthError, LLMUnavailable
+    from app.core.llm.gemini_client import GeminiClient
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(400, json={"error": "some string"})
+
+    with _patch_gemini_settings():
+        client = GeminiClient(transport=httpx.MockTransport(handler))
+        with pytest.raises(LLMUnavailable) as excinfo:
+            await client.complete("SYS", "USR", max_tokens=32, temperature=0)
+
+    assert not isinstance(excinfo.value, LLMAuthError)
+
+
 async def test_gemini_500_raises_unavailable():
     from app.core.llm.base import LLMUnavailable
     from app.core.llm.gemini_client import GeminiClient
