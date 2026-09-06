@@ -133,16 +133,29 @@ React frontend. Communicates only via REST API (no direct DB access).
 Backs the natural-language task capture feature: turning a free-text sentence into structured task candidates.
 
 - **`app/core/llm/`** — provider-agnostic LLM access
-  - `base.py` defines the `LLMClient` Protocol (`complete(system, user, json_schema, max_tokens, temperature) -> LLMResponse`)
+  - `base.py` defines the `LLMClient` Protocol (`complete(system, user, json_schema, max_tokens, temperature, api_key=None, model=None) -> LLMResponse`); `api_key`/`model` let a call override the server-configured credential/model, backing per-user resolution
   - `GeminiClient` — real HTTP calls to Google's Gemini API. Raw `httpx`, no vendor SDK, matching the existing pattern in `app/core/email.py`. Uses constrained decoding: the response schema is passed as Gemini's `responseSchema` generation-config field so the model is forced to return matching JSON
   - `ReplayClient` — fixture-based, offline; reads from `backend/evals/fixtures/responses/`. Used by tests and by the eval harness's default (`replay`) mode
-  - `get_llm_client()` selects an implementation based on `LLM_PROVIDER`
+  - `providers.py` — the declarative `ProviderSpec`/`PROVIDERS` catalogue (`id`, `label`, `default_model`, `available`, `key_hint`, `docs_url`, `default_rpm`, `default_tpm`). `google` is `available=True`; `anthropic`/`openai` are declared (visible in the catalogue) but `available=False` — deliberately no stub adapter classes for either, since dead code that must be maintained buys nothing
+  - `__init__.py`'s `_ADAPTERS` dict maps a provider id to its adapter factory; `get_llm_client()` (resolves the server-configured `LLM_PROVIDER`) and `get_llm_client_for(provider_id)` (per-user resolution) both resolve through this one registry
 
 - **`app/api/services/capture_service.py`** — pure extraction logic: builds the prompt, calls the LLM client, validates/repairs the response JSON against a Pydantic schema (`ExtractionResult`). Deliberately has no database access — its own docstring states this, and `backend/tests/test_capture_service.py::test_no_asyncsession_import` scans the module's source to assert `AsyncSession` never appears in it.
 
 - **`app/api/services/capture_resolution_service.py`** — the DB-touching layer built on top: resolves the LLM's assignee/story name hints against actual project members and stories, assembles the preview response, and performs the all-or-nothing confirm-and-create.
 
+- **`app/api/services/llm_credential_service.py`** — per-user credential CRUD (`list_providers`/`upsert_provider`/`delete_provider`/`resolve_credential`), backing the `/config/llm-providers*` routes. The raw API key is Fernet-encrypted at rest (`app/core/crypto.py`) and never appears in any API response — only an `api_key_hint` (last 4 chars).
+
+- **`app/api/services/llm_usage_service.py`** — Postgres-backed rolling 60-second RPM/TPM (requests/tokens per minute) rate limiting (`check_rate_limit`/`record_usage`/`prune_usage_events`), enforced per user+provider, deliberately not in-process (the deployment runs multiple workers).
+
 The split exists so extraction can be tested and evaluated in complete isolation from the database: the eval harness (`app/evals/run.py`) runs `capture_service.extract()` directly against fixtures with no DB, no auth, and no running server, and a passing test suite is proof the boundary hasn't eroded.
+
+#### Adding an LLM provider
+
+No database migration is required — `user_llm_providers.provider` is a plain string column (not a DB enum), validated against the `PROVIDERS` registry at the service layer, specifically so this stays a code-only change. Three touch points:
+
+1. A new adapter module in `app/core/llm/` implementing the `LLMClient` Protocol's `complete()` signature (see `gemini_client.py` for the shape).
+2. One entry in the `_ADAPTERS` dict (`app/core/llm/__init__.py`) mapping the provider id to that adapter's factory.
+3. One entry in the `PROVIDERS` dict (`app/core/llm/providers.py`), a `ProviderSpec` with `available=True`.
 
 ### 6. MCP Server Layer — `backend/app/mcp/`
 

@@ -55,17 +55,31 @@ Type a sentence describing one or more tasks — "ask Anna to review the checkou
 - `spt tasks capture <project_id> "<text>"` (CLI — supports a scoped API key via `--api-key`/`SPT_API_KEY` for headless/agent use instead of a login)
 - the two REST endpoints directly, for custom agent integrations — both require a `write:tasks`-scoped API key or a logged-in session
 
+Each user can also configure their own personal LLM API key (currently only Google Gemini) instead of relying solely on the server-wide key — via Settings → "AI Providers" in the web UI, or `spt config llm set google` on the CLI (prompts for the key with hidden input, so it never lands in shell history as a plain argument).
+
+**Resolution order**: user's default credential → server key (only if `LLM_ALLOW_SERVER_KEY_FALLBACK=true`) → `503 LLM_NOT_CONFIGURED`.
+
 **Configuration** (backend `.env`):
 
 | Variable | Default | Notes |
 |---|---|---|
 | `LLM_PROVIDER` | `google` | only `google` is implemented today |
 | `LLM_MODEL` | `gemini-3.1-flash-lite` | pin — see model selection note below |
-| `GOOGLE_API_KEY` | *(empty)* | leave empty to disable the capture feature entirely |
+| `GOOGLE_API_KEY` | *(empty)* | the server-wide fallback key; leave empty to disable server-key fallback entirely |
 | `LLM_TIMEOUT_SECONDS` | `30` | |
 | `LLM_CAPTURE_MIN_CONFIDENCE` | `0.5` | extracted tasks below this confidence are flagged `low_confidence` in the API/UI/CLI, not dropped |
+| `CREDENTIAL_ENCRYPTION_KEY` | *(empty)* | required before any user can save a personal credential — an empty value means `503 CREDENTIAL_STORAGE_UNAVAILABLE` on save. Generate one with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. A dedicated key, deliberately not derived from `SECRET_KEY`, so rotating one never invalidates the other |
+| `LLM_ALLOW_SERVER_KEY_FALLBACK` | `True` | when `false`, a user with no personal credential gets a clean `503 LLM_NOT_CONFIGURED` instead of silently falling back to `GOOGLE_API_KEY` — how a public/multi-tenant deployment stops involuntarily funding everyone's LLM usage off one shared key |
+| `LLM_MAX_RPM` | `20` | server-wide default requests-per-minute ceiling per user; an admin can override it per user, and a user's own credential-level RPM limit can only clamp below this ceiling, never above it |
+| `LLM_MAX_TPM` | `100000` | same shape, tokens-per-minute |
 
-An empty `GOOGLE_API_KEY` disables the capture endpoints — they respond `503 LLM_NOT_CONFIGURED` rather than crashing the app. Capture is an optional, additive feature.
+An empty `GOOGLE_API_KEY` with `LLM_ALLOW_SERVER_KEY_FALLBACK=true` (the default) still disables capture for users with no personal credential — they get `503 LLM_NOT_CONFIGURED` rather than a crash. Capture is an optional, additive feature.
+
+This feature adds three user-facing surfaces:
+
+- **CLI**: `spt config llm list` / `spt config llm providers` / `spt config llm set <provider>` / `spt config llm delete <provider>` — manage your own credential from the terminal.
+- **Web UI**: Settings → "AI Providers" tab — save/clear your key, see status ("Not configured" / "Configured (…xxxx)"), set a model override and RPM/TPM limits (shown clamped to your effective ceiling).
+- **Admin**: the admin users list page has an "LLM limits" column per user — an admin can view last-60-second usage and set/clear a per-user RPM/TPM ceiling that overrides the server default.
 
 The model pin went through two corrections during development: the originally-planned model had already been retired for new API keys, and a second candidate's free tier was rate-limited to 20 requests/day, too low for practical use. `gemini-3.1-flash-lite` is the model actually verified live and is the current pin.
 
