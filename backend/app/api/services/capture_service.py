@@ -140,8 +140,9 @@ async def extract(
             model=resp2.model,
             prompt_version=PROMPT_VERSION,
             latency_ms=resp2.latency_ms,
-            prompt_tokens=resp2.prompt_tokens,
-            completion_tokens=resp2.completion_tokens,
+            # Both calls were made and billed by the provider — sum, don't drop the first.
+            prompt_tokens=resp.prompt_tokens + resp2.prompt_tokens,
+            completion_tokens=resp.completion_tokens + resp2.completion_tokens,
         )
 
     return ExtractionOutcome(
@@ -151,6 +152,7 @@ async def extract(
         model=resp2.model,
         prompt_version=PROMPT_VERSION,
         latency_ms=resp2.latency_ms,
-        prompt_tokens=resp2.prompt_tokens,
-        completion_tokens=resp2.completion_tokens,
+        # Both calls were made and billed by the provider — sum, don't drop the first.
+        prompt_tokens=resp.prompt_tokens + resp2.prompt_tokens,
+        completion_tokens=resp.completion_tokens + resp2.completion_tokens,
     )

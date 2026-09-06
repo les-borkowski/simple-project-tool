@@ -259,6 +259,47 @@ async def test_retry_then_give_up():
     assert len(client.calls) == 2
 
 
+async def test_retry_then_succeed_sums_tokens_from_both_calls():
+    """Both calls were actually made and billed by the provider — the first call's
+    tokens must not be silently dropped just because it needed a retry."""
+    from app.api.services.capture_service import extract
+
+    payload = {"tasks": [_task()], "not_a_task": False, "notes": None}
+    client = FakeClient(
+        [
+            _resp({}, text="not json at all", prompt_tokens=10, completion_tokens=5),
+            _resp(payload, prompt_tokens=20, completion_tokens=8),
+        ]
+    )
+    ctx = _ctx()
+
+    outcome = await extract("fix the login page", ctx, client)
+
+    assert outcome.retried is True
+    assert outcome.unparseable is False
+    assert outcome.prompt_tokens == 30
+    assert outcome.completion_tokens == 13
+
+
+async def test_retry_then_give_up_sums_tokens_from_both_calls():
+    """Same accounting requirement on the unparseable-fallback return path."""
+    from app.api.services.capture_service import extract
+
+    client = FakeClient(
+        [
+            _resp({}, text="still not json", prompt_tokens=10, completion_tokens=5),
+            _resp({}, text="still not json", prompt_tokens=15, completion_tokens=7),
+        ]
+    )
+    ctx = _ctx()
+
+    outcome = await extract("fix the login page", ctx, client)
+
+    assert outcome.unparseable is True
+    assert outcome.prompt_tokens == 25
+    assert outcome.completion_tokens == 12
+
+
 async def test_schema_invalid_json_triggers_retry():
     from app.api.services.capture_service import extract
 

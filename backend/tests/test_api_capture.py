@@ -1002,6 +1002,11 @@ async def test_capture_over_rate_limit_returns_429_without_llm_call(
     assert second.json()["error"]["code"] == "LLM_RATE_LIMITED"
     # The throttled request never reached the LLM — call count is unchanged.
     assert len(fake.calls) == 1
+    # Regression: the global HTTPException handler must forward exc.headers, or
+    # check_rate_limit's Retry-After never reaches the client.
+    retry_after = second.headers.get("Retry-After")
+    assert retry_after is not None
+    assert int(retry_after) > 0
 
 
 @pytest.mark.asyncio
