@@ -90,7 +90,11 @@ async def capture_tasks(
     db: AsyncSession = Depends(get_db),
     client: LLMClient = Depends(get_llm_client),
 ):
-    """Extract candidate tasks from free text. Writes nothing, ever."""
+    """Extract candidate tasks from free text. Writes no task data — a preview only.
+    Does record a rate-limiting usage event (token count) for the caller.
+
+    Returns 429 `LLM_RATE_LIMITED` if the caller is over their effective rate limit.
+    """
     try:
         return await capture_resolution_service.preview_capture(
             project_id, payload, user, db, client, request

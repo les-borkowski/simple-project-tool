@@ -22,6 +22,8 @@ from app.api.schemas.capture import (
 from app.api.schemas.project import MemberResponse
 from app.api.schemas.task import TaskCreate, TaskResponse
 from app.api.services.capture_service import ProjectContext, extract
+from app.api.services.llm_credential_service import resolve_credential
+from app.api.services.llm_usage_service import check_rate_limit, record_usage
 from app.api.services.project_service import list_members
 from app.api.services.story_service import get_default_story
 from app.api.services.task_service import assemble_task
@@ -96,8 +98,9 @@ async def preview_capture(
 ) -> CaptureResponse:
     """Extract candidate tasks from free text and resolve hints to real ids.
 
-    Never writes to the DB — this is a preview only, the caller confirms
-    separately before anything is persisted.
+    Never writes task data — this is a preview only, the caller confirms
+    separately before anything is persisted. Does record a rate-limiting
+    usage event (token count) for the caller.
     """
     # Imported here, not at module level, to avoid a circular import: app.api.main
     # imports app.api.routes.tasks at startup, which imports this module.
@@ -109,7 +112,20 @@ async def preview_capture(
     if payload.story_id is not None and payload.story_id not in {s.id for s in stories}:
         raise HTTPException(status_code=422, detail="STORY_NOT_FOUND")
 
-    outcome = await extract(payload.text, ctx, client)
+    cred = await resolve_credential(user, db)
+    provider = cred.provider if cred else settings.LLM_PROVIDER
+    # Before the LLM call — a throttled user must not cost anything.
+    await check_rate_limit(user, provider, db)
+    outcome = await extract(
+        payload.text,
+        ctx,
+        client,
+        api_key=cred.api_key if cred else None,
+        model=cred.model if cred else None,
+    )
+    # Recorded once here, before branching on the outcome's shape — tokens were spent
+    # whether the result parsed cleanly, came back "not a task", or was unparseable.
+    await record_usage(user, provider, outcome.prompt_tokens + outcome.completion_tokens, db)
 
     warnings: list[str] = []
 

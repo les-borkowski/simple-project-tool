@@ -4,13 +4,16 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from cryptography.fernet import Fernet
 from httpx import AsyncClient
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.api.main as main_module
-from app.core.llm.base import LLMNotConfigured, LLMUnavailable
-from app.db.models import User
+import app.api.services.llm_credential_service as llm_credential_service
+from app.core.config import settings
+from app.core.llm.base import LLMNotConfigured, LLMResponse, LLMUnavailable
+from app.db.models import LLMUsageEvent, User
 
 CAPTURE_UNPARSEABLE_EN = "Could not understand the input as a task"
 CAPTURE_NOT_A_TASK_EN = "This does not look like a task request"
@@ -41,7 +44,7 @@ class FakeLLMClient:
     async def complete(
         self, system, user, *, json_schema=None, max_tokens, temperature, api_key=None, model=None
     ):
-        self.calls.append({"system": system, "user": user})
+        self.calls.append({"system": system, "user": user, "api_key": api_key, "model": model})
         idx = min(len(self.calls) - 1, len(self._responses) - 1)
         text, model = self._responses[idx]
         from app.core.llm.base import LLMResponse
@@ -898,3 +901,135 @@ async def test_capture_api_key_owner_not_member_of_project_forbidden(
 
     assert resp.status_code == 403
     assert fake.calls == []
+
+
+# ---------------------------------------------------------------------------
+# T16 — credential resolution + rate limiting wired into the capture request
+# ---------------------------------------------------------------------------
+
+
+class _FakeOKValidationClient:
+    """Stands in for `get_llm_client_for` during `_validate_key_live` so saving a
+    credential in these tests never makes a real network call."""
+
+    async def complete(self, *a, **kw):
+        return LLMResponse(text="OK", model="m", prompt_tokens=1, completion_tokens=1, latency_ms=1)
+
+
+@pytest.mark.asyncio
+async def test_capture_forwards_configured_credential_to_llm_client(
+    api_client: AsyncClient,
+    manager_headers: dict,
+    test_project: dict,
+    set_llm_client,
+    monkeypatch,
+):
+    pid = test_project["id"]
+    monkeypatch.setattr(settings, "CREDENTIAL_ENCRYPTION_KEY", Fernet.generate_key().decode())
+    monkeypatch.setattr(
+        llm_credential_service, "get_llm_client_for", lambda provider_id: _FakeOKValidationClient()
+    )
+    raw_key = "user-owned-test-key-000111222"
+
+    patch_resp = await api_client.patch(
+        "/api/v1/config/llm-providers/google",
+        json={"api_key": raw_key, "model": "gemini-3.6-flash"},
+        headers=manager_headers,
+    )
+    assert patch_resp.status_code == 200
+
+    fake = set_llm_client(FakeLLMClient((_extraction_json([_task()]), "gemini-3.6-flash")))
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture",
+        json={"text": "Fix the login bug"},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 200
+    assert len(fake.calls) == 1
+    assert fake.calls[0]["api_key"] == raw_key
+    assert fake.calls[0]["model"] == "gemini-3.6-flash"
+
+
+@pytest.mark.asyncio
+async def test_capture_no_credential_no_server_fallback_returns_503(
+    api_client: AsyncClient,
+    manager_headers: dict,
+    test_project: dict,
+    set_llm_client,
+    monkeypatch,
+):
+    """No UserLLMProvider row for this user, and the server key fallback is disabled —
+    resolve_credential returns None, so extract() is called with api_key=None."""
+    pid = test_project["id"]
+    monkeypatch.setattr(settings, "LLM_ALLOW_SERVER_KEY_FALLBACK", False)
+    set_llm_client(RaisingLLMClient(LLMNotConfigured("no key")))
+
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture",
+        json={"text": "Fix the login bug"},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 503
+    assert resp.json()["error"]["code"] == "LLM_NOT_CONFIGURED"
+
+
+@pytest.mark.asyncio
+async def test_capture_over_rate_limit_returns_429_without_llm_call(
+    api_client: AsyncClient,
+    manager_headers: dict,
+    test_project: dict,
+    set_llm_client,
+    monkeypatch,
+):
+    pid = test_project["id"]
+    monkeypatch.setattr(settings, "LLM_MAX_RPM", 1)
+    fake = set_llm_client(FakeLLMClient((_extraction_json([_task()]), "gemini-3.6-flash")))
+
+    first = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture",
+        json={"text": "Fix the login bug"},
+        headers=manager_headers,
+    )
+    assert first.status_code == 200
+    assert len(fake.calls) == 1
+
+    second = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture",
+        json={"text": "Fix the checkout bug"},
+        headers=manager_headers,
+    )
+    assert second.status_code == 429
+    assert second.json()["error"]["code"] == "LLM_RATE_LIMITED"
+    # The throttled request never reached the LLM — call count is unchanged.
+    assert len(fake.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_capture_happy_path_records_one_usage_event(
+    api_client: AsyncClient,
+    manager_headers: dict,
+    api_db: AsyncSession,
+    test_project: dict,
+    set_llm_client,
+):
+    pid = test_project["id"]
+    set_llm_client(FakeLLMClient((_extraction_json([_task()]), "gemini-3.6-flash")))
+
+    me = await api_client.get("/api/v1/auth/me", headers=manager_headers)
+    user_id = me.json()["id"]
+
+    resp = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture",
+        json={"text": "Fix the login bug"},
+        headers=manager_headers,
+    )
+    assert resp.status_code == 200
+
+    rows = (
+        await api_db.scalars(
+            select(LLMUsageEvent).where(LLMUsageEvent.user_id == uuid.UUID(user_id))
+        )
+    ).all()
+    assert len(rows) == 1
+    # FakeLLMClient's canned LLMResponse reports prompt_tokens=1, completion_tokens=1.
+    assert rows[0].total_tokens == 2

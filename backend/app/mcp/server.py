@@ -347,13 +347,16 @@ async def capture_tasks(
     reference_date: str | None = None,
     story_id: str | None = None,
 ) -> dict:
-    """Extract candidate tasks from a free-text message using an LLM. This writes nothing -
-    it only returns a preview batch of draft tasks (with resolved story/assignee ids where
-    the model's hints matched, and warnings where they didn't). You must review the
+    """Extract candidate tasks from a free-text message using an LLM. This writes no task
+    data - it only returns a preview batch of draft tasks (with resolved story/assignee ids
+    where the model's hints matched, and warnings where they didn't) - but it does record a
+    rate-limiting usage event (token count) for the caller. You must review the
     preview and call confirm_capture with the (possibly edited) tasks before anything is
     actually created. reference_date is YYYY-MM-DD and defaults to today if omitted - it
     anchors relative dates like "tomorrow" in the input text. story_id, if given, is used
-    as the default story for any task the model didn't resolve a story hint for."""
+    as the default story for any task the model didn't resolve a story hint for. Requires
+    the API key owner to have configured a personal LLM key; an LLM_NOT_CONFIGURED error
+    means they have not."""
     client: SPTClient = ctx.request_context.lifespan_context
     return await _capture_tasks_impl(client, project_id, text, reference_date, story_id)
 
