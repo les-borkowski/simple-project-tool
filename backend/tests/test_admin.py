@@ -352,6 +352,7 @@ async def test_action_routes_require_session(api_client: AsyncClient):
         ("POST", f"/admin/users/{fake_id}/block"),
         ("POST", f"/admin/users/{fake_id}/unblock"),
         ("POST", f"/admin/users/{fake_id}/reset-password"),
+        ("POST", f"/admin/users/{fake_id}/llm-limits"),
         ("POST", f"/admin/users/{fake_id}/delete"),
     ]
     for method, url in routes:

@@ -1,10 +1,11 @@
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.services.llm_usage_service import WINDOW
 from app.auth.security import create_password_reset_token, hash_password
 from app.db.base import LocaleEnum, RoleEnum, ThemeEnum
 from app.db.models import LLMUsageEvent, User, UserConfig
@@ -103,9 +104,9 @@ async def set_llm_limits(
 
 
 async def get_recent_usage_by_user(db: AsyncSession) -> dict[uuid.UUID, tuple[int, int]]:
-    """user_id -> (event_count, total_tokens) in the last 60s, summed across all providers."""
+    """user_id -> (event_count, total_tokens) in the last WINDOW, summed across all providers."""
     now = datetime.now(UTC).replace(tzinfo=None)
-    window_start = now - timedelta(seconds=60)
+    window_start = now - WINDOW
 
     result = await db.execute(
         select(
