@@ -30,6 +30,8 @@ class ReplayClient:
         json_schema: dict | None = None,
         max_tokens: int,
         temperature: float,
+        api_key: str | None = None,
+        model: str | None = None,
     ) -> LLMResponse:
         key = self._key(system, user)
         path = self.dir / f"{key}.json"

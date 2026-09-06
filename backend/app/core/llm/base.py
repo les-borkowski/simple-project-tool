@@ -29,4 +29,6 @@ class LLMClient(Protocol):
         json_schema: dict | None = None,
         max_tokens: int,
         temperature: float,
+        api_key: str | None = None,
+        model: str | None = None,
     ) -> LLMResponse: ...

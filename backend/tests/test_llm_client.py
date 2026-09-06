@@ -13,6 +13,7 @@ def _settings(**overrides):
         GOOGLE_API_KEY="test-key",
         LLM_TIMEOUT_SECONDS=30,
         LLM_PROVIDER="google",
+        LLM_ALLOW_SERVER_KEY_FALLBACK=True,
     )
     base.update(overrides)
     return MagicMock(**base)
@@ -212,6 +213,106 @@ async def test_gemini_no_key_raises_not_configured():
             await client.complete("SYS", "USR", max_tokens=32, temperature=0)
 
     assert calls["n"] == 0
+
+
+async def test_gemini_user_key_overrides_server_key():
+    from app.core.llm.gemini_client import GeminiClient
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["x-goog-api-key"] == "user-key"
+        return httpx.Response(
+            200,
+            json={
+                "candidates": [{"content": {"parts": [{"text": "ok"}]}}],
+                "usageMetadata": {"promptTokenCount": 1, "candidatesTokenCount": 1},
+            },
+        )
+
+    with _patch_gemini_settings(GOOGLE_API_KEY="server-key"):
+        client = GeminiClient(transport=httpx.MockTransport(handler))
+        resp = await client.complete("SYS", "USR", max_tokens=32, temperature=0, api_key="user-key")
+
+    assert resp.text == "ok"
+
+
+async def test_gemini_falls_back_to_server_key_when_allowed():
+    from app.core.llm.gemini_client import GeminiClient
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["x-goog-api-key"] == "server-key"
+        return httpx.Response(
+            200,
+            json={
+                "candidates": [{"content": {"parts": [{"text": "ok"}]}}],
+                "usageMetadata": {"promptTokenCount": 1, "candidatesTokenCount": 1},
+            },
+        )
+
+    with _patch_gemini_settings(GOOGLE_API_KEY="server-key", LLM_ALLOW_SERVER_KEY_FALLBACK=True):
+        client = GeminiClient(transport=httpx.MockTransport(handler))
+        resp = await client.complete("SYS", "USR", max_tokens=32, temperature=0)
+
+    assert resp.text == "ok"
+
+
+async def test_gemini_no_fallback_raises_not_configured_without_user_key():
+    from app.core.llm.base import LLMNotConfigured
+    from app.core.llm.gemini_client import GeminiClient
+
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(200, json={})
+
+    with _patch_gemini_settings(GOOGLE_API_KEY="server-key", LLM_ALLOW_SERVER_KEY_FALLBACK=False):
+        client = GeminiClient(transport=httpx.MockTransport(handler))
+        with pytest.raises(LLMNotConfigured):
+            await client.complete("SYS", "USR", max_tokens=32, temperature=0)
+
+    assert calls["n"] == 0
+
+
+async def test_gemini_user_key_works_when_server_key_empty():
+    from app.core.llm.gemini_client import GeminiClient
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["x-goog-api-key"] == "user-key"
+        return httpx.Response(
+            200,
+            json={
+                "candidates": [{"content": {"parts": [{"text": "ok"}]}}],
+                "usageMetadata": {"promptTokenCount": 1, "candidatesTokenCount": 1},
+            },
+        )
+
+    with _patch_gemini_settings(GOOGLE_API_KEY=""):
+        client = GeminiClient(transport=httpx.MockTransport(handler))
+        resp = await client.complete("SYS", "USR", max_tokens=32, temperature=0, api_key="user-key")
+
+    assert resp.text == "ok"
+
+
+async def test_gemini_model_override_reaches_request_url():
+    from app.core.llm.gemini_client import GeminiClient
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert "gemini-override:generateContent" in str(request.url)
+        return httpx.Response(
+            200,
+            json={
+                "candidates": [{"content": {"parts": [{"text": "ok"}]}}],
+                "usageMetadata": {"promptTokenCount": 1, "candidatesTokenCount": 1},
+            },
+        )
+
+    with _patch_gemini_settings():
+        client = GeminiClient(transport=httpx.MockTransport(handler))
+        resp = await client.complete(
+            "SYS", "USR", max_tokens=32, temperature=0, model="gemini-override"
+        )
+
+    assert resp.model == "gemini-override"
 
 
 def test_to_gemini_schema_flattens_refs_and_nullable():

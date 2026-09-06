@@ -16,7 +16,17 @@ class FakeClient:
         self._responses = responses
         self.calls: list[dict] = []
 
-    async def complete(self, system, user, *, json_schema=None, max_tokens, temperature=0):
+    async def complete(
+        self,
+        system,
+        user,
+        *,
+        json_schema=None,
+        max_tokens,
+        temperature=0,
+        api_key=None,
+        model=None,
+    ):
         self.calls.append(
             {
                 "system": system,
@@ -24,6 +34,8 @@ class FakeClient:
                 "json_schema": json_schema,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
+                "api_key": api_key,
+                "model": model,
             }
         )
         idx = len(self.calls) - 1

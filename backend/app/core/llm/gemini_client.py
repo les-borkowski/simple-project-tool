@@ -26,12 +26,15 @@ class GeminiClient:
         json_schema: dict | None = None,
         max_tokens: int,
         temperature: float,
+        api_key: str | None = None,
+        model: str | None = None,
     ) -> LLMResponse:
-        if not settings.GOOGLE_API_KEY:
+        key = api_key or (settings.GOOGLE_API_KEY if settings.LLM_ALLOW_SERVER_KEY_FALLBACK else "")
+        if not key:
             raise LLMNotConfigured("GOOGLE_API_KEY is empty")
 
-        model = settings.LLM_MODEL
-        url = f"{self.BASE_URL}/{model}:generateContent"
+        resolved_model = model or settings.LLM_MODEL
+        url = f"{self.BASE_URL}/{resolved_model}:generateContent"
 
         generation_config: dict = {
             "temperature": temperature,
@@ -47,7 +50,7 @@ class GeminiClient:
             "generationConfig": generation_config,
         }
         headers = {
-            "x-goog-api-key": settings.GOOGLE_API_KEY,
+            "x-goog-api-key": key,
             "content-type": "application/json",
         }
 
@@ -85,7 +88,7 @@ class GeminiClient:
         usage = data.get("usageMetadata", {})
         return LLMResponse(
             text=text,
-            model=model,
+            model=resolved_model,
             prompt_tokens=usage.get("promptTokenCount", 0),
             completion_tokens=usage.get("candidatesTokenCount", 0),
             latency_ms=int((time.monotonic() - start) * 1000),

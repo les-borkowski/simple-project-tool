@@ -109,7 +109,7 @@ async def run_case(case: dict, fixtures: dict, client) -> CaseResult:
         reference_date=date.fromisoformat(case["reference_date"]),
     )
 
-    outcome = await extract(case["input"], ctx, client)
+    outcome = await extract(case["input"], ctx, client, api_key=settings.GOOGLE_API_KEY)
 
     # An unparseable response already comes back with tasks=[] from extract();
     # this mapping is a no-op in that case, not a special path.
@@ -168,9 +168,17 @@ class _RecordingClient:
         json_schema: dict | None = None,
         max_tokens: int,
         temperature: float,
+        api_key: str | None = None,
+        model: str | None = None,
     ) -> LLMResponse:
         resp = await self._inner.complete(
-            system, user, json_schema=json_schema, max_tokens=max_tokens, temperature=temperature
+            system,
+            user,
+            json_schema=json_schema,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            api_key=api_key,
+            model=model,
         )
         self.seen[self._keyer._key(system, user)] = resp
         return resp

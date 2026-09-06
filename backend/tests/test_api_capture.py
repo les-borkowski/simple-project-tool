@@ -38,7 +38,9 @@ class FakeLLMClient:
         self.calls = []
         self._responses = responses if isinstance(responses, list) else [responses]
 
-    async def complete(self, system, user, *, json_schema=None, max_tokens, temperature):
+    async def complete(
+        self, system, user, *, json_schema=None, max_tokens, temperature, api_key=None, model=None
+    ):
         self.calls.append({"system": system, "user": user})
         idx = min(len(self.calls) - 1, len(self._responses) - 1)
         text, model = self._responses[idx]

@@ -83,7 +83,13 @@ def _apply_confidence_penalties(result: ExtractionResult, ctx: ProjectContext) -
     return result.model_copy(update={"tasks": adjusted_tasks})
 
 
-async def extract(text: str, ctx: ProjectContext, client) -> ExtractionOutcome:
+async def extract(
+    text: str,
+    ctx: ProjectContext,
+    client,
+    api_key: str | None = None,
+    model: str | None = None,
+) -> ExtractionOutcome:
     user_prompt = _build_user_prompt(text, ctx)
     schema = ExtractionResult.model_json_schema()
 
@@ -93,6 +99,8 @@ async def extract(text: str, ctx: ProjectContext, client) -> ExtractionOutcome:
         json_schema=schema,
         max_tokens=MAX_TOKENS,
         temperature=0,
+        api_key=api_key,
+        model=model,
     )
     result, error = _try_parse(resp.text)
     if result is not None:
@@ -120,6 +128,8 @@ async def extract(text: str, ctx: ProjectContext, client) -> ExtractionOutcome:
         json_schema=schema,
         max_tokens=MAX_TOKENS,
         temperature=0,
+        api_key=api_key,
+        model=model,
     )
     result2, _ = _try_parse(resp2.text)
     if result2 is not None:

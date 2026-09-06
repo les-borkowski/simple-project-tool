@@ -435,7 +435,9 @@ def test_require_scope_api_key_missing_scope_returns_403():
 class _FakeLLMClient:
     """Minimal stub returning a single valid extraction response."""
 
-    async def complete(self, system, user, *, json_schema=None, max_tokens, temperature):
+    async def complete(
+        self, system, user, *, json_schema=None, max_tokens, temperature, api_key=None, model=None
+    ):
         text = json.dumps(
             {
                 "tasks": [
