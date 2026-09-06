@@ -5,7 +5,7 @@ import httpx
 
 from app.core.config import settings
 
-from .base import LLMNotConfigured, LLMResponse, LLMUnavailable
+from .base import LLMAuthError, LLMNotConfigured, LLMResponse, LLMUnavailable
 from .schema_adapter import to_gemini_schema
 
 
@@ -74,6 +74,8 @@ class GeminiClient:
                     raise LLMUnavailable("rate limited")
                 if resp.status_code >= 500:
                     raise LLMUnavailable(f"provider {resp.status_code}")
+                if resp.status_code in (401, 403):
+                    raise LLMAuthError(f"credential rejected: {resp.status_code}")
                 if resp.status_code >= 400:
                     raise LLMUnavailable(f"unexpected status {resp.status_code}")
                 break

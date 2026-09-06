@@ -3,7 +3,7 @@ from pathlib import Path
 
 from app.core.config import settings
 
-from .base import LLMClient, LLMNotConfigured, LLMResponse, LLMUnavailable
+from .base import LLMAuthError, LLMClient, LLMNotConfigured, LLMResponse, LLMUnavailable
 from .gemini_client import GeminiClient
 from .providers import PROVIDERS
 from .replay import ReplayClient
@@ -13,6 +13,7 @@ __all__ = [
     "LLMResponse",
     "LLMNotConfigured",
     "LLMUnavailable",
+    "LLMAuthError",
     "get_llm_client",
     "get_llm_client_for",
 ]

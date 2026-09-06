@@ -158,6 +158,36 @@ async def test_gemini_429_exhausted_raises_unavailable(monkeypatch):
     assert calls["n"] >= 3
 
 
+async def test_gemini_401_raises_auth_error():
+    from app.core.llm.base import LLMAuthError, LLMUnavailable
+    from app.core.llm.gemini_client import GeminiClient
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(401, json={"error": "invalid key"})
+
+    with _patch_gemini_settings():
+        client = GeminiClient(transport=httpx.MockTransport(handler))
+        with pytest.raises(LLMAuthError) as excinfo:
+            await client.complete("SYS", "USR", max_tokens=32, temperature=0)
+
+    assert isinstance(excinfo.value, LLMUnavailable)
+
+
+async def test_gemini_403_raises_auth_error():
+    from app.core.llm.base import LLMAuthError, LLMUnavailable
+    from app.core.llm.gemini_client import GeminiClient
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(403, json={"error": "forbidden"})
+
+    with _patch_gemini_settings():
+        client = GeminiClient(transport=httpx.MockTransport(handler))
+        with pytest.raises(LLMAuthError) as excinfo:
+            await client.complete("SYS", "USR", max_tokens=32, temperature=0)
+
+    assert isinstance(excinfo.value, LLMUnavailable)
+
+
 async def test_gemini_500_raises_unavailable():
     from app.core.llm.base import LLMUnavailable
     from app.core.llm.gemini_client import GeminiClient

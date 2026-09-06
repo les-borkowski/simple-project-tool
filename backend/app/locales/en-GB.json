@@ -28,5 +28,10 @@
   "LLM_RATE_LIMITED": "AI task capture is temporarily rate-limited — please try again shortly",
   "CAPTURE_UNPARSEABLE": "Could not understand the input as a task",
   "CAPTURE_NOT_A_TASK": "This does not look like a task request",
-  "INVALID_ASSIGNEE": "Assignee is not a member of this project"
+  "INVALID_ASSIGNEE": "Assignee is not a member of this project",
+  "UNKNOWN_PROVIDER": "Unknown LLM provider",
+  "PROVIDER_NOT_AVAILABLE": "This LLM provider is not yet available",
+  "LLM_KEY_INVALID": "This API key was rejected by the provider",
+  "CREDENTIAL_STORAGE_UNAVAILABLE": "Credential storage is not configured on this server",
+  "API_KEY_REQUIRED": "An API key is required to add this provider"
 }

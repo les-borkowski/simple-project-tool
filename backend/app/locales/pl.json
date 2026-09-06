@@ -28,5 +28,10 @@
   "LLM_RATE_LIMITED": "Przechwytywanie zadań AI jest tymczasowo ograniczone — spróbuj ponownie za chwilę",
   "CAPTURE_UNPARSEABLE": "Nie udało się zrozumieć treści jako zadania",
   "CAPTURE_NOT_A_TASK": "To nie wygląda na prośbę o zadanie",
-  "INVALID_ASSIGNEE": "Przypisana osoba nie jest członkiem tego projektu"
+  "INVALID_ASSIGNEE": "Przypisana osoba nie jest członkiem tego projektu",
+  "UNKNOWN_PROVIDER": "Nieznany dostawca LLM",
+  "PROVIDER_NOT_AVAILABLE": "Ten dostawca LLM nie jest jeszcze dostępny",
+  "LLM_KEY_INVALID": "Ten klucz API został odrzucony przez dostawcę",
+  "CREDENTIAL_STORAGE_UNAVAILABLE": "Przechowywanie poświadczeń nie jest skonfigurowane na tym serwerze",
+  "API_KEY_REQUIRED": "Klucz API jest wymagany, aby dodać tego dostawcę"
 }

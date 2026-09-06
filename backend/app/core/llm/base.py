@@ -19,6 +19,10 @@ class LLMUnavailable(Exception):
     """Raised on provider errors, timeouts, or malformed responses."""
 
 
+class LLMAuthError(LLMUnavailable):
+    """Raised when the provider rejects the supplied credential (401/403)."""
+
+
 @runtime_checkable
 class LLMClient(Protocol):
     async def complete(
