@@ -188,6 +188,65 @@ async def test_gemini_403_raises_auth_error():
     assert isinstance(excinfo.value, LLMUnavailable)
 
 
+async def test_gemini_400_with_api_key_invalid_reason_raises_auth_error():
+    """Confirmed live against the real Gemini API: an invalid key comes back as
+    400 INVALID_ARGUMENT, not 401/403 — must still surface as LLMAuthError."""
+    from app.core.llm.base import LLMAuthError, LLMUnavailable
+    from app.core.llm.gemini_client import GeminiClient
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            400,
+            json={
+                "error": {
+                    "code": 400,
+                    "message": "API key not valid. Please pass a valid API key.",
+                    "status": "INVALID_ARGUMENT",
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                            "reason": "API_KEY_INVALID",
+                            "domain": "googleapis.com",
+                        }
+                    ],
+                }
+            },
+        )
+
+    with _patch_gemini_settings():
+        client = GeminiClient(transport=httpx.MockTransport(handler))
+        with pytest.raises(LLMAuthError) as excinfo:
+            await client.complete("SYS", "USR", max_tokens=32, temperature=0)
+
+    assert isinstance(excinfo.value, LLMUnavailable)
+
+
+async def test_gemini_400_without_api_key_invalid_reason_raises_unavailable():
+    """A generic malformed-request 400 (e.g. bad schema) is unrelated to the key
+    and must not be misclassified as a credential problem."""
+    from app.core.llm.base import LLMAuthError, LLMUnavailable
+    from app.core.llm.gemini_client import GeminiClient
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            400,
+            json={
+                "error": {
+                    "code": 400,
+                    "message": "Invalid JSON payload received.",
+                    "status": "INVALID_ARGUMENT",
+                }
+            },
+        )
+
+    with _patch_gemini_settings():
+        client = GeminiClient(transport=httpx.MockTransport(handler))
+        with pytest.raises(LLMUnavailable) as excinfo:
+            await client.complete("SYS", "USR", max_tokens=32, temperature=0)
+
+    assert not isinstance(excinfo.value, LLMAuthError)
+
+
 async def test_gemini_500_raises_unavailable():
     from app.core.llm.base import LLMUnavailable
     from app.core.llm.gemini_client import GeminiClient

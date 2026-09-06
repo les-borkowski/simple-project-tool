@@ -7,6 +7,7 @@ response body — assertions run against raw response text, not just parsed fiel
 import json
 import uuid
 
+import httpx
 import pytest
 import pytest_asyncio
 from cryptography.fernet import Fernet
@@ -161,6 +162,54 @@ async def test_patch_invalid_key_rejected(api_client: AsyncClient, auth_headers:
     )
     assert resp.status_code == 422
     assert resp.json()["error"]["code"] == "LLM_KEY_INVALID"
+
+
+@pytest.mark.asyncio
+async def test_patch_invalid_key_400_api_key_invalid_reason_rejected(
+    api_client: AsyncClient, auth_headers: dict, monkeypatch
+):
+    """Confirmed live against the real Gemini API: an invalid key comes back as
+    400 INVALID_ARGUMENT, not 401/403. Uses the real GeminiClient (not the
+    _FakeAuthErrorClient stub) against a mocked transport, so this exercises the
+    actual 400-body-parsing fix end to end through the save path — regression
+    test for a key that was silently accepted as valid before this fix."""
+    from app.core.llm.gemini_client import GeminiClient
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            400,
+            json={
+                "error": {
+                    "code": 400,
+                    "message": "API key not valid. Please pass a valid API key.",
+                    "status": "INVALID_ARGUMENT",
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                            "reason": "API_KEY_INVALID",
+                            "domain": "googleapis.com",
+                        }
+                    ],
+                }
+            },
+        )
+
+    monkeypatch.setattr(
+        svc,
+        "get_llm_client_for",
+        lambda provider_id: GeminiClient(transport=httpx.MockTransport(handler)),
+    )
+    resp = await api_client.patch(
+        "/api/v1/config/llm-providers/google",
+        json={"api_key": "test-fake-key-12345"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 422
+    assert resp.json()["error"]["code"] == "LLM_KEY_INVALID"
+
+    # The rejected key must not have been persisted as a side effect.
+    listing = await api_client.get("/api/v1/config/llm-providers", headers=auth_headers)
+    assert listing.json() == []
 
 
 @pytest.mark.asyncio

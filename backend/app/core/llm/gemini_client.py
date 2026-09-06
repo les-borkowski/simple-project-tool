@@ -9,6 +9,18 @@ from .base import LLMAuthError, LLMNotConfigured, LLMResponse, LLMUnavailable
 from .schema_adapter import to_gemini_schema
 
 
+def _is_api_key_invalid_error(body: dict) -> bool:
+    """Gemini rejects an invalid key with 400 INVALID_ARGUMENT, not 401/403 — match
+    its specific error.details[].reason == "API_KEY_INVALID" shape so other
+    malformed-request 400s (e.g. a bad schema during a real capture call, unrelated
+    to the key) aren't misclassified as a credential problem.
+    """
+    details = body.get("error", {}).get("details")
+    if not isinstance(details, list):
+        return False
+    return any(isinstance(d, dict) and d.get("reason") == "API_KEY_INVALID" for d in details)
+
+
 class GeminiClient:
     BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
     MAX_RETRIES = 3
@@ -76,6 +88,16 @@ class GeminiClient:
                     raise LLMUnavailable(f"provider {resp.status_code}")
                 if resp.status_code in (401, 403):
                     raise LLMAuthError(f"credential rejected: {resp.status_code}")
+                if resp.status_code == 400:
+                    # Named separately from the request `body` above — this shadows it
+                    # only within this branch, which always raises before any retry
+                    # `continue`, but keep the names distinct to avoid future confusion.
+                    try:
+                        error_body = resp.json()
+                    except ValueError:
+                        error_body = {}
+                    if _is_api_key_invalid_error(error_body):
+                        raise LLMAuthError("credential rejected: 400 API_KEY_INVALID")
                 if resp.status_code >= 400:
                     raise LLMUnavailable(f"unexpected status {resp.status_code}")
                 break
