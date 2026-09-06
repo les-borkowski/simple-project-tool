@@ -39,8 +39,24 @@ function ProviderRow({ provider, userRow, onChanged }: RowProps) {
       if (defaultTouched) data.is_default = isDefault
       if (apiKey.trim()) data.api_key = apiKey.trim()
       if (model.trim()) data.model = model.trim()
-      if (rpm.trim()) data.rpm_limit = Number(rpm)
-      if (tpm.trim()) data.tpm_limit = Number(tpm)
+      // A NaN here would serialize to `null`, which the backend reads as "field not
+      // provided" — silently discarding the user's change instead of surfacing it.
+      if (rpm.trim()) {
+        const n = Number(rpm)
+        if (Number.isNaN(n)) {
+          setError(t('ai_providers.invalid_number'))
+          return
+        }
+        data.rpm_limit = n
+      }
+      if (tpm.trim()) {
+        const n = Number(tpm)
+        if (Number.isNaN(n)) {
+          setError(t('ai_providers.invalid_number'))
+          return
+        }
+        data.tpm_limit = n
+      }
       await configApi.setLlmProvider(provider.id, data)
       onChanged()
     } catch (e) {
@@ -205,6 +221,14 @@ export function AiProvidersList() {
   const [userRows, setUserRows] = useState<UserLlmProviderResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  // Bumped on every successful reload so each row's `key` changes even when the
+  // persisted values it fetched are identical to before — e.g. a requested RPM
+  // that the backend clamps right back down to what was already stored. Without
+  // this, React sees an unchanged key, skips the remount, and a row can keep
+  // showing the user's rejected input as if it had been saved. Left untouched on
+  // a failed reload, so a row still showing its last-known-good data isn't
+  // needlessly remounted.
+  const [loadVersion, setLoadVersion] = useState(0)
 
   // No setState directly in the body — only inside the promise callbacks — so
   // this stays safe to call synchronously from the mount effect below.
@@ -214,6 +238,7 @@ export function AiProvidersList() {
         setCatalogue(cat.data)
         setUserRows(rows.data)
         setLoadError(null)
+        setLoadVersion((v) => v + 1)
       })
       .catch((e) => {
         setLoadError(getApiErrorMessage(e) ?? t('errors.generic'))
@@ -235,9 +260,10 @@ export function AiProvidersList() {
         const userRow = userRows.find((r) => r.provider === provider.id)
         return (
           <ProviderRow
-            // Fingerprint of the persisted (non-secret) fields — changes whenever a
-            // save/clear actually lands, forcing a clean remount instead of an effect.
-            key={`${provider.id}:${userRow ? `${userRow.model}:${userRow.rpm_limit}:${userRow.tpm_limit}:${userRow.is_default}` : 'unconfigured'}`}
+            // Fingerprint of the persisted (non-secret) fields plus loadVersion —
+            // changes on every successful reload (even a same-value clamp), forcing
+            // a clean remount instead of an effect.
+            key={`${provider.id}:${loadVersion}:${userRow ? `${userRow.model}:${userRow.rpm_limit}:${userRow.tpm_limit}:${userRow.is_default}` : 'unconfigured'}`}
             provider={provider}
             userRow={userRow}
             onChanged={load}

@@ -231,6 +231,7 @@
   "ai_providers.rpm_label": "Zapytania na minutę",
   "ai_providers.tpm_label": "Tokeny na minutę",
   "ai_providers.max_helper": "maks. {{value}}",
+  "ai_providers.invalid_number": "Podaj prawidłową liczbę.",
   "ai_providers.default_label": "Ustaw jako domyślny dostawca",
   "ai_providers.clear": "Wyczyść",
   "ai_providers.clear_confirm_title": "Usunąć ten klucz?",

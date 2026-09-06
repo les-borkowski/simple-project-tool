@@ -221,6 +221,7 @@
   "ai_providers.rpm_label": "Requests per minute",
   "ai_providers.tpm_label": "Tokens per minute",
   "ai_providers.max_helper": "max {{value}}",
+  "ai_providers.invalid_number": "Enter a valid number.",
   "ai_providers.default_label": "Use as default provider",
   "ai_providers.clear": "Clear",
   "ai_providers.clear_confirm_title": "Remove this key?",
