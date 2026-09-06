@@ -15,7 +15,9 @@ from app.admin.users_service import (
     disable_demo,
     enable_demo,
     get_all_users,
+    get_recent_usage_by_user,
     send_password_reset,
+    set_llm_limits,
     unblock_user,
     verify_user,
 )
@@ -42,12 +44,14 @@ def _redirect_users() -> RedirectResponse:
 @router.get("/users", response_class=HTMLResponse)
 async def users_list(request: Request, db: AsyncSession = Depends(get_db)):
     users = await get_all_users(db)
+    recent_usage = await get_recent_usage_by_user(db)
     return templates.TemplateResponse(
         request,
         "users/list.html",
         {
             "logged_in": True,
             "users": users,
+            "recent_usage": recent_usage,
             "flash_success": request.session.pop("flash_success", None),
             "flash_error": request.session.pop("flash_error", None),
         },
@@ -158,6 +162,34 @@ async def users_disable_demo(
     try:
         await disable_demo(db, user_id)
         _flash(request, success="Demo mode disabled")
+    except HTTPException as exc:
+        _flash(request, error=f"Error: {exc.detail}")
+    return _redirect_users()
+
+
+@router.post("/users/{user_id}/llm-limits")
+async def users_set_llm_limits(
+    request: Request,
+    user_id: uuid.UUID,
+    rpm_ceiling: str = Form(""),
+    tpm_ceiling: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+):
+    # Postgres Integer column max — reject out-of-range before it hits the DB as a raw 500.
+    POSTGRES_INT_MAX = 2_147_483_647
+    try:
+        rpm_value = int(rpm_ceiling) if rpm_ceiling.strip() else None
+        tpm_value = int(tpm_ceiling) if tpm_ceiling.strip() else None
+        for value in (rpm_value, tpm_value):
+            if value is not None and not (0 <= value <= POSTGRES_INT_MAX):
+                raise ValueError("out of range")
+    except ValueError:
+        _flash(request, error="RPM/TPM ceiling must be a whole number")
+        return _redirect_users()
+
+    try:
+        await set_llm_limits(db, user_id, rpm_value, tpm_value)
+        _flash(request, success="LLM limits updated")
     except HTTPException as exc:
         _flash(request, error=f"Error: {exc.detail}")
     return _redirect_users()

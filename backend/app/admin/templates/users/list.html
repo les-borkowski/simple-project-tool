@@ -30,6 +30,9 @@
   .btn-warn { background: transparent; border-color: #fcd34d; color: #92400e; }
   .btn-warn:hover { background: #fef3c7; }
   .empty { text-align: center; padding: 3rem; color: #888; }
+  .llm-usage { color: #666; font-size: 0.8rem; margin-bottom: 0.3rem; }
+  .llm-limits-form { display: flex; align-items: center; gap: 0.3rem; }
+  .llm-limits-form input[type="number"] { width: 4.5rem; padding: 0.2rem 0.4rem; font-size: 0.78rem; border: 1px solid #d1d5db; border-radius: 3px; }
 </style>
 {% endblock %}
 
@@ -58,6 +61,7 @@
       <th>Demo</th>
       <th>Last login</th>
       <th>Created</th>
+      <th>LLM limits</th>
       <th>Actions</th>
     </tr>
   </thead>
@@ -90,6 +94,17 @@
       </td>
       <td>{{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else '—' }}</td>
       <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+      <td>
+        {% set usage = recent_usage.get(user.id, (0, 0)) %}
+        <div class="llm-usage">{{ usage[0] }} req / {{ "{:,}".format(usage[1]) }} tok in last 60s</div>
+        <form method="post" action="/admin/users/{{ user.id }}/llm-limits" class="llm-limits-form">
+          <input type="number" name="rpm_ceiling" min="0" placeholder="default"
+                 value="{{ user.llm_rpm_ceiling if user.llm_rpm_ceiling is not none else '' }}">
+          <input type="number" name="tpm_ceiling" min="0" placeholder="default"
+                 value="{{ user.llm_tpm_ceiling if user.llm_tpm_ceiling is not none else '' }}">
+          <button class="btn-sm btn-outline" type="submit">Set</button>
+        </form>
+      </td>
       <td>
         <div class="actions">
           {% if not user.email_confirmed %}

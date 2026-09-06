@@ -1,13 +1,18 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
+import pytest
+from fastapi import HTTPException
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin.services import get_totals, get_weekly_trends
+from app.admin.users_service import get_recent_usage_by_user
+from app.api.services.llm_usage_service import check_rate_limit
 from app.core.config import settings
-from app.db.models import User
+from app.db.models import LLMUsageEvent, User
+from app.db.models.user_llm_provider import effective_rpm_limit
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -353,3 +358,193 @@ async def test_action_routes_require_session(api_client: AsyncClient):
         resp = await api_client.request(method, url, follow_redirects=False)
         assert resp.status_code == 302, f"{method} {url} should redirect unauthenticated"
         assert "/admin/login" in resp.headers["location"]
+
+
+# ---------------------------------------------------------------------------
+# LLM ceilings (T17)
+# ---------------------------------------------------------------------------
+
+
+async def test_set_llm_limits_persists(api_client: AsyncClient, api_db: AsyncSession):
+    from sqlalchemy import select
+
+    await _admin_login(api_client)
+    email = f"llmlimits_{uuid.uuid4().hex[:8]}@example.com"
+    await _create_user_via_admin(api_client, email)
+    user = await api_db.scalar(select(User).where(User.email == email))
+
+    resp = await api_client.post(
+        f"/admin/users/{user.id}/llm-limits",
+        data={"rpm_ceiling": "10", "tpm_ceiling": "5000"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 302
+
+    refreshed = await api_db.get(User, user.id)
+    assert refreshed.llm_rpm_ceiling == 10
+    assert refreshed.llm_tpm_ceiling == 5000
+
+
+async def test_set_llm_limits_blank_clears_ceilings(api_client: AsyncClient, api_db: AsyncSession):
+    from sqlalchemy import select
+
+    await _admin_login(api_client)
+    email = f"llmclear_{uuid.uuid4().hex[:8]}@example.com"
+    await _create_user_via_admin(api_client, email)
+    user = await api_db.scalar(select(User).where(User.email == email))
+
+    await api_client.post(
+        f"/admin/users/{user.id}/llm-limits",
+        data={"rpm_ceiling": "10", "tpm_ceiling": "5000"},
+    )
+    resp = await api_client.post(
+        f"/admin/users/{user.id}/llm-limits",
+        data={"rpm_ceiling": "", "tpm_ceiling": ""},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 302
+
+    refreshed = await api_db.get(User, user.id)
+    assert refreshed.llm_rpm_ceiling is None
+    assert refreshed.llm_tpm_ceiling is None
+
+
+async def test_set_llm_limits_non_numeric_flashes_error(
+    api_client: AsyncClient, api_db: AsyncSession
+):
+    from sqlalchemy import select
+
+    await _admin_login(api_client)
+    email = f"llmbad_{uuid.uuid4().hex[:8]}@example.com"
+    await _create_user_via_admin(api_client, email)
+    user = await api_db.scalar(select(User).where(User.email == email))
+
+    # Set a real ceiling first so we can prove a later bad request can't clobber it —
+    # asserting an already-None value stayed None wouldn't distinguish "skipped" from
+    # "never written".
+    await api_client.post(
+        f"/admin/users/{user.id}/llm-limits",
+        data={"rpm_ceiling": "10", "tpm_ceiling": ""},
+    )
+    persisted = await api_db.get(User, user.id)
+    assert persisted.llm_rpm_ceiling == 10
+
+    resp = await api_client.post(
+        f"/admin/users/{user.id}/llm-limits",
+        data={"rpm_ceiling": "not-a-number", "tpm_ceiling": ""},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 302
+
+    users_page = await api_client.get("/admin/users")
+    assert b"whole number" in users_page.content
+
+    unchanged = await api_db.get(User, user.id)
+    assert unchanged.llm_rpm_ceiling == 10
+    assert unchanged.llm_tpm_ceiling is None
+
+
+async def test_set_llm_limits_out_of_range_flashes_error(
+    api_client: AsyncClient, api_db: AsyncSession
+):
+    from sqlalchemy import select
+
+    await _admin_login(api_client)
+    email = f"llmoutrange_{uuid.uuid4().hex[:8]}@example.com"
+    await _create_user_via_admin(api_client, email)
+    user = await api_db.scalar(select(User).where(User.email == email))
+
+    # Parses fine in Python but overflows Postgres's 4-byte Integer column —
+    # must be rejected before it ever reaches db.commit().
+    resp = await api_client.post(
+        f"/admin/users/{user.id}/llm-limits",
+        data={"rpm_ceiling": "99999999999", "tpm_ceiling": ""},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 302
+
+    users_page = await api_client.get("/admin/users")
+    assert b"whole number" in users_page.content
+
+    unchanged = await api_db.get(User, user.id)
+    assert unchanged.llm_rpm_ceiling is None
+
+    # Negative values are also rejected — only 0 (full suspend) and up is valid.
+    resp = await api_client.post(
+        f"/admin/users/{user.id}/llm-limits",
+        data={"rpm_ceiling": "-1", "tpm_ceiling": ""},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 302
+    unchanged = await api_db.get(User, user.id)
+    assert unchanged.llm_rpm_ceiling is None
+
+
+async def test_llm_ceiling_clamps_effective_rpm_limit(
+    api_client: AsyncClient, api_db: AsyncSession
+):
+    from sqlalchemy import select
+
+    await _admin_login(api_client)
+    email = f"llmclamp_{uuid.uuid4().hex[:8]}@example.com"
+    await _create_user_via_admin(api_client, email)
+    user = await api_db.scalar(select(User).where(User.email == email))
+
+    await api_client.post(
+        f"/admin/users/{user.id}/llm-limits",
+        data={"rpm_ceiling": "1", "tpm_ceiling": ""},
+    )
+
+    refreshed = await api_db.get(User, user.id)
+    assert effective_rpm_limit(None, refreshed) == 1
+    assert effective_rpm_limit(None, refreshed) < settings.LLM_MAX_RPM
+
+    # And check_rate_limit enforces it: one event already logged trips the 1-rpm ceiling.
+    api_db.add(
+        LLMUsageEvent(
+            user_id=refreshed.id,
+            provider="openai",
+            total_tokens=10,
+            created_at=datetime.now(UTC).replace(tzinfo=None),
+        )
+    )
+    await api_db.flush()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await check_rate_limit(refreshed, "openai", api_db)
+    assert exc_info.value.status_code == 429
+
+
+async def test_get_recent_usage_by_user_windows_correctly(api_db: AsyncSession):
+    email = f"usagewindow_{uuid.uuid4().hex[:8]}@example.com"
+    user = User(email=email, name="Usage Window", password_hash="x", email_confirmed=True)
+    api_db.add(user)
+    await api_db.flush()
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    api_db.add_all(
+        [
+            LLMUsageEvent(
+                user_id=user.id,
+                provider="openai",
+                total_tokens=100,
+                created_at=now - timedelta(seconds=10),
+            ),
+            LLMUsageEvent(
+                user_id=user.id,
+                provider="anthropic",
+                total_tokens=50,
+                created_at=now - timedelta(seconds=30),
+            ),
+            LLMUsageEvent(
+                user_id=user.id,
+                provider="openai",
+                total_tokens=999,
+                created_at=now - timedelta(seconds=120),
+            ),
+        ]
+    )
+    await api_db.flush()
+
+    usage = await get_recent_usage_by_user(api_db)
+    assert usage[user.id] == (2, 150)
