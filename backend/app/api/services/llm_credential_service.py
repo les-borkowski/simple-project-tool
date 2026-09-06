@@ -70,9 +70,12 @@ async def list_providers(user: User, db: AsyncSession) -> list[UserLLMProviderRe
 async def _validate_key_live(provider_id: str, api_key: str) -> None:
     """One minimal generation call to catch a pasted typo/wrong key.
 
-    Only LLMAuthError (401/403) blocks the save — a provider outage, timeout, or even
-    a wiring bug in the adapter registry must not stop the user from storing what may
-    be a perfectly valid key, so `get_llm_client_for` itself is inside the try.
+    Only LLMAuthError (401/403) blocks the save with a client-facing 422 — a
+    provider outage, timeout, or other transient failure must not stop the user
+    from storing what may be a perfectly valid key. A broken provider registry
+    (get_llm_client_for's own ValueError) is different: it's a genuine server-side
+    misconfiguration, not "probably fine", so it must not be swallowed as if it
+    were a harmless transient failure and let an unvalidated key through silently.
     """
     try:
         client = get_llm_client_for(provider_id)
@@ -81,7 +84,9 @@ async def _validate_key_live(provider_id: str, api_key: str) -> None:
         )
     except LLMAuthError:
         raise HTTPException(status_code=422, detail="LLM_KEY_INVALID") from None
-    except Exception as exc:  # noqa: BLE001 - deliberately broad, see docstring
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail="LLM_PROVIDER_MISCONFIGURED") from exc
+    except Exception as exc:  # noqa: BLE001 - deliberately broad: network/timeout/provider-outage only
         _logger.warning("LLM key validation call failed for provider %s: %s", provider_id, exc)
 
 

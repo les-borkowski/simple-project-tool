@@ -33,5 +33,6 @@
   "PROVIDER_NOT_AVAILABLE": "This LLM provider is not yet available",
   "LLM_KEY_INVALID": "This API key was rejected by the provider",
   "CREDENTIAL_STORAGE_UNAVAILABLE": "Credential storage is not configured on this server",
-  "API_KEY_REQUIRED": "An API key is required to add this provider"
+  "API_KEY_REQUIRED": "An API key is required to add this provider",
+  "LLM_PROVIDER_MISCONFIGURED": "This provider is temporarily misconfigured on the server"
 }

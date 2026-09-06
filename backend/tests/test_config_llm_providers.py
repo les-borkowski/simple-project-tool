@@ -164,6 +164,31 @@ async def test_patch_invalid_key_rejected(api_client: AsyncClient, auth_headers:
 
 
 @pytest.mark.asyncio
+async def test_patch_provider_registry_wiring_bug_returns_503_not_200(
+    api_client: AsyncClient, auth_headers: dict, monkeypatch
+):
+    """A provider marked available=True with no registered adapter is a server-side
+    wiring bug (get_llm_client_for raises ValueError) — must not crash with a 500,
+    and must not be swallowed as "probably fine" and ship an unvalidated key as 200."""
+
+    def _broken_registry(provider_id):
+        raise ValueError(f"provider {provider_id!r} is declared available but has no adapter")
+
+    monkeypatch.setattr(svc, "get_llm_client_for", _broken_registry)
+    resp = await api_client.patch(
+        "/api/v1/config/llm-providers/google",
+        json={"api_key": RAW_KEY},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 503
+    assert resp.json()["error"]["code"] == "LLM_PROVIDER_MISCONFIGURED"
+
+    # Nothing should have been persisted as a side effect of the failed save.
+    listing = await api_client.get("/api/v1/config/llm-providers", headers=auth_headers)
+    assert listing.json() == []
+
+
+@pytest.mark.asyncio
 async def test_patch_encryption_unavailable_returns_503(
     api_client: AsyncClient, auth_headers: dict, monkeypatch
 ):

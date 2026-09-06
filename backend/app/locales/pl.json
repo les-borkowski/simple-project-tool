@@ -33,5 +33,6 @@
   "PROVIDER_NOT_AVAILABLE": "Ten dostawca LLM nie jest jeszcze dostępny",
   "LLM_KEY_INVALID": "Ten klucz API został odrzucony przez dostawcę",
   "CREDENTIAL_STORAGE_UNAVAILABLE": "Przechowywanie poświadczeń nie jest skonfigurowane na tym serwerze",
-  "API_KEY_REQUIRED": "Klucz API jest wymagany, aby dodać tego dostawcę"
+  "API_KEY_REQUIRED": "Klucz API jest wymagany, aby dodać tego dostawcę",
+  "LLM_PROVIDER_MISCONFIGURED": "Ten dostawca jest tymczasowo błędnie skonfigurowany na serwerze"
 }
