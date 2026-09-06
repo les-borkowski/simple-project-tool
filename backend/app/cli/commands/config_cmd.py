@@ -11,6 +11,8 @@ from ..output import console, fmt_date, load_locale, short_id, t
 app = typer.Typer(help="Configuration commands")
 api_keys_app = typer.Typer(help="API key management")
 app.add_typer(api_keys_app, name="api-keys")
+llm_app = typer.Typer(help="LLM credential management")
+app.add_typer(llm_app, name="llm")
 
 LOCALE_FIELDS = {"locale", "theme"}
 
@@ -107,3 +109,93 @@ def api_keys_revoke(key_id: str = typer.Argument(..., help="API key ID")) -> Non
     config, client = _setup()
     client.delete(f"/config/api-keys/{key_id}")
     console.print(t("api_key.revoked"))
+
+
+@llm_app.command("list")
+def llm_list() -> None:
+    """List the current user's configured LLM credentials."""
+    config, client = _setup()
+    items = client.get("/config/llm-providers")
+    if not items:
+        console.print(t("llm.no_credentials"))
+        return
+    table = Table(title="LLM Credentials")
+    table.add_column(t("col.provider"), style="cyan")
+    table.add_column(t("col.label"))
+    table.add_column(t("col.hint"))
+    table.add_column(t("col.model"))
+    table.add_column(t("col.rpm"))
+    table.add_column(t("col.tpm"))
+    table.add_column(t("col.default"))
+    table.add_column(t("col.enabled"))
+    for item in items:
+        table.add_row(
+            item["provider"],
+            item.get("label", ""),
+            item.get("api_key_hint", ""),
+            item.get("model") or "—",
+            f"{item.get('rpm_limit') or '—'} / {item['effective_rpm']}",
+            f"{item.get('tpm_limit') or '—'} / {item['effective_tpm']}",
+            t("bool.yes") if item.get("is_default") else t("bool.no"),
+            t("bool.yes") if item.get("enabled") else t("bool.no"),
+        )
+    console.print(table)
+
+
+@llm_app.command("providers")
+def llm_providers() -> None:
+    """List the available LLM providers (catalogue)."""
+    config, client = _setup()
+    items = client.get("/config/llm-providers/available")
+    if not items:
+        console.print(t("llm.no_providers"))
+        return
+    table = Table(title="LLM Providers")
+    table.add_column(t("col.id"), style="cyan")
+    table.add_column(t("col.label"))
+    table.add_column(t("col.default_model"))
+    table.add_column(t("col.available"))
+    table.add_column(t("col.hint"))
+    table.add_column(t("col.docs"))
+    for item in items:
+        table.add_row(
+            item["id"],
+            item.get("label", ""),
+            item.get("default_model", ""),
+            t("bool.yes") if item.get("available") else t("bool.no"),
+            item.get("key_hint", ""),
+            item.get("docs_url", ""),
+        )
+    console.print(table)
+
+
+@llm_app.command("set")
+def llm_set(
+    provider: str = typer.Argument(..., help="Provider id, e.g. google"),
+    api_key: str = typer.Option(..., prompt=True, hide_input=True, help="Provider API key"),
+    model: str | None = typer.Option(None, help="Model override"),
+    rpm: int | None = typer.Option(None, help="Per-credential RPM limit"),
+    tpm: int | None = typer.Option(None, help="Per-credential TPM limit"),
+    default: bool = typer.Option(False, "--default", help="Set as default credential"),
+) -> None:
+    """Create or update the current user's credential for a provider."""
+    config, client = _setup()
+    body: dict[str, object] = {"api_key": api_key}
+    if model is not None:
+        body["model"] = model
+    if rpm is not None:
+        body["rpm_limit"] = rpm
+    if tpm is not None:
+        body["tpm_limit"] = tpm
+    if default:
+        body["is_default"] = True
+    client.patch(f"/config/llm-providers/{provider}", json=body)
+    console.print(t("llm.set_success"))
+
+
+@llm_app.command("delete")
+def llm_delete(provider: str = typer.Argument(..., help="Provider id, e.g. google")) -> None:
+    """Remove the current user's credential for a provider."""
+    config, client = _setup()
+    client.delete(f"/config/llm-providers/{provider}")
+    console.print(t("llm.deleted"))

@@ -62,5 +62,21 @@
   "capture.no_tasks": "No tasks found.",
   "capture.created": "{count} task(s) created.",
   "col.due_date": "Due Date",
-  "col.story": "Story"
+  "col.story": "Story",
+  "col.provider": "Provider",
+  "col.hint": "Hint",
+  "col.model": "Model",
+  "col.rpm": "RPM",
+  "col.tpm": "TPM",
+  "col.default": "Default",
+  "col.enabled": "Enabled",
+  "col.default_model": "Default Model",
+  "col.available": "Available",
+  "col.docs": "Docs",
+  "bool.yes": "Yes",
+  "bool.no": "No",
+  "llm.no_credentials": "No LLM credentials configured.",
+  "llm.no_providers": "No LLM providers available.",
+  "llm.set_success": "LLM credential saved.",
+  "llm.deleted": "LLM credential deleted."
 }

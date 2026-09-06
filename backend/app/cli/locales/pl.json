@@ -62,5 +62,21 @@
   "capture.no_tasks": "Nie znaleziono zadań.",
   "capture.created": "Utworzono {count} zadanie(a).",
   "col.due_date": "Termin",
-  "col.story": "Wątek"
+  "col.story": "Wątek",
+  "col.provider": "Dostawca",
+  "col.hint": "Podpowiedź",
+  "col.model": "Model",
+  "col.rpm": "RPM",
+  "col.tpm": "TPM",
+  "col.default": "Domyślny",
+  "col.enabled": "Włączony",
+  "col.default_model": "Domyślny model",
+  "col.available": "Dostępny",
+  "col.docs": "Dokumentacja",
+  "bool.yes": "Tak",
+  "bool.no": "Nie",
+  "llm.no_credentials": "Brak skonfigurowanych danych uwierzytelniających LLM.",
+  "llm.no_providers": "Brak dostępnych dostawców LLM.",
+  "llm.set_success": "Dane uwierzytelniające LLM zapisane.",
+  "llm.deleted": "Dane uwierzytelniające LLM usunięte."
 }

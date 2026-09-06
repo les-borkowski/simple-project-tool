@@ -12,6 +12,11 @@ def make_resp(status_code: int, data: dict | None = None) -> httpx.Response:
     return httpx.Response(status_code, content=content)
 
 
+def make_list_resp(status_code: int, data: list) -> httpx.Response:
+    """Bare JSON array response — `make_resp`'s `data or {}` mishandles an empty list."""
+    return httpx.Response(status_code, content=json.dumps(data).encode())
+
+
 def mock_config(tmp_path, **kwargs):
     from app.cli.config import DEFAULT_API_BASE_URL, DEFAULT_LOCALE, CLIConfig
 
@@ -509,3 +514,132 @@ def test_config_api_keys_list(tmp_path):
         with patch("httpx.Client.request", return_value=make_resp(200, data)):
             result = runner.invoke(app, ["config", "api-keys", "list"])
     assert result.exit_code == 0
+
+
+# --- config llm tests ---
+
+
+def test_config_llm_list_empty(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request", return_value=make_list_resp(200, [])):
+            result = runner.invoke(app, ["config", "llm", "list"])
+    assert result.exit_code == 0
+    assert "No LLM credentials configured." in result.output
+
+
+def test_config_llm_list_populated(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    data = [
+        {
+            "provider": "google",
+            "label": "Gemini",
+            "api_key_hint": "abcd",
+            "model": "flash",
+            "rpm_limit": 10,
+            "tpm_limit": None,
+            "effective_rpm": 10,
+            "effective_tpm": 100000,
+            "is_default": True,
+            "enabled": True,
+        }
+    ]
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request", return_value=make_list_resp(200, data)):
+            result = runner.invoke(app, ["config", "llm", "list"])
+    assert result.exit_code == 0
+    assert "google" in result.output
+    assert "Gemini" in result.output
+    assert "abcd" in result.output
+    assert "flash" in result.output
+
+
+def test_config_llm_providers(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    data = [
+        {
+            "id": "google",
+            "label": "Google Gemini",
+            "default_model": "gemini-2.5-flash",
+            "available": True,
+            "key_hint": "AIza...",
+            "docs_url": "https://ai.google.dev",
+        },
+        {
+            "id": "openai",
+            "label": "OpenAI",
+            "default_model": "gpt-4o",
+            "available": False,
+            "key_hint": "sk-...",
+            "docs_url": "https://platform.openai.com",
+        },
+    ]
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request", return_value=make_list_resp(200, data)):
+            result = runner.invoke(app, ["config", "llm", "providers"])
+    assert result.exit_code == 0
+    assert "google" in result.output
+    assert "openai" in result.output
+    assert "Yes" in result.output
+    assert "No" in result.output
+
+
+def test_config_llm_set(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    resp_data = {
+        "provider": "google",
+        "label": "Google Gemini",
+        "api_key_hint": "cret",
+        "model": "gemini-2.5-pro",
+        "rpm_limit": 5,
+        "tpm_limit": None,
+        "effective_rpm": 5,
+        "effective_tpm": 100000,
+        "is_default": True,
+        "enabled": True,
+    }
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request", return_value=make_resp(200, resp_data)) as mock_req:
+            result = runner.invoke(
+                app,
+                [
+                    "config",
+                    "llm",
+                    "set",
+                    "google",
+                    "--model",
+                    "gemini-2.5-pro",
+                    "--rpm",
+                    "5",
+                    "--default",
+                ],
+                input="my-secret-key\n",
+            )
+    assert result.exit_code == 0
+    assert "my-secret-key" not in result.stdout
+    assert "LLM credential saved." in result.output
+    sent_body = mock_req.call_args.kwargs["json"]
+    assert sent_body["api_key"] == "my-secret-key"
+    assert sent_body["model"] == "gemini-2.5-pro"
+    assert sent_body["rpm_limit"] == 5
+    assert sent_body["is_default"] is True
+    assert "tpm_limit" not in sent_body
+
+
+def test_config_llm_delete(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request", return_value=make_resp(204)):
+            result = runner.invoke(app, ["config", "llm", "delete", "google"])
+    assert result.exit_code == 0
+    assert "LLM credential deleted." in result.output
