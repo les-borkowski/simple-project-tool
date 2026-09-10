@@ -9,8 +9,8 @@ from httpx import AsyncClient
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.base import InvitationStatusEnum, RoleEnum
-from app.db.models import Invitation, User
+from app.db.base import RoleEnum
+from app.db.models import User
 
 
 @pytest.mark.asyncio
@@ -113,9 +113,7 @@ async def test_legacy_api_key_empty_prefix_still_authenticates(api_db: AsyncSess
     rows have key_prefix='' after the migration's server_default.  Without a fallback
     those keys silently fail every auth attempt with 401.
     """
-    from unittest.mock import MagicMock
 
-    import bcrypt
 
     from app.auth.dependencies import get_current_user_or_api_key
     from app.db.models.api_key import APIKey

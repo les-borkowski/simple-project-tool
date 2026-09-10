@@ -46,7 +46,7 @@ def require_manager(role: RoleEnum) -> None:
         raise HTTPException(status_code=403, detail="Manager role required")
 
 
-def require_not_demo(user: "User") -> None:
+def require_not_demo(user: User) -> None:
     """Raise HTTPException(403) if user is a demo account."""
     if user.is_demo:
         raise HTTPException(status_code=403, detail="DEMO_ACCOUNT")

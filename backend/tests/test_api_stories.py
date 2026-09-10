@@ -1,9 +1,8 @@
-import uuid
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+
 
 @pytest.mark.asyncio
 async def test_create_story(api_client: AsyncClient, manager_headers: dict, test_project: dict):
@@ -232,6 +231,7 @@ async def test_move_story_to_project_with_no_statuses_returns_422(
     so the client receives an actionable error rather than a generic server fault.
     """
     from sqlalchemy import delete
+
     from app.db.models.project_status import ProjectStatus
 
     # Create a target project (gets default statuses on creation)
