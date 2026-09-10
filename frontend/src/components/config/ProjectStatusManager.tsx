@@ -1,5 +1,5 @@
 // frontend/src/components/config/ProjectStatusManager.tsx
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { statusesApi, isDemoBlockedError } from '../../services/api'
 import type { ProjectStatusResponse } from '../../services/api'
@@ -280,9 +280,18 @@ export function ProjectStatusManager({ projectId, isManager }: Props) {
   const [reordering, setReordering] = useState(false)
   const sensors = useDragSensors()
 
-  useEffect(() => {
+  // Re-sync when the hook hands down a different status list (e.g. after a
+  // fetch or a refresh() completes). React's documented "adjust state
+  // during render" pattern: it runs before children render, so there is no
+  // cascading second pass, and it is not an effect — set-state-in-effect
+  // only rejects the synchronous write when it happens inside one.
+  // localStatuses is already initialised from statuses above, so this only
+  // needs to fire on a genuine change, not on mount.
+  const [syncedFrom, setSyncedFrom] = useState(statuses)
+  if (syncedFrom !== statuses) {
+    setSyncedFrom(statuses)
     setLocalStatuses(statuses)
-  }, [statuses])
+  }
 
   const reorder = async (newOrder: ProjectStatusResponse[]) => {
     // Serialize reorders: a second reorder cannot start while one is still
