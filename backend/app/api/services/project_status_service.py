@@ -144,7 +144,10 @@ async def delete_project_status(
     if (task_count or 0) + (story_count or 0) > 0:
         raise HTTPException(
             status_code=422,
-            detail=f"Status '{status.slug}' is in use by {task_count} task(s) and {story_count} story/stories. Reassign them first.",
+            detail=(
+                f"Status '{status.slug}' is in use by {task_count} task(s) "
+                f"and {story_count} story/stories. Reassign them first."
+            ),
         )
 
     await db.delete(status)

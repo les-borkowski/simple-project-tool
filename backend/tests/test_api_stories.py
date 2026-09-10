@@ -134,7 +134,8 @@ async def test_move_story_resets_task_statuses_to_target_default(
     manager_headers: dict,
     test_project: dict,
 ):
-    """Moving a story to another project resets its tasks' statuses to the target project's default."""
+    """Moving a story to another project resets its tasks' statuses to the
+    target project's default."""
     pid = test_project["id"]
 
     # Create a story and a task in the source project

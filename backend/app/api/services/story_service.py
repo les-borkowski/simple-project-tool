@@ -212,7 +212,9 @@ async def move_story(
     story.status = default_slug
     story.updated_by = user.id
     await db.execute(
-        update(Task).where(Task.story_id == story_id).values(project_id=new_project_id, status=default_slug)
+        update(Task)
+        .where(Task.story_id == story_id)
+        .values(project_id=new_project_id, status=default_slug)
     )
     await db.commit()
 

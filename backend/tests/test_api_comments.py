@@ -95,7 +95,8 @@ async def test_delete_comment_non_member_global_manager_forbidden(
     manager_headers: dict,
     test_project: dict,
 ):
-    """A global manager who is NOT a project member must get 403 when deleting another user's comment."""
+    """A global manager who is NOT a project member must get 403 when deleting
+    another user's comment."""
     project_id = test_project["id"]
 
     # Project owner creates a comment
