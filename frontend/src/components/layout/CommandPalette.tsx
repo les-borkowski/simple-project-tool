@@ -107,7 +107,11 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<RecentItemResponse[]>([])
-  const [isSearching, setIsSearching] = useState(false)
+  // The query a completed search last settled for. Compared against the
+  // current query below to derive `isSearching` without a setState in the
+  // effect body — see that comment for why this isn't simply state set
+  // synchronously inside the effect.
+  const [searchedFor, setSearchedFor] = useState<string | null>(null)
   const [focusedIndex, setFocusedIndex] = useState(-1)
 
   // Escape is two-stage: clear the query first, then close on a second press
@@ -128,27 +132,26 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const projectsIdx = pathParts.indexOf('projects')
   const projectId = projectsIdx !== -1 ? pathParts[projectsIdx + 1] : undefined
 
-  // Focus input when palette opens
-  useEffect(() => {
-    if (open) {
-      setQuery('')
-      setResults([])
-      setFocusedIndex(-1)
-    }
-  }, [open])
-
+  // Focus input when palette opens. Reset-on-open is handled by AppShell
+  // remounting this component with a fresh key each time it opens, instead
+  // of clearing state here — see AppShell.tsx.
   useLayoutEffect(() => {
     if (open) inputRef.current?.focus()
   }, [open])
 
+  // Derived, not stored: true whenever the current query hasn't yet been
+  // resolved by a completed search. Preserves the original behaviour — the
+  // spinner appears the instant the query changes, not only once the 300ms
+  // debounce settles — without a setState in the effect body. (Setting
+  // isSearching(true) synchronously inside the timer callback, as the plan
+  // sketched, is also lint-clean, but delays the spinner's appearance until
+  // after the debounce: a loading-semantics change the "no behaviour
+  // changes" constraint rules out, so this derives it instead.)
+  const isSearching = query !== '' && searchedFor !== query
+
   // Debounced search
   useEffect(() => {
-    if (!query) {
-      setResults([])
-      setIsSearching(false)
-      return
-    }
-    setIsSearching(true)
+    if (!query) return
     const timer = setTimeout(() => {
       searchApi.search(query)
         .then((res) => {
@@ -158,16 +161,20 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           setResults([])
         })
         .finally(() => {
-          setIsSearching(false)
+          setSearchedFor(query)
         })
     }, 300)
     return () => clearTimeout(timer)
   }, [query])
 
-  // Reset focused index when list content changes
-  useEffect(() => {
+  // Reset focused index when list content changes. Adjust-during-render:
+  // runs before children paint, so there is no cascading second pass.
+  const listSignature = `${query}:${results.length}`
+  const [focusedFor, setFocusedFor] = useState(listSignature)
+  if (focusedFor !== listSignature) {
+    setFocusedFor(listSignature)
     setFocusedIndex(-1)
-  }, [query, results.length])
+  }
 
   if (!open) return null
 
@@ -227,9 +234,15 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     },
   })
 
+  // A cleared query shows nothing without needing to write state: `results`
+  // may still hold the previous query's response until the next debounced
+  // search resolves, so read it through the query gate everywhere it feeds
+  // the rendered list.
+  const visibleResults = query ? results : []
+
   // Build displayed result rows (capped at 5)
-  const displayedResults = results.slice(0, 5)
-  const hasMore = results.length > 5
+  const displayedResults = visibleResults.slice(0, 5)
+  const hasMore = visibleResults.length > 5
 
   // Unified list for keyboard navigation
   const activeList: Array<() => void> = query === ''
