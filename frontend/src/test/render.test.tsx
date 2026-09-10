@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-context'
 import { renderWithProviders, screen } from './render'
 
 function AuthConsumer() {

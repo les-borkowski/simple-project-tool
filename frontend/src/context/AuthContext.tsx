@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   authApi,
@@ -10,6 +10,7 @@ import {
 } from '../services/api'
 import type { UserResponse } from '../services/api'
 import i18n from '../i18n'
+import { AuthContext } from './auth-context'
 
 // Persists across tabs (localStorage) so a new tab after login still tries to restore
 // the session from the httpOnly refresh cookie.  Cleared on explicit logout.
@@ -21,15 +22,6 @@ interface AuthState {
   isAuthenticated: boolean
   isLoading: boolean
 }
-
-interface AuthContextValue extends AuthState {
-  login: (email: string, password: string) => Promise<void>
-  logout: () => Promise<void>
-  refreshToken: () => Promise<string | null>
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null)
-export { AuthContext }
 
 function applyTheme(theme: string) {
   const root = document.documentElement
@@ -155,10 +147,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   )
-}
-
-export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
-  return ctx
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAuth } from '../../context/AuthContext'
+import { useAuth } from '../../context/auth-context'
 import { useIsDesktopShell } from '../../hooks/useMediaQuery'
 import { invitationsApi, projectsApi, recentApi } from '../../services/api'
 import type { ProjectResponse, RecentItemResponse } from '../../services/api'

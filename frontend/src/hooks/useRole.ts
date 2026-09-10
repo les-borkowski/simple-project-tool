@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { projectsApi } from '../services/api'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-context'
 
 interface RoleInfo {
   isManager: boolean

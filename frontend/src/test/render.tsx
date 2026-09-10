@@ -7,8 +7,8 @@ import type { RenderOptions, RenderResult } from '@testing-library/react'
 import i18n from '../i18n'
 import { ThemeProvider } from '../context/ThemeContext'
 import { ToastProvider } from '../context/ToastContext'
-import { AuthContext } from '../context/AuthContext'
-import type { useAuth } from '../context/AuthContext'
+import { AuthContext } from '../context/auth-context'
+import type { useAuth } from '../context/auth-context'
 
 type AuthContextValue = ReturnType<typeof useAuth>
 
