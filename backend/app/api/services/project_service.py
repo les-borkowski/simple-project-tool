@@ -2,8 +2,6 @@ import logging
 import uuid
 from datetime import UTC, datetime
 
-_logger = logging.getLogger(__name__)
-
 from fastapi import HTTPException
 from sqlalchemy import and_, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +19,8 @@ from app.api.utils import escape_like
 from app.auth.permissions import require_manager, require_not_demo, require_project_access
 from app.db.base import PriorityEnum, RoleEnum
 from app.db.models import Project, ProjectMember, StatusHistory, Story, User
+
+_logger = logging.getLogger(__name__)
 
 
 async def list_projects(
