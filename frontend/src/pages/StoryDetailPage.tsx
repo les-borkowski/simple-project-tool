@@ -37,6 +37,12 @@ const IPlus = () => (
 type SortField = 'created_at' | 'status' | 'priority' | 'title'
 type SortDir = 'asc' | 'desc'
 
+// Sentinel for the "haven't handled this location.state yet" marker below
+// (mirrors ProjectsPage.tsx). location.state can legitimately be null, so a
+// plain null/undefined default would not distinguish "never checked" from
+// "checked and it was empty".
+const UNHANDLED_LOCATION_STATE = {}
+
 export function StoryDetailPage() {
   const { projectId, storyId } = useParams<{ projectId: string; storyId: string }>()
   const { t } = useTranslation()
@@ -48,7 +54,13 @@ export function StoryDetailPage() {
   const [story, setStory] = useState<StoryResponse | null>(null)
   const [projectName, setProjectName] = useState('')
   const [members, setMembers] = useState<MemberResponse[]>([])
-  const [loading, setLoading] = useState(true)
+  // The (storyId, projectId) pair the currently-held story/project data were
+  // loaded for. Compared against the pair we currently want, below.
+  const loadTarget = `${storyId ?? ''}:${projectId ?? ''}`
+  const [loadedTarget, setLoadedTarget] = useState<string | null>(null)
+  // Derived, not stored: the request starts during render-triggered effect
+  // work, so there is no legal point to write `loading = true` from.
+  const loading = !!storyId && loadedTarget !== loadTarget
   const [editingStatus, setEditingStatus] = useState(false)
   const [editingPriority, setEditingPriority] = useState(false)
   const [editingDesc, setEditingDesc] = useState(false)
@@ -57,12 +69,24 @@ export function StoryDetailPage() {
   const tasksHook = useTasks(storyId ?? '')
   const [showCreateTask, setShowCreateTask] = useState(false)
 
+  const wantsCreateTaskModal =
+    (location.state as { modal?: string } | null)?.modal === 'create-task'
+
+  // The modal request arrives as router state. Adjust state during render
+  // rather than from an effect: set-state-in-effect rejects the write, and
+  // this runs before children render, so there is no cascading second pass.
+  // The marker starts at a sentinel, not at location.state, so that the
+  // first render after navigation counts as a change and opens the modal.
+  const [handledLocationState, setHandledLocationState] =
+    useState<unknown>(UNHANDLED_LOCATION_STATE)
+  if (handledLocationState !== location.state) {
+    setHandledLocationState(location.state)
+    if (wantsCreateTaskModal) setShowCreateTask(true)
+  }
+
   useEffect(() => {
-    if ((location.state as { modal?: string } | null)?.modal === 'create-task') {
-      setShowCreateTask(true)
-      window.history.replaceState({}, '')
-    }
-  }, [location.state])
+    if (wantsCreateTaskModal) window.history.replaceState({}, '')
+  }, [wantsCreateTaskModal])
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null)
   const [editTask, setEditTask] = useState<{ id: string; title: string; description: string } | null>(null)
   const [savingTask, setSavingTask] = useState(false)
@@ -73,7 +97,11 @@ export function StoryDetailPage() {
   useEffect(() => {
     if (!storyId) return
     let cancelled = false
-    setLoading(true)
+    // Computed from this effect's own dependencies, not closed over from
+    // outside — keeps this in sync with `loadTarget` above without adding an
+    // exhaustive-deps warning for a value that only ever changes when
+    // storyId/projectId (already deps) do.
+    const settledTarget = `${storyId}:${projectId ?? ''}`
     const fetches: Promise<unknown>[] = [
       storiesApi.get(storyId).then((res) => {
         if (!cancelled) {
@@ -86,7 +114,7 @@ export function StoryDetailPage() {
       fetches.push(projectsApi.get(projectId).then((p) => { if (!cancelled) setProjectName(p.data.name) }))
       fetches.push(projectsApi.listMembers(projectId).then((m) => { if (!cancelled) setMembers(m.data) }))
     }
-    Promise.all(fetches).finally(() => { if (!cancelled) setLoading(false) })
+    Promise.all(fetches).finally(() => { if (!cancelled) setLoadedTarget(settledTarget) })
     return () => { cancelled = true }
   }, [storyId, projectId])
 

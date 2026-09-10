@@ -64,23 +64,39 @@ export function SearchResultsPage() {
   const q = searchParams.get('q') ?? ''
 
   const [results, setResults] = useState<RecentItemResponse[]>([])
-  const [loading, setLoading] = useState(false)
+  // The query the currently-held results were loaded for. Compared against
+  // `q` below to derive loading, and used to hide stale results while a new
+  // query has no query at all (q === '').
+  const [loadedTarget, setLoadedTarget] = useState<string | null>(null)
+  // Derived, not stored: the request starts during render-triggered effect
+  // work, so there is no legal point to write `loading = true` from.
+  const loading = !!q && loadedTarget !== q
+  // Derived rather than reset via setState in the effect: when q is empty
+  // there is nothing to show, regardless of what `results` still holds from
+  // a previous query.
+  const displayResults = q ? results : []
 
   useEffect(() => {
-    if (!q) {
-      setResults([])
-      return
-    }
-    setLoading(true)
+    if (!q) return
+    let cancelled = false
     searchApi.search(q)
-      .then(res => setResults(res.data))
-      .catch(() => setResults([]))
-      .finally(() => setLoading(false))
+      .then(res => {
+        if (!cancelled) setResults(res.data)
+      })
+      .catch(() => {
+        if (!cancelled) setResults([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoadedTarget(q)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [q])
 
-  const projects = results.filter(r => r.type === 'project')
-  const stories = results.filter(r => r.type === 'story')
-  const tasks = results.filter(r => r.type === 'task')
+  const projects = displayResults.filter(r => r.type === 'project')
+  const stories = displayResults.filter(r => r.type === 'story')
+  const tasks = displayResults.filter(r => r.type === 'task')
 
   return (
     <div className="flex-1 flex flex-col">
@@ -92,7 +108,7 @@ export function SearchResultsPage() {
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
-        ) : results.length === 0 ? (
+        ) : displayResults.length === 0 ? (
           <div className="flex items-center justify-center h-48 text-stone-400 text-ui-lg">
             {t('search.empty', { q })}
           </div>

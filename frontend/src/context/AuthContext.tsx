@@ -45,12 +45,19 @@ function applyTheme(theme: string) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({
+  // Lazy initializer: isLoading only needs to start true when a restore
+  // attempt is actually about to happen (SESSION_FLAG present). This is
+  // knowable synchronously at first render, so there is no need to write it
+  // from the mount effect below — the "no session" case never needs a
+  // setState at all, which is what actually eliminates the
+  // set-state-in-effect violation on that branch (rather than just hiding it
+  // in a callback shape).
+  const [state, setState] = useState<AuthState>(() => ({
     user: null,
     accessToken: null,
     isAuthenticated: false,
-    isLoading: true,
-  })
+    isLoading: !!localStorage.getItem(SESSION_FLAG),
+  }))
 
   // Keep a ref so interceptors always see the latest token without stale closure
   const accessTokenRef = useRef<string | null>(null)
@@ -106,10 +113,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Silent restore on mount — only attempt if the user was previously logged in.
   // Skipping when the flag is absent avoids a spurious 401 on every cold unauthenticated load.
   useEffect(() => {
-    if (!localStorage.getItem(SESSION_FLAG)) {
-      setState((s) => ({ ...s, isLoading: false }))
-      return
-    }
+    // isLoading already starts false in this case (see the lazy initializer
+    // above), so there is nothing to write here — just skip the restore
+    // attempt entirely.
+    if (!localStorage.getItem(SESSION_FLAG)) return
     ;(async () => {
       try {
         const res = await authApi.refresh()

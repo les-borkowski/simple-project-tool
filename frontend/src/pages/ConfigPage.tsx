@@ -83,12 +83,29 @@ export function ConfigPage() {
     }
   }, [topTab])
 
+  // Re-sync the effort form to defaults the instant selectedProjectId
+  // changes to a different project, before the fetch below overwrites them
+  // with the real values. React's documented "adjust state during render"
+  // pattern: it runs before children render, so there is no cascading
+  // second pass, and it is not an effect (avoids set-state-in-effect).
+  // Deselecting (selectedProjectId === '') intentionally leaves the fields
+  // showing the last-loaded project's values, matching the original
+  // effect's early return for that case.
+  const [syncedProjectId, setSyncedProjectId] = useState(selectedProjectId)
+  if (syncedProjectId !== selectedProjectId) {
+    setSyncedProjectId(selectedProjectId)
+    if (selectedProjectId) {
+      setEffortEnabled(false)
+      setEffortUnit('sp')
+    }
+  }
+
   useEffect(() => {
     if (!selectedProjectId) return
-    setEffortEnabled(false)
-    setEffortUnit('sp')
+    let cancelled = false
     projectsApi.get(selectedProjectId)
       .then((r) => {
+        if (cancelled) return
         const unit = r.data.effort_unit
         setEffortEnabled(!!unit)
         setEffortUnit(unit ?? 'sp')
@@ -96,6 +113,9 @@ export function ConfigPage() {
       .catch(() => {
         // keep default state on error
       })
+    return () => {
+      cancelled = true
+    }
   }, [selectedProjectId])
 
   const handleSaveEffortUnit = async () => {
