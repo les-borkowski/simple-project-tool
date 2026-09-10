@@ -1,4 +1,3 @@
-
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -195,9 +194,7 @@ async def test_move_story_cannot_move_backlog(
     pid = test_project["id"]
 
     # Find the default backlog story (is_default=True)
-    stories_resp = await api_client.get(
-        f"/api/v1/projects/{pid}/stories", headers=manager_headers
-    )
+    stories_resp = await api_client.get(f"/api/v1/projects/{pid}/stories", headers=manager_headers)
     assert stories_resp.status_code == 200
     stories = stories_resp.json()["items"]
     backlog = next(s for s in stories if s["is_default"])
@@ -246,6 +243,7 @@ async def test_move_story_to_project_with_no_statuses_returns_422(
 
     # Wipe all statuses from the target project directly in the DB
     import uuid as _uuid
+
     await api_db.execute(
         delete(ProjectStatus).where(ProjectStatus.project_id == _uuid.UUID(target_pid))
     )
