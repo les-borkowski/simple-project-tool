@@ -1,6 +1,7 @@
 import type { ReactElement, ReactNode } from 'react'
 import { I18nextProvider } from 'react-i18next'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import type { InitialEntry } from 'react-router-dom'
 import { render } from '@testing-library/react'
 import type { RenderOptions, RenderResult } from '@testing-library/react'
 import i18n from '../i18n'
@@ -22,7 +23,7 @@ const defaultAuth: AuthContextValue = {
 }
 
 interface RenderWithProvidersOptions extends Omit<RenderOptions, 'wrapper'> {
-  route?: string
+  route?: InitialEntry
   path?: string
   auth?: Partial<AuthContextValue>
 }
@@ -34,7 +35,7 @@ function Providers({
   auth,
 }: {
   children: ReactNode
-  route?: string
+  route?: InitialEntry
   path?: string
   auth?: Partial<AuthContextValue>
 }) {
