@@ -470,6 +470,21 @@ export function ManualPage() {
               <h2>For power users</h2>
               <p>Everything in the web UI is built on a REST API, and that API is available to you directly — from the command line, from scripts, or from an AI assistant.</p>
 
+              <h3>Installing the tools</h3>
+              <p>Both <code>spt</code> and <code>spt-mcp</code> ship with the backend — they're two entry points on the same Python package, so one install gives you both. You'll need Python 3.11 or newer and <a href="https://docs.astral.sh/uv/" target="_blank" rel="noreferrer">uv</a>.</p>
+              <pre><code>{`cd backend
+uv sync
+uv pip install -e .`}</code></pre>
+
+              <p>That installs both commands into the backend's virtual environment, which isn't on your PATH. The simplest way to run them is to prefix with <code>uv run</code>:</p>
+              <pre><code>{`uv run spt auth login`}</code></pre>
+
+              <p>For a bare <code>spt</code> you can type anywhere, either activate the environment for your shell session with <code>source .venv/bin/activate</code>, or install the package as a standalone tool with <code>uv tool install --editable .</code>. The examples below assume <code>spt</code> resolves on its own — add <code>uv run</code> in front if it doesn't.</p>
+
+              <Callout kind="note" label="Pointing the CLI at another server">
+                <p>The CLI talks to <code>http://localhost:8000</code> unless told otherwise, and keeps its settings — including the tokens from <code>spt auth login</code> — in <code>~/.config/spt/config.json</code>. To use a different server, edit <code>api_base_url</code> in that file by hand; there's no command for it yet. Note that <code>spt config set</code> is a different thing: it changes your account preferences on the server, not the CLI's own connection.</p>
+              </Callout>
+
               <h3>API keys</h3>
               <p className="manual-path">Settings → App Settings → API Keys</p>
               <p>An API key lets a script or agent act on your projects without you handing over your password. Give the key a <strong>label</strong> so you can recognise it later, and tick exactly the <strong>scopes</strong> it needs:</p>
@@ -522,12 +537,16 @@ spt config llm delete google`}</code></pre>
               <p>For unattended use, point the CLI at an API key instead of a login with <code>--api-key</code> or the <code>SPT_API_KEY</code> environment variable.</p>
 
               <h3>AI assistants (MCP)</h3>
-              <p>The <code>spt-mcp</code> server exposes the tool to an LLM host such as Claude Code or Claude Desktop, so an assistant can browse and edit your projects directly.</p>
+              <p>The <code>spt-mcp</code> server exposes the tool to an LLM host such as Claude Code or Claude Desktop, so an assistant can browse and edit your projects directly. It comes from the same install as the CLI — see <a href="#power">Installing the tools</a> above.</p>
               <p>Create a scoped key, then register the server:</p>
               <pre><code>{`spt config api-keys create --label "claude-code" \\
   --scopes read:projects,read:stories,read:tasks,read:comments,write:tasks,write:comments
 
 claude mcp add spt -e SPT_API_KEY=<key> -e SPT_API_URL=http://localhost:8000 -- spt-mcp`}</code></pre>
+
+              <Callout kind="warn" label="The host has to be able to find spt-mcp">
+                <p>That last <code>spt-mcp</code> is a command your LLM host runs itself, so it has to resolve on <em>its</em> PATH — not just in a shell where you've activated the virtual environment. If the host reports that the server failed to start, give it the full path instead, for example <code>/path/to/simple-project-tool/backend/.venv/bin/spt-mcp</code>, or install the package with <code>uv tool install --editable .</code> so the command is available everywhere.</p>
+              </Callout>
 
               <p>The assistant can then look things up (<code>list_projects</code>, <code>get_task</code>, <code>search</code>, <code>list_comments</code>), make changes (<code>update_task</code>, <code>create_task</code>, <code>create_story</code>, <code>add_comment</code>), and run quick capture (<code>capture_tasks</code>, <code>confirm_capture</code>).</p>
 
