@@ -2,6 +2,7 @@
   "nav.projects": "Projects",
   "nav.invitations": "Invitations",
   "nav.settings": "Settings",
+  "nav.help": "Help",
   "nav.recent_work": "Recent work",
   "nav.menu": "Menu",
   "nav.open_menu": "Open menu",
@@ -244,6 +245,9 @@
 
   "inbox.subtitle": "Project invitations waiting for your response.",
 
+  "manual.title": "User manual",
+  "manual.subtitle": "How to use Simple Project Tool, from signing up to wiring in an AI agent.",
+
   "projects.active": "active",
   "projects.archived_label": "archived",
   "projects.delete_confirm": "Delete project?",
@@ -262,6 +266,7 @@
   "palette.new_task": "New task",
   "palette.invite_member": "Invite member",
   "palette.open_settings": "Open settings",
+  "palette.open_manual": "Open user manual",
   "palette.toggle_dark": "Toggle dark mode",
   "palette.toggle_light": "Toggle light mode",
   "palette.see_all": "See all {{count}} results",
@@ -339,6 +344,12 @@
   "auth.email_confirmed_subtitle": "Your account is now active. You can sign in.",
   "auth.confirm_email_failed": "Confirmation failed",
   "auth.confirm_email_failed_subtitle": "This link is invalid or has expired. Please register again.",
+  "auth.forgot_password": "Forgot password?",
+  "auth.forgot_password_subtitle": "Enter your email address and we'll send you a link to reset your password.",
+  "auth.forgot_password_submit": "Send reset link",
+  "auth.forgot_password_sending": "Sending…",
+  "auth.forgot_password_sent": "If that email address is registered, we've sent a reset link to it. The link expires, so use it soon.",
+  "auth.back_to_login": "Back to log in",
   "auth.reset_password": "Reset password",
   "auth.reset_password_subtitle": "Enter your new password below.",
   "auth.new_password": "New password",

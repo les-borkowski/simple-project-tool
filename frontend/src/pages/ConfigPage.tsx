@@ -180,7 +180,7 @@ export function ConfigPage() {
   const tabs = useMemo(
     () => [
       { key: 'profile', label: t('config.profile'), icon: <IUser /> },
-      { key: 'api_keys', label: t('config.api_keys'), icon: <IKey />, disabled: true },
+      { key: 'api_keys', label: t('config.api_keys'), icon: <IKey /> },
       { key: 'ai_providers', label: t('config.ai_providers'), icon: <ISparkle /> },
       { key: 'security', label: t('config.security'), icon: <IShield /> },
     ],

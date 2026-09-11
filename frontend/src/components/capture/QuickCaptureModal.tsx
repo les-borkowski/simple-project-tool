@@ -52,6 +52,10 @@ function toDraft(task: CapturePreviewTask): DraftTask {
   }
 }
 
+// Mirrors CaptureRequest.text's max_length on the backend — the server rejects
+// anything longer with a 422, so stop it at the field rather than round-tripping.
+const CAPTURE_MAX_LENGTH = 4000
+
 export function QuickCaptureModal({ projectId, onCreated, onClose }: QuickCaptureModalProps) {
   const { t } = useTranslation()
   const storiesHook = useStories(projectId)
@@ -191,13 +195,28 @@ export function QuickCaptureModal({ projectId, onCreated, onClose }: QuickCaptur
       )}
 
       {step === 'input' ? (
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={t('capture.placeholder')}
-          rows={5}
-          className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md focus-ring"
-        />
+        <div>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value.slice(0, CAPTURE_MAX_LENGTH))}
+            placeholder={t('capture.placeholder')}
+            rows={5}
+            maxLength={CAPTURE_MAX_LENGTH}
+            aria-describedby="capture-length"
+            className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md focus-ring"
+          />
+          <p
+            id="capture-length"
+            aria-live="polite"
+            className={`mt-1 text-right text-ui-xs tabular-nums ${
+              text.length >= CAPTURE_MAX_LENGTH
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-stone-400 dark:text-stone-500'
+            }`}
+          >
+            {text.length} / {CAPTURE_MAX_LENGTH}
+          </p>
+        </div>
       ) : (
         <div className="space-y-3">
           {drafts!.map((draft, i) => (

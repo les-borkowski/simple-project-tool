@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str = ""
     LLM_TIMEOUT_SECONDS: int = 30
     LLM_CAPTURE_MIN_CONFIDENCE: float = 0.5
+    # Demo/replay only: pins the "today" the extractor reasons from, so a recorded
+    # fixture keeps matching tomorrow. Empty (the default) uses the real date.
+    CAPTURE_REFERENCE_DATE: str = ""
     LLM_ALLOW_SERVER_KEY_FALLBACK: bool = True
     LLM_MAX_RPM: int = 20
     LLM_MAX_TPM: int = 100_000

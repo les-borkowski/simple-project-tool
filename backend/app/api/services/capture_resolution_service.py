@@ -23,7 +23,11 @@ from app.api.schemas.project import MemberResponse
 from app.api.schemas.task import TaskCreate, TaskResponse
 from app.api.services.capture_service import ProjectContext, extract
 from app.api.services.llm_credential_service import resolve_credential
-from app.api.services.llm_usage_service import check_rate_limit, record_usage
+from app.api.services.llm_usage_service import (
+    check_rate_limit,
+    record_usage,
+    reserve_demo_usage,
+)
 from app.api.services.project_service import list_members
 from app.api.services.story_service import get_default_story
 from app.api.services.task_service import assemble_task
@@ -46,10 +50,13 @@ async def build_project_context(
     members = await list_members(project_id, user, db)
     stories = (await db.scalars(select(Story).where(Story.project_id == project_id))).all()
 
+    # Sorted, because both queries above are unordered: Postgres is free to return
+    # rows in a different order after any update, and these names are interpolated
+    # into the prompt. An unstable prompt means an unstable ReplayClient fixture key.
     ctx = ProjectContext(
         project_name=project.name,
-        member_names=[m.name for m in members],
-        story_names=[s.title for s in stories],
+        member_names=sorted(m.name for m in members),
+        story_names=sorted(s.title for s in stories),
         reference_date=reference_date,
     )
     return ctx, members, stories
@@ -106,7 +113,12 @@ async def preview_capture(
     # imports app.api.routes.tasks at startup, which imports this module.
     from app.api.main import translate
 
-    reference_date = payload.reference_date or datetime.now(UTC).date()
+    # The pin wins over the client's date on purpose: the frontend always sends today,
+    # so a replay demo can only stay reproducible if the server overrides it.
+    if settings.CAPTURE_REFERENCE_DATE:
+        reference_date = date.fromisoformat(settings.CAPTURE_REFERENCE_DATE)
+    else:
+        reference_date = payload.reference_date or datetime.now(UTC).date()
     ctx, members, stories = await build_project_context(project_id, user, db, reference_date)
 
     if payload.story_id is not None and payload.story_id not in {s.id for s in stories}:
@@ -114,8 +126,12 @@ async def preview_capture(
 
     cred = await resolve_credential(user, db)
     provider = cred.provider if cred else settings.LLM_PROVIDER
-    # Before the LLM call — a throttled user must not cost anything.
+    # Both before the LLM call — a throttled user must not cost anything. Check before
+    # claiming, so an RPM/TPM rejection doesn't burn the demo allowance and the fresh
+    # reservation row isn't counted against the very request that wrote it. The demo
+    # reservation is a no-op for everyone else and returns the row record_usage fills in.
     await check_rate_limit(user, provider, db)
+    demo_event_id = await reserve_demo_usage(user, provider, db)
     outcome = await extract(
         payload.text,
         ctx,
@@ -125,7 +141,13 @@ async def preview_capture(
     )
     # Recorded once here, before branching on the outcome's shape — tokens were spent
     # whether the result parsed cleanly, came back "not a task", or was unparseable.
-    await record_usage(user, provider, outcome.prompt_tokens + outcome.completion_tokens, db)
+    await record_usage(
+        user,
+        provider,
+        outcome.prompt_tokens + outcome.completion_tokens,
+        db,
+        event_id=demo_event_id,
+    )
 
     warnings: list[str] = []
 

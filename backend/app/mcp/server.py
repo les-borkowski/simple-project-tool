@@ -180,6 +180,9 @@ async def _update_task_impl(
     title: str | None = None,
     description: str | None = None,
     assignee_id: str | None = None,
+    due_date: str | None = None,
+    effort: int | None = None,
+    sprint_id: str | None = None,
 ) -> dict | str:
     body = _non_none(
         status=status,
@@ -187,11 +190,14 @@ async def _update_task_impl(
         title=title,
         description=description,
         assignee_id=assignee_id,
+        due_date=due_date,
+        effort=effort,
+        sprint_id=sprint_id,
     )
     if not body:
         return (
             "No fields provided - supply at least one of status, priority, title, "
-            "description, assignee_id to update_task."
+            "description, assignee_id, due_date, effort, sprint_id to update_task."
         )
     return await client.patch(f"/tasks/{task_id}", json=body)
 
@@ -206,17 +212,30 @@ async def update_task(
     title: str | None = None,
     description: str | None = None,
     assignee_id: str | None = None,
+    due_date: str | None = None,
+    effort: int | None = None,
+    sprint_id: str | None = None,
 ) -> dict | str:
     """Partially update a task. Only the arguments you pass are changed (PATCH semantics) -
     leave everything else as None. status must be one of the status slugs returned by
     get_project for this task's project - it is not a fixed enum, each project defines its
     own workflow; a 422 response means the slug is unknown to that project. priority is one
-    of low|medium|high. assignee_id must be a member user_id from get_project. At least one
-    field must be given; calling with none of them makes no HTTP request and returns an
-    error string instead."""
+    of low|medium|high. assignee_id must be a member user_id from get_project. due_date is
+    YYYY-MM-DD. effort is an integer estimate. sprint_id must belong to the same project.
+    At least one field must be given; calling with none of them makes no HTTP request and
+    returns an error string instead."""
     client: SPTClient = ctx.request_context.lifespan_context
     return await _update_task_impl(
-        client, task_id, status, priority, title, description, assignee_id
+        client,
+        task_id,
+        status,
+        priority,
+        title,
+        description,
+        assignee_id,
+        due_date,
+        effort,
+        sprint_id,
     )
 
 
@@ -318,6 +337,85 @@ async def create_story(
     default if omitted)."""
     client: SPTClient = ctx.request_context.lifespan_context
     return await _create_story_impl(client, project_id, title, description, priority)
+
+
+async def _get_story_impl(client: SPTClient, story_id: str, include_comments: bool = True) -> dict:
+    if not include_comments:
+        return await client.get(f"/stories/{story_id}")
+    story, comments = await asyncio.gather(
+        client.get(f"/stories/{story_id}"),
+        client.fetch_all(f"/stories/{story_id}/comments"),
+    )
+    return {**story, "comments": comments}
+
+
+@mcp.tool()
+@tool_errors
+async def get_story(ctx: Context, story_id: str, include_comments: bool = True) -> dict:
+    """Get a story by id. Includes its comments unless include_comments=False. Use
+    list_tasks(story_id=...) for the tasks under it - they are not included here."""
+    client: SPTClient = ctx.request_context.lifespan_context
+    return await _get_story_impl(client, story_id, include_comments)
+
+
+async def _update_story_impl(
+    client: SPTClient,
+    story_id: str,
+    status: str | None = None,
+    priority: str | None = None,
+    title: str | None = None,
+    description: str | None = None,
+) -> dict | str:
+    body = _non_none(status=status, priority=priority, title=title, description=description)
+    if not body:
+        return (
+            "No fields provided - supply at least one of status, priority, title, "
+            "description to update_story."
+        )
+    return await client.patch(f"/stories/{story_id}", json=body)
+
+
+@mcp.tool()
+@tool_errors
+async def update_story(
+    ctx: Context,
+    story_id: str,
+    status: str | None = None,
+    priority: str | None = None,
+    title: str | None = None,
+    description: str | None = None,
+) -> dict | str:
+    """Partially update a story. Only the arguments you pass are changed (PATCH semantics).
+    status must be one of the status slugs returned by get_project for this story's project
+    - the same per-project slug set update_task uses. priority is one of low|medium|high.
+    At least one field must be given; calling with none of them makes no HTTP request and
+    returns an error string instead. Note a project's default "Backlog" story can be
+    updated like any other, but it cannot be deleted and stays the fallback for tasks
+    created without a story."""
+    client: SPTClient = ctx.request_context.lifespan_context
+    return await _update_story_impl(client, story_id, status, priority, title, description)
+
+
+async def _list_comments_impl(client: SPTClient, target: str) -> list | str:
+    parts = target.split(":", 1)
+    if len(parts) != 2 or parts[0] not in _COMMENT_TARGET_ENDPOINTS:
+        return (
+            f"Invalid target '{target}' - must be 'project:<uuid>', 'story:<uuid>', or "
+            "'task:<uuid>'."
+        )
+    kind, item_id = parts
+    return await client.fetch_all(f"/{_COMMENT_TARGET_ENDPOINTS[kind]}/{item_id}/comments")
+
+
+@mcp.tool()
+@tool_errors
+async def list_comments(ctx: Context, target: str) -> list | str:
+    """Read the comment thread on a project, story, or task. target is 'project:<uuid>',
+    'story:<uuid>', or 'task:<uuid>' - the same format add_comment takes. Task and story
+    comments also come back inline from get_task/get_story; this is the only way to read a
+    project's comments. A malformed target returns an error string instead of a request."""
+    client: SPTClient = ctx.request_context.lifespan_context
+    return await _list_comments_impl(client, target)
 
 
 async def _capture_tasks_impl(

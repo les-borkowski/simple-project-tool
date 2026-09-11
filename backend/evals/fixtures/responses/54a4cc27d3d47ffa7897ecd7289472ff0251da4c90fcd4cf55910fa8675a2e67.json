@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"poprawi\u0107 b\u0142\u0105d logowania\",\n      \"confidence\": 0.95,\n      \"due_date\": \"2026-09-11\",\n      \"priority\": \"high\"\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 469,
+  "completion_tokens": 81,
+  "latency_ms": 3049
+}

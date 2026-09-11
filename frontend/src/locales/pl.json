@@ -2,6 +2,7 @@
   "nav.projects": "Projekty",
   "nav.invitations": "Zaproszenia",
   "nav.settings": "Ustawienia",
+  "nav.help": "Pomoc",
   "nav.recent_work": "Ostatnia aktywność",
   "nav.menu": "Menu",
   "nav.open_menu": "Otwórz menu",
@@ -254,6 +255,9 @@
 
   "inbox.subtitle": "Zaproszenia do projektów czekające na Twoją odpowiedź.",
 
+  "manual.title": "Podręcznik użytkownika",
+  "manual.subtitle": "Jak korzystać z Simple Project Tool — od rejestracji po podłączenie agenta AI.",
+
   "projects.active": "aktywny",
   "projects.archived_label": "zarchiwizowany",
   "projects.delete_confirm": "Usunąć projekt?",
@@ -272,6 +276,7 @@
   "palette.new_task": "Nowe zadanie",
   "palette.invite_member": "Zaproś członka",
   "palette.open_settings": "Otwórz ustawienia",
+  "palette.open_manual": "Otwórz podręcznik użytkownika",
   "palette.toggle_dark": "Włącz tryb ciemny",
   "palette.toggle_light": "Włącz tryb jasny",
   "palette.see_all": "Zobacz wszystkie {{count}} wyniki",
@@ -349,6 +354,12 @@
   "auth.email_confirmed_subtitle": "Twoje konto jest teraz aktywne. Możesz się zalogować.",
   "auth.confirm_email_failed": "Potwierdzenie nie powiodło się",
   "auth.confirm_email_failed_subtitle": "Link jest nieprawidłowy lub wygasł. Zarejestruj się ponownie.",
+  "auth.forgot_password": "Nie pamiętasz hasła?",
+  "auth.forgot_password_subtitle": "Podaj swój adres e-mail, a wyślemy Ci link do zresetowania hasła.",
+  "auth.forgot_password_submit": "Wyślij link resetujący",
+  "auth.forgot_password_sending": "Wysyłanie…",
+  "auth.forgot_password_sent": "Jeśli ten adres e-mail jest zarejestrowany, wysłaliśmy na niego link resetujący. Link wygasa, więc użyj go wkrótce.",
+  "auth.back_to_login": "Powrót do logowania",
   "auth.reset_password": "Resetowanie hasła",
   "auth.reset_password_subtitle": "Wpisz nowe hasło poniżej.",
   "auth.new_password": "Nowe hasło",

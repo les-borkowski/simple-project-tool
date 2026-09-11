@@ -2,6 +2,22 @@
 
 All notable changes to simple-project-tool are documented here. Format: reverse chronological (newest first).
 
+## [2026-09-10] - Features: agent key self-service, MCP story/comment tools, demo hardening
+
+**Category**: Features
+
+**API keys are now self-service.** The Settings → "API Keys" tab is enabled, with working create and revoke controls (the panel existed but every control was hard-disabled). The scope picker deliberately omits `admin`: the backend accepts it and it expands to every other scope, so offering it as a one-click checkbox invited blanket-access keys for no benefit. `spt config api-keys list` also works again — it was parsing the response as a paginated `{"items": [...]}` envelope, but that endpoint returns a bare JSON array, so the command raised `AttributeError`. It now prints full key ids rather than 8-character prefixes, because the full id is what `api-keys revoke` takes.
+
+**Three new MCP tools**, bringing the total to 16: `get_story`, `update_story`, and `list_comments`. `update_task` also gained `due_date`, `effort`, and `sprint_id` — `create_task` already accepted `due_date`, so an agent could set a deadline at creation and never move it. All four close gaps where the REST endpoint and its scope already existed and only the MCP surface was missing; `list_comments` is the only way to read a project's comment thread, which was previously write-only over MCP.
+
+**Demo accounts are capped at one AI capture every 2 hours**, independent of the RPM/TPM ceilings. Demo accounts can never hold a personal LLM credential, so every demo capture spends the server's own key. The allowance is claimed *before* the provider call, so an attempt that times out still counts — otherwise induced failures would be unmetered.
+
+**Capture can now run offline** for demos: `LLM_PROVIDER=replay` serves recorded fixtures, and `backend/scripts/demo_capture.py` seeds a demo project and records them. Two fixes made this viable — the prompt interpolated member and story names in unordered DB order (now sorted, so fixture keys are stable), and the new `CAPTURE_REFERENCE_DATE` setting pins the reference date the frontend otherwise sets to today, which would have rotted every fixture daily.
+
+The Quick Capture textarea now caps input at 4000 characters with a live counter, matching the limit the API already enforced.
+
+---
+
 ## [2026-09-05] - Features: MCP server for AI agents
 
 **Category**: Features

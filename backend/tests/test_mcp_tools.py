@@ -26,13 +26,16 @@ from app.mcp.server import (
     _create_story_impl,
     _create_task_impl,
     _get_project_impl,
+    _get_story_impl,
     _get_task_impl,
+    _list_comments_impl,
     _list_projects_impl,
     _list_stories_impl,
     _list_tasks_impl,
     _project_resource_impl,
     _projects_resource_impl,
     _search_impl,
+    _update_story_impl,
     _update_task_impl,
     _work_on_task_prompt_impl,
     mcp,
@@ -625,6 +628,9 @@ EXPECTED_TOOL_NAMES = {
     "add_comment",
     "create_task",
     "create_story",
+    "get_story",
+    "update_story",
+    "list_comments",
     "capture_tasks",
     "confirm_capture",
 }
@@ -642,3 +648,103 @@ async def test_registered_tools_all_have_descriptions():
     assert len(tools) == len(EXPECTED_TOOL_NAMES)
     for tool in tools:
         assert tool.description and tool.description.strip(), f"{tool.name} has no description"
+
+
+# --- Story read/update, widened task update, comment reads ---
+
+
+async def test_update_task_sets_due_date_effort_and_sprint_fields(mcp_write_client, test_task):
+    """create_task accepts due_date, so update_task must be able to move it afterwards."""
+    result = await _update_task_impl(
+        mcp_write_client, test_task["id"], due_date="2026-12-24", effort=5
+    )
+
+    assert result["due_date"] == "2026-12-24"
+    assert result["effort"] == 5
+
+
+async def test_get_story_includes_comments(
+    mcp_write_client, api_client, manager_headers, test_story
+):
+    await api_client.post(
+        f"/api/v1/stories/{test_story['id']}/comments",
+        json={"body": "a story comment"},
+        headers=manager_headers,
+    )
+
+    result = await _get_story_impl(mcp_write_client, test_story["id"])
+
+    assert result["id"] == test_story["id"]
+    assert [c["body"] for c in result["comments"]] == ["a story comment"]
+
+
+async def test_get_story_without_comments_omits_them(mcp_client, test_story):
+    result = await _get_story_impl(mcp_client, test_story["id"], include_comments=False)
+
+    assert result["id"] == test_story["id"]
+    assert "comments" not in result
+
+
+async def test_update_story_changes_title_and_status(mcp_write_client, test_story):
+    result = await _update_story_impl(
+        mcp_write_client, test_story["id"], title="Renamed Story", status="in_progress"
+    )
+
+    assert result["title"] == "Renamed Story"
+    assert result["status"] == "in_progress"
+
+
+async def test_update_story_no_fields_returns_error_without_http_call(
+    mcp_write_client, api_client, manager_headers, test_story
+):
+    result = await _update_story_impl(mcp_write_client, test_story["id"])
+
+    assert isinstance(result, str)
+    assert "no fields" in result.lower()
+
+    resp = await api_client.get(f"/api/v1/stories/{test_story['id']}", headers=manager_headers)
+    assert resp.json()["title"] == test_story["title"]
+
+
+async def test_update_story_insufficient_scope_surfaces_error(mcp_read_only_client, test_story):
+    with pytest.raises(Exception) as exc_info:
+        await _update_story_impl(mcp_read_only_client, test_story["id"], title="nope")
+
+    assert "INSUFFICIENT_SCOPE" in str(exc_info.value)
+
+
+async def test_list_comments_reads_a_project_thread(
+    mcp_write_client, api_client, manager_headers, test_project
+):
+    """Project comments were previously write-only over MCP - add_comment could post them
+    but nothing could read them back."""
+    await api_client.post(
+        f"/api/v1/projects/{test_project['id']}/comments",
+        json={"body": "a project comment"},
+        headers=manager_headers,
+    )
+
+    result = await _list_comments_impl(mcp_write_client, f"project:{test_project['id']}")
+
+    assert [c["body"] for c in result] == ["a project comment"]
+
+
+async def test_list_comments_reads_a_task_thread(
+    mcp_write_client, api_client, manager_headers, test_task
+):
+    await api_client.post(
+        f"/api/v1/tasks/{test_task['id']}/comments",
+        json={"body": "a task comment"},
+        headers=manager_headers,
+    )
+
+    result = await _list_comments_impl(mcp_write_client, f"task:{test_task['id']}")
+
+    assert [c["body"] for c in result] == ["a task comment"]
+
+
+async def test_list_comments_malformed_target_returns_error_without_http_call(mcp_write_client):
+    result = await _list_comments_impl(mcp_write_client, "ticket:abc")
+
+    assert isinstance(result, str)
+    assert "Invalid target" in result

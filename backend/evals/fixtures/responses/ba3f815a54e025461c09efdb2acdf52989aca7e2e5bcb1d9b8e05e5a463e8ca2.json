@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"Review onboarding copy\",\n      \"confidence\": 1,\n      \"assignee_hint\": \"Anna Kowalska\",\n      \"due_date\": \"2026-09-10\",\n      \"story_hint\": \"Onboarding\"\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 464,
+  "completion_tokens": 91,
+  "latency_ms": 2410
+}

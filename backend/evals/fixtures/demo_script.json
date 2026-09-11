@@ -1,0 +1,23 @@
+{
+  "_meta": {
+    "reference_date": "2026-09-04",
+    "note": "Prompts recorded for the seeded demo project. Set CAPTURE_REFERENCE_DATE to the date above and LLM_PROVIDER=replay to run the demo offline."
+  },
+  "project": {
+    "name": "Acme Website Relaunch",
+    "members": [
+      { "email": "anna.kowalska@acme.example", "name": "Anna Kowalska" },
+      { "email": "ben.ortiz@acme.example", "name": "Ben Ortiz" },
+      { "email": "anna.silva@acme.example", "name": "Anna Silva" }
+    ],
+    "stories": ["Payments", "Onboarding"]
+  },
+  "phrases": [
+    "Fix the checkout validation bug by next Friday, high priority, assign to Ben Ortiz",
+    "Anna Kowalska should review the onboarding copy before Thursday",
+    "Two things for Payments: refund the duplicate charges, and add a retry for failed webhooks",
+    "we should probably think about redesigning the dashboard sometime",
+    "poprawić błąd logowania do piątku, wysoki priorytet",
+    "thanks, that all sounds good to me"
+  ]
+}

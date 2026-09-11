@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"Redesign the dashboard\",\n      \"confidence\": 0.8\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 463,
+  "completion_tokens": 49,
+  "latency_ms": 904
+}

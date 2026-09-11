@@ -1038,3 +1038,42 @@ async def test_capture_happy_path_records_one_usage_event(
     assert len(rows) == 1
     # FakeLLMClient's canned LLMResponse reports prompt_tokens=1, completion_tokens=1.
     assert rows[0].total_tokens == 2
+
+
+@pytest.mark.asyncio
+async def test_demo_account_capture_is_rate_limited_to_one_per_cooldown(
+    api_client: AsyncClient,
+    manager_headers: dict,
+    test_project: dict,
+    set_llm_client,
+    api_db: AsyncSession,
+):
+    """Demo accounts always spend the server's own free-tier key, so they get one
+    capture per DEMO_CAPTURE_COOLDOWN rather than the normal per-minute allowance."""
+    from sqlalchemy import update
+
+    from app.db.models import User
+
+    pid = test_project["id"]
+    await api_db.execute(update(User).values(is_demo=True))
+    await api_db.flush()
+
+    fake = set_llm_client(FakeLLMClient((_extraction_json([_task()]), "gemini-3.6-flash")))
+
+    first = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture",
+        json={"text": "Fix the login bug"},
+        headers=manager_headers,
+    )
+    assert first.status_code == 200
+
+    second = await api_client.post(
+        f"/api/v1/projects/{pid}/tasks/capture",
+        json={"text": "Ship the release notes"},
+        headers=manager_headers,
+    )
+    assert second.status_code == 429
+    assert second.json()["error"]["code"] == "DEMO_CAPTURE_COOLDOWN"
+    assert "Retry-After" in second.headers
+    # The blocked request never reached the provider.
+    assert len(fake.calls) == 1

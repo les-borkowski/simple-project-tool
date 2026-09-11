@@ -6,7 +6,7 @@ from rich.table import Table
 
 from ..config import CLIConfig
 from ..http import APIClient
-from ..output import console, fmt_date, load_locale, short_id, t
+from ..output import console, fmt_date, load_locale, t
 
 app = typer.Typer(help="Configuration commands")
 api_keys_app = typer.Typer(help="API key management")
@@ -68,15 +68,17 @@ def config_locales() -> None:
 def api_keys_list() -> None:
     """List API keys."""
     config, client = _setup()
-    items = client.get("/config/api-keys").get("items", [])
+    # This endpoint returns a bare JSON array, not a paginated {"items": [...]} envelope.
+    items = client.get("/config/api-keys")
     table = Table(title="API Keys")
+    # Full id, not short_id: it is the argument `api-keys revoke` takes.
     table.add_column(t("col.id"), style="cyan")
     table.add_column(t("col.label"))
     table.add_column(t("col.scopes"))
     table.add_column(t("col.last_used"))
     for key in items:
         table.add_row(
-            short_id(key["id"]),
+            key["id"],
             key.get("label", ""),
             ", ".join(key.get("scopes", [])),
             fmt_date(key.get("last_used_at")),

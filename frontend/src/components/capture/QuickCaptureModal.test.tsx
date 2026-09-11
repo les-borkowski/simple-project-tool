@@ -422,4 +422,19 @@ describe('QuickCaptureModal', () => {
       expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Quick capture trigger' }))
     })
   })
+
+  it('caps the capture text at the length the backend accepts', async () => {
+    const ue = userEvent.setup()
+    await openViaTrigger(ue)
+
+    const box = screen.getByPlaceholderText('Describe one or more tasks in your own words…')
+    expect(box).toHaveAttribute('maxLength', '4000')
+
+    // Paste past the cap: userEvent.type would be 4001 keystrokes.
+    await ue.click(box)
+    await ue.paste('a'.repeat(4100))
+
+    expect((box as HTMLTextAreaElement).value).toHaveLength(4000)
+    expect(screen.getByText('4000 / 4000')).toBeInTheDocument()
+  })
 })

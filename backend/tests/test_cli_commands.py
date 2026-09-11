@@ -499,21 +499,22 @@ def test_config_api_keys_list(tmp_path):
     from app.cli.main import app
 
     p = mock_config(tmp_path)
-    data = {
-        "items": [
-            {
-                "id": "key-uuid-1",
-                "label": "My key",
-                "scopes": ["read:projects"],
-                "last_used_at": None,
-            }
-        ],
-        "next_cursor": None,
-    }
+    # GET /config/api-keys returns a bare JSON array, not a paginated envelope.
+    data = [
+        {
+            "id": "3f2b8c1e-0a4d-4e5f-9b6a-7c8d9e0f1a2b",
+            "label": "My key",
+            "scopes": ["read:projects"],
+            "last_used_at": None,
+        }
+    ]
     with patch("app.cli.config.CONFIG_PATH", p):
-        with patch("httpx.Client.request", return_value=make_resp(200, data)):
+        with patch("httpx.Client.request", return_value=make_list_resp(200, data)):
             result = runner.invoke(app, ["config", "api-keys", "list"])
     assert result.exit_code == 0
+    assert "My key" in result.output
+    # The full id, because it is what `api-keys revoke` takes.
+    assert "3f2b8c1e-0a4d-4e5f-9b6a-7c8d9e0f1a2b" in result.output.replace("\n", "")
 
 
 # --- config llm tests ---

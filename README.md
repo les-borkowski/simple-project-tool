@@ -72,6 +72,9 @@ Each user can also configure their own personal LLM API key (currently only Goog
 | `LLM_ALLOW_SERVER_KEY_FALLBACK` | `True` | when `false`, a user with no personal credential gets a clean `503 LLM_NOT_CONFIGURED` instead of silently falling back to `GOOGLE_API_KEY` — how a public/multi-tenant deployment stops involuntarily funding everyone's LLM usage off one shared key |
 | `LLM_MAX_RPM` | `20` | server-wide default requests-per-minute ceiling per user; an admin can override it per user, and a user's own credential-level RPM limit can only clamp below this ceiling, never above it |
 | `LLM_MAX_TPM` | `100000` | same shape, tokens-per-minute |
+| `CAPTURE_REFERENCE_DATE` | *(empty)* | demo/replay only — pins the "today" the extractor reasons from so recorded fixtures keep matching. Overrides the date the client sends; leave empty in production |
+
+Demo accounts (`is_demo`) are additionally capped at **one capture per 2 hours**, regardless of the ceilings above. They can never hold a personal credential, so every demo capture spends the server's own key; the allowance is claimed *before* the provider call, so an attempt that times out still counts.
 
 An empty `GOOGLE_API_KEY` with `LLM_ALLOW_SERVER_KEY_FALLBACK=true` (the default) still disables capture for users with no personal credential — they get `503 LLM_NOT_CONFIGURED` rather than a crash. Capture is an optional, additive feature.
 
@@ -84,6 +87,20 @@ This feature adds three user-facing surfaces:
 The model pin went through two corrections during development: the originally-planned model had already been retired for new API keys, and a second candidate's free tier was rate-limited to 20 requests/day, too low for practical use. `gemini-3.1-flash-lite` is the model actually verified live and is the current pin.
 
 **Privacy.** When a user submits capture text, that text plus the **display names** (never emails, never internal IDs) of project members and the **names** of a project's stories are sent to Google's Gemini API, so the model can resolve references like "assign it to Anna" and match stories by name. Free-tier API terms may permit the provider to use submitted prompts to improve their products — don't point this feature at real or sensitive project data without checking the current terms for whichever tier is in use. Users should be aware that capture text leaves the local server whenever the feature is enabled.
+
+#### Demoing offline
+
+`LLM_PROVIDER=replay` swaps the Gemini client for one that serves recorded fixtures from `backend/evals/fixtures/responses/`, so capture works with no API key and no network. Fixtures are keyed by a hash of the full prompt — which embeds the project name, member names, story titles, and the reference date — so a fixture only replays against the exact project it was recorded for.
+
+`backend/scripts/demo_capture.py` sets that up:
+
+```bash
+uv run python -m scripts.demo_capture seed                          # idempotent demo project + members + stories
+uv run python -m scripts.demo_capture record --as-user <email>      # one live call per phrase, writes fixtures
+LLM_PROVIDER=replay CAPTURE_REFERENCE_DATE=2026-09-04 uv run python -m app.main
+```
+
+The demo phrases and project shape live in `backend/evals/fixtures/demo_script.json` — edit that and re-run `record` to change the script. Recording needs a real key: `GOOGLE_API_KEY` if set, otherwise `--as-user` names an account whose stored credential to borrow. Anything typed during the demo that isn't a recorded phrase raises `FixtureMissError` → `503`, so it's a scripted demo, not a sandbox.
 
 #### Eval harness
 
@@ -146,7 +163,7 @@ Generate scoped API keys from the config page to give AI agents or automation to
 
 `spt-mcp` exposes the tool as an MCP (Model Context Protocol) server, so an LLM host such as Claude Code or Claude Desktop can browse and edit projects directly. It's a thin async HTTP client over the same REST API everything else uses — no direct DB or service access — so every call still goes through the normal route → service → RBAC path.
 
-13 tools: `whoami`, `list_projects`, `get_project`, `list_stories`, `list_tasks`, `get_task`, `search`, `update_task`, `add_comment`, `create_task`, `create_story`, `capture_tasks`, `confirm_capture`. There are no delete tools and no member-management tools — an agent should never destroy work or change project membership.
+16 tools: `whoami`, `list_projects`, `get_project`, `list_stories`, `get_story`, `list_tasks`, `get_task`, `search`, `list_comments`, `update_task`, `update_story`, `add_comment`, `create_task`, `create_story`, `capture_tasks`, `confirm_capture`. There are no delete tools and no member-management tools — an agent should never destroy work or change project membership.
 
 ```bash
 # 1. Create a scoped API key

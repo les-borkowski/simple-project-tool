@@ -26,6 +26,7 @@
   "LLM_NOT_CONFIGURED": "Przechwytywanie zadań AI nie jest skonfigurowane",
   "LLM_UNAVAILABLE": "Przechwytywanie zadań AI jest tymczasowo niedostępne",
   "LLM_RATE_LIMITED": "Przechwytywanie zadań AI jest tymczasowo ograniczone — spróbuj ponownie za chwilę",
+  "DEMO_CAPTURE_COOLDOWN": "Konto demo pozwala na jedno przechwytywanie AI co 2 godziny — spróbuj ponownie później",
   "CAPTURE_UNPARSEABLE": "Nie udało się zrozumieć treści jako zadania",
   "CAPTURE_NOT_A_TASK": "To nie wygląda na prośbę o zadanie",
   "INVALID_ASSIGNEE": "Przypisana osoba nie jest członkiem tego projektu",
