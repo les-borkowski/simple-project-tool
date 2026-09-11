@@ -63,6 +63,12 @@ jobs:
           ADMIN_USERNAME: ci-admin
           ADMIN_PASSWORD: ci-admin-password
           ADMIN_SECRET: ci-admin-secret
+          # Required for the admin-panel tests. SessionMiddleware is mounted with
+          # https_only=not DEBUG (app/api/main.py:91), so with DEBUG unset the
+          # session cookie is marked Secure and the test client — which talks
+          # plain http — never sends it back, redirecting every authenticated
+          # admin request to /admin/login.
+          DEBUG: "true"
         run: cd backend && uv run pytest --cov=app --cov-report=term-missing
 
       - name: Upload coverage reports
