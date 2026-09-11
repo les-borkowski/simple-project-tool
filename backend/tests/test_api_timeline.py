@@ -1,6 +1,7 @@
+from unittest.mock import patch
+
 import pytest
 from httpx import AsyncClient
-from unittest.mock import patch
 
 
 @pytest.mark.asyncio
@@ -109,9 +110,7 @@ async def test_timeline_truncated_flag_true_when_limit_exceeded(
 
     # Patch the limit down to 2 so truncation kicks in with only 3 tasks
     with patch("app.api.services.timeline_service.TIMELINE_TASK_LIMIT", 2):
-        resp = await api_client.get(
-            f"/api/v1/projects/{pid}/timeline", headers=manager_headers
-        )
+        resp = await api_client.get(f"/api/v1/projects/{pid}/timeline", headers=manager_headers)
 
     assert resp.status_code == 200
     data = resp.json()

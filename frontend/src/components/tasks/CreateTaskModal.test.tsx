@@ -327,6 +327,36 @@ describe('CreateTaskModal', () => {
     })
   })
 
+  it('creates an unassigned task when "Unassigned" is selected, instead of snapping back to the current user', async () => {
+    const ue = userEvent.setup()
+    await openModal(ue)
+
+    const panel = dialog()
+    await waitFor(() => {
+      expect(within(panel).getByLabelText('Story')).toHaveValue('story-1')
+    })
+    // Selecting "Unassigned" starts from the current-user default the field
+    // opens with, so this exercises the fall-back-then-override path rather
+    // than just an unselected default.
+    expect(within(panel).getByLabelText('Assignee')).toHaveValue('user-manager')
+
+    await ue.type(within(panel).getByPlaceholderText('Title'), 'Wire up login')
+    await ue.selectOptions(within(panel).getByLabelText('Assignee'), '')
+    await ue.click(within(panel).getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => {
+      expect(tasksApi.create).toHaveBeenCalledWith('story-1', {
+        title: 'Wire up login',
+        description: undefined,
+        status: 'to_do',
+        priority: 'medium',
+        assignee_id: undefined,
+        sprint_id: null,
+        effort: null,
+      })
+    })
+  })
+
   it('submits from the keyboard when Enter is pressed in the title field', async () => {
     const ue = userEvent.setup()
     await openModal(ue)

@@ -50,6 +50,12 @@ type Tab = 'board' | 'stories' | 'members' | 'sprints' | 'timeline' | 'settings'
 // panel id, which two tablists may share (T10).
 const PROJECT_TABS_ID = 'project-tabs'
 
+// Sentinel for the "haven't handled this location.state yet" marker below
+// (mirrors ProjectsPage.tsx). location.state can legitimately be null, so a
+// plain null/undefined default would not distinguish "never checked" from
+// "checked and it was empty".
+const UNHANDLED_LOCATION_STATE = {}
+
 
 const IPlus = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -315,16 +321,30 @@ export function ProjectDetailPage() {
   const [activeStoriesTaskId, setActiveStoriesTaskId] = useState<string | null>(null)
   const boardSensors = useDragSensors()
 
+  const locationModal = (location.state as { modal?: string } | null)?.modal
+
+  // The modal request arrives as router state. Adjust state during render
+  // rather than from an effect: set-state-in-effect rejects the write, and
+  // this runs before children render, so there is no cascading second pass.
+  // The marker starts at a sentinel, not at location.state, so that the
+  // first render after navigation counts as a change and opens the modal.
+  const [handledLocationState, setHandledLocationState] =
+    useState<unknown>(UNHANDLED_LOCATION_STATE)
+  if (handledLocationState !== location.state) {
+    setHandledLocationState(location.state)
+    if (locationModal === 'create-story') setShowCreateStory(true)
+    else if (locationModal === 'create-task') setShowCreateTask(true)
+  }
+
+  // Depends on location.state itself, not just the derived locationModal:
+  // CommandPalette can push the same `modal` value twice in a row, which
+  // leaves the derived string unchanged even though a fresh state object
+  // arrived, and this must still scrub it from window.history.state.
   useEffect(() => {
-    const modal = (location.state as { modal?: string } | null)?.modal
-    if (modal === 'create-story') {
-      setShowCreateStory(true)
-      window.history.replaceState({}, '')
-    } else if (modal === 'create-task') {
-      setShowCreateTask(true)
+    if (locationModal === 'create-story' || locationModal === 'create-task') {
       window.history.replaceState({}, '')
     }
-  }, [location.state])
+  }, [location.state, locationModal])
 
   useEffect(() => {
     if (!id) return

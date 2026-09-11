@@ -47,7 +47,28 @@ jobs:
 
       - name: Run tests with coverage
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+          # Throwaway values for the ephemeral Postgres service container above.
+          # Settings (app/core/config.py) has no defaults for SYNC_DATABASE_URL,
+          # SECRET_KEY, ADMIN_USERNAME, ADMIN_PASSWORD or ADMIN_SECRET, so pytest
+          # cannot even import conftest without them. This step had never run
+          # before — the ruff gate above it always failed first — so the gap was
+          # invisible until now.
+          # The async URLs need the +asyncpg driver: create_async_engine rejects
+          # a bare postgresql:// URL. conftest reads TEST_DATABASE_URL, not
+          # DATABASE_URL, and derives its own sync URL from it.
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_db
+          SYNC_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+          TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_db
+          SECRET_KEY: ci-only-not-a-real-secret
+          ADMIN_USERNAME: ci-admin
+          ADMIN_PASSWORD: ci-admin-password
+          ADMIN_SECRET: ci-admin-secret
+          # Required for the admin-panel tests. SessionMiddleware is mounted with
+          # https_only=not DEBUG (app/api/main.py:91), so with DEBUG unset the
+          # session cookie is marked Secure and the test client — which talks
+          # plain http — never sends it back, redirecting every authenticated
+          # admin request to /admin/login.
+          DEBUG: "true"
         run: cd backend && uv run pytest --cov=app --cov-report=term-missing
 
       - name: Upload coverage reports

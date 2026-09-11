@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useToast } from '../../context/ToastContext'
 import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core'
@@ -70,8 +70,15 @@ export function TabConfigPanel({ projectId, tabOrder, hiddenTabs, onPreferencesC
   const [localOrder, setLocalOrder] = useState(tabOrder)
   const [localHidden, setLocalHidden] = useState(hiddenTabs)
 
-  useEffect(() => { setLocalOrder(tabOrder) }, [tabOrder])
-  useEffect(() => { setLocalHidden(hiddenTabs) }, [hiddenTabs])
+  // Re-sync when the parent hands down a different set. React's documented
+  // "adjust state during render" pattern: it runs before children render, so
+  // there is no cascading second pass, and it is not an effect.
+  const [syncedFrom, setSyncedFrom] = useState({ tabOrder, hiddenTabs })
+  if (syncedFrom.tabOrder !== tabOrder || syncedFrom.hiddenTabs !== hiddenTabs) {
+    setSyncedFrom({ tabOrder, hiddenTabs })
+    setLocalOrder(tabOrder)
+    setLocalHidden(hiddenTabs)
+  }
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 

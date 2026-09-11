@@ -1,6 +1,7 @@
 """Unit tests for app.api.pagination — no database required."""
 
 import base64
+from datetime import UTC
 
 import pytest
 from fastapi import HTTPException
@@ -42,10 +43,10 @@ def test_decode_cursor_invalid_uuid_raises_400():
 
 def test_encode_decode_cursor_roundtrip():
     """encode_cursor and decode_cursor must be inverse operations."""
-    from datetime import datetime, timezone
+    from datetime import datetime
     from uuid import UUID
 
-    created_at = datetime(2026, 1, 15, 12, 30, 45, tzinfo=timezone.utc)
+    created_at = datetime(2026, 1, 15, 12, 30, 45, tzinfo=UTC)
     uid = UUID("12345678-1234-5678-1234-567812345678")
 
     cursor = encode_cursor(created_at, uid)

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { projectsApi, tasksApi } from '../../services/api'
 import type { MemberResponse, Priority, Status, TaskResponse } from '../../services/api'
-import { useAuth } from '../../context/AuthContext'
+import { useAuth } from '../../context/auth-context'
 import { useProjectStatuses } from '../../hooks/useProjectStatuses'
 import { useProjectSprints } from '../../hooks/useProjectSprints'
 import { useStories } from '../../hooks/useStories'
@@ -41,27 +41,23 @@ export function CreateTaskModal({
   const [priority, setPriority] = useState<Priority>('medium')
   const [storyId, setStoryId] = useState(defaultStoryId ?? '')
   const [sprintId, setSprintId] = useState(defaultSprintId ?? '')
-  const [assigneeId, setAssigneeId] = useState(user?.id ?? '')
+  // null means "not chosen yet" so the field can fall back to the current
+  // user. '' is a legitimate user choice (Unassigned), so it can't double as
+  // that sentinel — see effectiveAssigneeId below.
+  const [assigneeId, setAssigneeId] = useState<string | null>(null)
   const [effort, setEffort] = useState('')
   const [creating, setCreating] = useState(false)
 
-  // Initialize status to first project status when loaded
-  useEffect(() => {
-    if (statuses.length > 0 && !taskStatus) setTaskStatus(statuses[0].slug as Status)
-  }, [statuses])
-
-  // Auto-select Backlog story when stories load (only when no defaultStoryId provided)
-  useEffect(() => {
-    if (!defaultStoryId && !storyId && storiesHook.items.length > 0) {
-      const backlog = storiesHook.items.find(s => s.is_default) ?? storiesHook.items[0]
-      setStoryId(backlog.id.toString())
-    }
-  }, [storiesHook.items])
-
-  // Set default assignee to current user when user loads
-  useEffect(() => {
-    if (user?.id && !assigneeId) setAssigneeId(user.id)
-  }, [user?.id])
+  // Each field falls back to its default until the user picks something.
+  // Previously three effects wrote these defaults into state as the data
+  // arrived, which is a cascading render and what set-state-in-effect rejects.
+  const effectiveStatus = taskStatus || ((statuses[0]?.slug as Status) ?? '')
+  const effectiveStoryId =
+    storyId ||
+    defaultStoryId ||
+    (storiesHook.items.find((s) => s.is_default) ?? storiesHook.items[0])?.id.toString() ||
+    ''
+  const effectiveAssigneeId = assigneeId ?? user?.id ?? ''
 
   // Fetch project members
   useEffect(() => {
@@ -75,13 +71,13 @@ export function CreateTaskModal({
       const data = {
         title,
         description: description || undefined,
-        status: taskStatus,
+        status: effectiveStatus,
         priority,
-        assignee_id: assigneeId || undefined,
+        assignee_id: effectiveAssigneeId || undefined,
         sprint_id: sprintId || null,
         effort: effort ? parseInt(effort, 10) : null,
       }
-      const res = await tasksApi.create(storyId, data)
+      const res = await tasksApi.create(effectiveStoryId, data)
       onCreated(res.data)
     } finally {
       setCreating(false)
@@ -138,7 +134,7 @@ export function CreateTaskModal({
             </label>
             <select
               id="ctm-status"
-              value={taskStatus}
+              value={effectiveStatus}
               onChange={(e) => setTaskStatus(e.target.value as Status)}
               className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md"
             >
@@ -171,7 +167,7 @@ export function CreateTaskModal({
               </label>
               <select
                 id="ctm-story"
-                value={storyId}
+                value={effectiveStoryId}
                 onChange={(e) => setStoryId(e.target.value)}
                 className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md"
               >
@@ -207,7 +203,7 @@ export function CreateTaskModal({
             </label>
             <select
               id="ctm-assignee"
-              value={assigneeId}
+              value={effectiveAssigneeId}
               onChange={(e) => setAssigneeId(e.target.value)}
               className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md"
             >

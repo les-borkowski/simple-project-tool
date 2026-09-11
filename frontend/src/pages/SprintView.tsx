@@ -351,7 +351,12 @@ export function SprintView({ projectId }: { projectId: string }) {
 
   const [allTasks, setAllTasks] = useState<TaskResponse[]>([])
   const [effortUnit, setEffortUnit] = useState<string | null>(null)
-  const [tasksLoading, setTasksLoading] = useState(true)
+  // The projectId the currently-held tasks/effortUnit were loaded for.
+  // Compared against `projectId` below to derive tasksLoading.
+  const [loadedTasksFor, setLoadedTasksFor] = useState<string | null>(null)
+  // Derived, not stored: the request starts during render-triggered effect
+  // work, so there is no legal point to write `tasksLoading = true` from.
+  const tasksLoading = !!projectId && loadedTasksFor !== projectId
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
 
   // Create sprint modal state
@@ -369,7 +374,7 @@ export function SprintView({ projectId }: { projectId: string }) {
 
   useEffect(() => {
     if (!projectId) return
-    setTasksLoading(true)
+    let cancelled = false
     Promise.all([
       // Sprint view loads up to 500 tasks; projects with more tasks will show truncated rows
       // (sprint effort totals remain accurate as they are computed server-side)
@@ -377,14 +382,21 @@ export function SprintView({ projectId }: { projectId: string }) {
       projectsApi.get(projectId),
     ])
       .then(([taskRes, projectRes]) => {
+        if (cancelled) return
         setAllTasks(taskRes.data.items)
         setEffortUnit(projectRes.data.effort_unit ?? null)
       })
       .catch(() => {
+        if (cancelled) return
         addToast(t('sprints.failed_load'), 'error')
         setAllTasks([])
       })
-      .finally(() => setTasksLoading(false))
+      .finally(() => {
+        if (!cancelled) setLoadedTasksFor(projectId)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [projectId, addToast])
 
   // Single reset shared by every close path (Escape, backdrop, Cancel,

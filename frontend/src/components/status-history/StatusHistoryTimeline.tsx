@@ -20,9 +20,20 @@ export function StatusHistoryTimeline({ itemType, itemId, statuses }: Props) {
   const [history, setHistory] = useState<StatusHistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Re-arm the loading state whenever the target item changes, before the
+  // effect below starts the new fetch. Adjust state during render rather
+  // than from the effect: set-state-in-effect rejects a synchronous write
+  // there, and this runs before children render, so there is no cascading
+  // second pass.
+  const target = `${itemType}:${itemId}`
+  const [loadingFor, setLoadingFor] = useState(target)
+  if (loadingFor !== target) {
+    setLoadingFor(target)
+    setLoading(true)
+  }
+
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
     const doFetch = async () => {
       try {
         let res

@@ -25,7 +25,7 @@ export function useProjects(filters: Filters = {}) {
       if (filters.q) params.q = filters.q
       const res = await projectsApi.list(params)
       pagination.setPage(res.data.items, res.data.next_cursor)
-    } catch (e: unknown) {
+    } catch {
       pagination.setError('Failed to load projects')
     } finally {
       pagination.setIsLoading(false)

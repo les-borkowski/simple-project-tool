@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAuth } from '../../context/AuthContext'
+import { useAuth } from '../../context/auth-context'
 import { useIsDesktopShell } from '../../hooks/useMediaQuery'
 import { invitationsApi, projectsApi, recentApi } from '../../services/api'
 import type { ProjectResponse, RecentItemResponse } from '../../services/api'
@@ -22,6 +22,12 @@ export function AppShell({ children }: Props) {
   const { t } = useTranslation()
   const [pendingCount, setPendingCount] = useState(0)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  // Bumped on every openPalette() call and used as CommandPalette's `key`
+  // below, so each open mounts a fresh instance instead of reusing the one
+  // that stayed mounted (returning null) while closed. CommandPalette used
+  // to reset its own query/results/focusedIndex in an effect on `open`; that
+  // setState-in-effect is replaced by this remount.
+  const [paletteKey, setPaletteKey] = useState(0)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const drawerId = useId()
   // Whether the drawer exists at all is behaviour, not layout: no CSS variant
@@ -39,6 +45,7 @@ export function AppShell({ children }: Props) {
   const openPalette = useCallback(() => {
     setDrawerOpen(false)
     setPaletteOpen(true)
+    setPaletteKey((k) => k + 1)
   }, [])
 
   useEffect(() => {
@@ -154,7 +161,7 @@ export function AppShell({ children }: Props) {
       <main className="flex-1 min-w-0 flex flex-col lg:min-h-dvh">
         {children}
       </main>
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <CommandPalette key={paletteKey} open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   )
 }

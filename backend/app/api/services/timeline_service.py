@@ -13,9 +13,7 @@ from app.db.models.sprint import Sprint
 TIMELINE_TASK_LIMIT = 500
 
 
-async def get_timeline(
-    project_id: uuid.UUID, user: User, db: AsyncSession
-) -> TimelineResponse:
+async def get_timeline(project_id: uuid.UUID, user: User, db: AsyncSession) -> TimelineResponse:
     await require_project_access(user, project_id, db)
 
     tasks_stmt = select(Task).where(Task.project_id == project_id).limit(TIMELINE_TASK_LIMIT + 1)

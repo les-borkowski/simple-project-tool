@@ -115,7 +115,12 @@ export function TimelineView({ projectId }: { projectId: string }) {
   const [items, setItems] = useState<TimelineTask[]>([])
   const [truncated, setTruncated] = useState(false)
   const [sprintNames, setSprintNames] = useState<Map<string, string>>(new Map())
-  const [loading, setLoading] = useState(true)
+  // The projectId the currently-held items/sprintNames were loaded for.
+  // Compared against `projectId` below to derive loading.
+  const [loadedTarget, setLoadedTarget] = useState<string | null>(null)
+  // Derived, not stored: the request starts during render-triggered effect
+  // work, so there is no legal point to write `loading = true` from.
+  const loading = !!projectId && loadedTarget !== projectId
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
   const openBarRef = useRef<HTMLButtonElement | null>(null)
@@ -147,28 +152,34 @@ export function TimelineView({ projectId }: { projectId: string }) {
   // than a private keydown listener that could fight other overlays.
   useEscapeKey(openId !== null, closeTooltip)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [tlResp, sprintsResp] = await Promise.all([
-        timelineApi.get(projectId),
-        sprintsApi.list(projectId),
-      ])
-      setItems(tlResp.data.items)
-      setTruncated(tlResp.data.truncated)
-      const nameMap = new Map<string, string>()
-      for (const s of sprintsResp.data) {
-        nameMap.set(s.id, s.name)
-      }
-      setSprintNames(nameMap)
-    } catch {
-      addToast(t('timeline.failed_load'), 'error')
-    } finally {
-      setLoading(false)
+  useEffect(() => {
+    if (!projectId) return
+    let cancelled = false
+    Promise.all([
+      timelineApi.get(projectId),
+      sprintsApi.list(projectId),
+    ])
+      .then(([tlResp, sprintsResp]) => {
+        if (cancelled) return
+        setItems(tlResp.data.items)
+        setTruncated(tlResp.data.truncated)
+        const nameMap = new Map<string, string>()
+        for (const s of sprintsResp.data) {
+          nameMap.set(s.id, s.name)
+        }
+        setSprintNames(nameMap)
+      })
+      .catch(() => {
+        if (cancelled) return
+        addToast(t('timeline.failed_load'), 'error')
+      })
+      .finally(() => {
+        if (!cancelled) setLoadedTarget(projectId)
+      })
+    return () => {
+      cancelled = true
     }
   }, [projectId, addToast])
-
-  useEffect(() => { load() }, [load])
 
   const { rangeStart, rangeEnd, totalDays } = useMemo(() => {
     if (items.length === 0) return { rangeStart: new Date(), rangeEnd: new Date(), totalDays: 30 }

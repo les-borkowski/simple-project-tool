@@ -1,9 +1,7 @@
-import uuid
-from unittest.mock import AsyncMock, patch
-
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+
 
 @pytest.mark.asyncio
 async def test_create_story(api_client: AsyncClient, manager_headers: dict, test_project: dict):
@@ -135,7 +133,8 @@ async def test_move_story_resets_task_statuses_to_target_default(
     manager_headers: dict,
     test_project: dict,
 ):
-    """Moving a story to another project resets its tasks' statuses to the target project's default."""
+    """Moving a story to another project resets its tasks' statuses to the
+    target project's default."""
     pid = test_project["id"]
 
     # Create a story and a task in the source project
@@ -195,9 +194,7 @@ async def test_move_story_cannot_move_backlog(
     pid = test_project["id"]
 
     # Find the default backlog story (is_default=True)
-    stories_resp = await api_client.get(
-        f"/api/v1/projects/{pid}/stories", headers=manager_headers
-    )
+    stories_resp = await api_client.get(f"/api/v1/projects/{pid}/stories", headers=manager_headers)
     assert stories_resp.status_code == 200
     stories = stories_resp.json()["items"]
     backlog = next(s for s in stories if s["is_default"])
@@ -232,6 +229,7 @@ async def test_move_story_to_project_with_no_statuses_returns_422(
     so the client receives an actionable error rather than a generic server fault.
     """
     from sqlalchemy import delete
+
     from app.db.models.project_status import ProjectStatus
 
     # Create a target project (gets default statuses on creation)
@@ -245,6 +243,7 @@ async def test_move_story_to_project_with_no_statuses_returns_422(
 
     # Wipe all statuses from the target project directly in the DB
     import uuid as _uuid
+
     await api_db.execute(
         delete(ProjectStatus).where(ProjectStatus.project_id == _uuid.UUID(target_pid))
     )

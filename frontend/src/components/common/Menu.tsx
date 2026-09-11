@@ -159,10 +159,7 @@ export function Menu({ trigger, children }: MenuProps) {
   // are then plain viewport coordinates, so the existing clamping math
   // works correctly.
   useLayoutEffect(() => {
-    if (!open) {
-      setPanelPosition(null)
-      return
-    }
+    if (!open) return
     const trigger = triggerRef.current
     const panel = panelRef.current
     if (!trigger || !panel) return

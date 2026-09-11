@@ -2,8 +2,6 @@ import logging
 import uuid
 from datetime import UTC, datetime
 
-_logger = logging.getLogger(__name__)
-
 from fastapi import HTTPException
 from sqlalchemy import and_, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +19,8 @@ from app.api.utils import escape_like
 from app.auth.permissions import require_manager, require_not_demo, require_project_access
 from app.db.base import PriorityEnum, RoleEnum
 from app.db.models import Project, ProjectMember, StatusHistory, Story, User
+
+_logger = logging.getLogger(__name__)
 
 
 async def list_projects(
@@ -256,7 +256,15 @@ async def list_members(project_id: uuid.UUID, user: User, db: AsyncSession) -> l
         if member_user is None:
             _logger.warning("ProjectMember %s references missing user %s", m.project_id, m.user_id)
             continue
-        result.append(MemberResponse(user_id=m.user_id, role=m.role, joined_at=m.joined_at, name=member_user.name, email=member_user.email))
+        result.append(
+            MemberResponse(
+                user_id=m.user_id,
+                role=m.role,
+                joined_at=m.joined_at,
+                name=member_user.name,
+                email=member_user.email,
+            )
+        )
     return result
 
 

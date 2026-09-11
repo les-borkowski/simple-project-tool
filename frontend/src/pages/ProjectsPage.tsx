@@ -28,6 +28,11 @@ const STATUS_VARS: Record<string, string> = {
   in_testing: '--st-test', done: '--st-done',
 }
 
+// Sentinel for the "haven't handled this location.state yet" marker below.
+// location.state can legitimately be null, so a plain null/undefined default
+// would not distinguish "never checked" from "checked and it was empty".
+const UNHANDLED = {}
+
 function MiniProgress({ status }: { status: string }) {
   const doneW = status === 'done' ? 100 : status === 'in_testing' ? 80 : status === 'in_review' ? 55 : status === 'in_progress' ? 35 : 0
   const progW = status === 'in_progress' ? 35 : status === 'in_review' ? 20 : status === 'in_testing' ? 10 : 0
@@ -70,15 +75,31 @@ export function ProjectsPage() {
     q: debouncedSearch,
   })
 
-  const location = useLocation()
-  useEffect(() => {
-    if ((location.state as { modal?: string } | null)?.modal === 'create-project') {
-      setShowCreate(true)
-      window.history.replaceState({}, '')
-    }
-  }, [location.state])
-
   const [showCreate, setShowCreate] = useState(false)
+
+  const location = useLocation()
+  const wantsCreateModal =
+    (location.state as { modal?: string } | null)?.modal === 'create-project'
+
+  // The modal request arrives as router state. Adjust state during render
+  // rather than from an effect: set-state-in-effect rejects the write, and
+  // this runs before children render, so there is no cascading second pass.
+  // The marker starts at a sentinel, not at location.state, so that the
+  // first render after navigation counts as a change and opens the modal.
+  const [handledLocationState, setHandledLocationState] = useState<unknown>(UNHANDLED)
+  if (handledLocationState !== location.state) {
+    setHandledLocationState(location.state)
+    if (wantsCreateModal) setShowCreate(true)
+  }
+
+  // Depends on location.state itself, not just the derived wantsCreateModal:
+  // CommandPalette can push the same `modal` value twice in a row, which
+  // leaves the derived boolean unchanged even though a fresh state object
+  // arrived, and this must still scrub it from window.history.state.
+  useEffect(() => {
+    if (wantsCreateModal) window.history.replaceState({}, '')
+  }, [location.state, wantsCreateModal])
+
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
   const [creating, setCreating] = useState(false)

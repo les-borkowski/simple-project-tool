@@ -1,4 +1,4 @@
-import type { AccentColor } from '../../context/ThemeContext'
+import type { AccentColor } from '../../context/theme-context'
 
 const ACCENTS: Record<AccentColor, { hex: string; soft: string; softDark: string; text: string; textDark: string }> = {
   indigo:  { hex:'#6366f1', soft:'#eef2ff', softDark:'#1e1b4b', text:'#4338ca', textDark:'#a5b4fc' },

@@ -30,9 +30,7 @@ async def list_stories(
     await require_project_access(user, project_id, db)
 
     # Always fetch the Backlog story separately so it always appears on page 1
-    backlog_stmt = select(Story).where(
-        Story.project_id == project_id, Story.is_default.is_(True)
-    )
+    backlog_stmt = select(Story).where(Story.project_id == project_id, Story.is_default.is_(True))
     backlog = await db.scalar(backlog_stmt)
 
     # Paginate only non-default stories
@@ -212,7 +210,9 @@ async def move_story(
     story.status = default_slug
     story.updated_by = user.id
     await db.execute(
-        update(Task).where(Task.story_id == story_id).values(project_id=new_project_id, status=default_slug)
+        update(Task)
+        .where(Task.story_id == story_id)
+        .values(project_id=new_project_id, status=default_slug)
     )
     await db.commit()
 
