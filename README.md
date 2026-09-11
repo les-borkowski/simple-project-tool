@@ -102,6 +102,8 @@ LLM_PROVIDER=replay CAPTURE_REFERENCE_DATE=2026-09-04 uv run python -m app.main
 
 The demo phrases and project shape live in `backend/evals/fixtures/demo_script.json` — edit that and re-run `record` to change the script. Recording needs a real key: `GOOGLE_API_KEY` if set, otherwise `--as-user` names an account whose stored credential to borrow. Anything typed during the demo that isn't a recorded phrase raises `FixtureMissError` → `503`, so it's a scripted demo, not a sandbox.
 
+**`seed` creates real, loginable accounts**, and their email addresses are committed in `demo_script.json`. It therefore refuses to run when `DEBUG` is off unless you pass `--force`. The password is never a literal in the repo: set `DEMO_SEED_PASSWORD` to choose one, or leave it unset and the script prints a generated password once, at seed time, which is the only time it is shown. If you seeded a deployed instance with an earlier version of this script, delete those accounts — they had a password published in this repository.
+
 #### Eval harness
 
 Extraction quality is tracked with an eval harness in `backend/evals/`. Latest run: model `gemini-3.1-flash-lite`, prompt version `capture/v1`, run on 2026-09-04, 35 cases.
