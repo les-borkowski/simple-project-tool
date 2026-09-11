@@ -24,15 +24,16 @@ from app.api.schemas.task import TaskCreate, TaskResponse
 from app.api.services.capture_service import ProjectContext, extract
 from app.api.services.llm_credential_service import resolve_credential
 from app.api.services.llm_usage_service import (
-    check_rate_limit,
     record_usage,
-    reserve_demo_usage,
+    release_usage,
+    reserve_usage,
 )
 from app.api.services.project_service import list_members
 from app.api.services.story_service import get_default_story
 from app.api.services.task_service import assemble_task
 from app.auth.permissions import require_not_demo, require_project_access
 from app.core.config import settings
+from app.core.llm.base import LLMNotConfigured
 from app.db.models import Project, Story, Task, User
 
 
@@ -126,19 +127,35 @@ async def preview_capture(
 
     cred = await resolve_credential(user, db)
     provider = cred.provider if cred else settings.LLM_PROVIDER
-    # Both before the LLM call — a throttled user must not cost anything. Check before
-    # claiming, so an RPM/TPM rejection doesn't burn the demo allowance and the fresh
-    # reservation row isn't counted against the very request that wrote it. The demo
-    # reservation is a no-op for everyone else and returns the row record_usage fills in.
-    await check_rate_limit(user, provider, db)
-    demo_event_id = await reserve_demo_usage(user, provider, db)
-    outcome = await extract(
-        payload.text,
-        ctx,
-        client,
-        api_key=cred.api_key if cred else None,
-        model=cred.model if cred else None,
-    )
+    # Claimed before the call, for every user rather than just demo accounts. The claim
+    # is what closes the window against concurrent callers, and it is what makes a
+    # failed call still count: if extract raises below, this row stays behind with
+    # total_tokens=0 instead of the call going unmetered because record_usage was
+    # never reached. Raises 429 itself when the allowance is already gone.
+    event_id = await reserve_usage(user, provider, db)
+
+    # End the read transaction before the provider round-trip. reserve_usage already
+    # committed the claim; what is still open here is the transaction its verify reads
+    # started. Holding that across a multi-second LLM call ties up a pooled connection
+    # per in-flight capture and, on managed Postgres, pins the xmin horizon and stalls
+    # autovacuum.
+    await db.commit()
+
+    try:
+        outcome = await extract(
+            payload.text,
+            ctx,
+            client,
+            api_key=cred.api_key if cred else None,
+            model=cred.model if cred else None,
+        )
+    except LLMNotConfigured:
+        # Raised before any request leaves the process, so no call was spent. Without
+        # this, a server with no key configured burns the caller's whole allowance on
+        # calls it never made, and they start seeing 429 instead of the 503 that would
+        # actually tell them what is wrong.
+        await release_usage(event_id, db)
+        raise
     # Recorded once here, before branching on the outcome's shape — tokens were spent
     # whether the result parsed cleanly, came back "not a task", or was unparseable.
     await record_usage(
@@ -146,7 +163,7 @@ async def preview_capture(
         provider,
         outcome.prompt_tokens + outcome.completion_tokens,
         db,
-        event_id=demo_event_id,
+        event_id=event_id,
     )
 
     warnings: list[str] = []

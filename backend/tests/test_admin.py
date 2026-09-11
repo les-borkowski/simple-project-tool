@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin.services import get_totals, get_weekly_trends
 from app.admin.users_service import get_recent_usage_by_user
-from app.api.services.llm_usage_service import check_rate_limit
+from app.api.services.llm_usage_service import reserve_usage
 from app.core.config import settings
 from app.db.models import LLMUsageEvent, User
 from app.db.models.user_llm_provider import effective_rpm_limit
@@ -500,7 +500,10 @@ async def test_llm_ceiling_clamps_effective_rpm_limit(
     assert effective_rpm_limit(None, refreshed) == 1
     assert effective_rpm_limit(None, refreshed) < settings.LLM_MAX_RPM
 
-    # And check_rate_limit enforces it: one event already logged trips the 1-rpm ceiling.
+    # And the ceiling is enforced on the path a real capture request takes. Asserted
+    # through reserve_usage rather than check_rate_limit: the latter is read-only and
+    # no longer has any production caller, so testing it would no longer prove the
+    # admin ceiling actually stops anything.
     api_db.add(
         LLMUsageEvent(
             user_id=refreshed.id,
@@ -512,7 +515,7 @@ async def test_llm_ceiling_clamps_effective_rpm_limit(
     await api_db.flush()
 
     with pytest.raises(HTTPException) as exc_info:
-        await check_rate_limit(refreshed, "openai", api_db)
+        await reserve_usage(refreshed, "openai", api_db)
     assert exc_info.value.status_code == 429
 
 

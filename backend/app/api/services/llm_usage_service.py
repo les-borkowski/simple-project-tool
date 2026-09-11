@@ -34,8 +34,7 @@ def _now() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
-async def check_rate_limit(user: User, provider: str, db: AsyncSession) -> None:
-    """Raise 429 if the user's rolling 60s usage is at or above their effective limit."""
+async def _effective_limits(user: User, provider: str, db: AsyncSession) -> tuple[int, int]:
     row = (
         await db.execute(
             select(UserLLMProvider).where(
@@ -44,87 +43,177 @@ async def check_rate_limit(user: User, provider: str, db: AsyncSession) -> None:
             )
         )
     ).scalar_one_or_none()
-    rpm = effective_rpm_limit(row, user)
-    tpm = effective_tpm_limit(row, user)
+    return effective_rpm_limit(row, user), effective_tpm_limit(row, user)
 
-    now = _now()
-    window_start = now - WINDOW
 
-    result = await db.execute(
-        select(
-            func.count(LLMUsageEvent.id),
-            func.coalesce(func.sum(LLMUsageEvent.total_tokens), 0),
-        ).where(
-            LLMUsageEvent.user_id == user.id,
-            LLMUsageEvent.provider == provider,
-            LLMUsageEvent.created_at > window_start,
+async def _retry_after_seconds(user: User, provider: str, now: datetime, db: AsyncSession) -> int:
+    oldest_created_at = (
+        await db.execute(
+            select(func.min(LLMUsageEvent.created_at)).where(
+                LLMUsageEvent.user_id == user.id,
+                LLMUsageEvent.provider == provider,
+                LLMUsageEvent.created_at > now - WINDOW,
+            )
         )
-    )
-    count, tokens = result.one()
+    ).scalar_one()
+    if oldest_created_at is None:
+        # A 0 limit (fully suspended access) can trip with an empty window —
+        # nothing to time out from, so fall back to the full window length.
+        return int(WINDOW.total_seconds())
+    seconds_elapsed = (now - oldest_created_at).total_seconds()
+    return max(1, round(WINDOW.total_seconds() - seconds_elapsed))
+
+
+async def check_rate_limit(user: User, provider: str, db: AsyncSession) -> None:
+    """Raise 429 if the user's rolling 60s usage is at or above their effective limit.
+
+    Read-only. Callers that are about to *spend* an allowance must use reserve_usage
+    instead — checking and then spending leaves a gap that concurrent callers walk
+    straight through.
+    """
+    rpm, tpm = await _effective_limits(user, provider, db)
+    now = _now()
+
+    count, tokens = (
+        await db.execute(
+            select(
+                func.count(LLMUsageEvent.id),
+                func.coalesce(func.sum(LLMUsageEvent.total_tokens), 0),
+            ).where(
+                LLMUsageEvent.user_id == user.id,
+                LLMUsageEvent.provider == provider,
+                LLMUsageEvent.created_at > now - WINDOW,
+            )
+        )
+    ).one()
 
     if count >= rpm or tokens >= tpm:
-        oldest_created_at = (
-            await db.execute(
-                select(func.min(LLMUsageEvent.created_at)).where(
-                    LLMUsageEvent.user_id == user.id,
-                    LLMUsageEvent.provider == provider,
-                    LLMUsageEvent.created_at > window_start,
-                )
-            )
-        ).scalar_one()
-        if oldest_created_at is None:
-            # A 0 limit (fully suspended access) can trip with an empty window —
-            # nothing to time out from, so fall back to the full window length.
-            retry_after = int(WINDOW.total_seconds())
-        else:
-            seconds_elapsed = (now - oldest_created_at).total_seconds()
-            retry_after = max(1, round(60 - seconds_elapsed))
         raise HTTPException(
             status_code=429,
             detail="LLM_RATE_LIMITED",
-            headers={"Retry-After": str(retry_after)},
+            headers={"Retry-After": str(await _retry_after_seconds(user, provider, now, db))},
         )
 
 
-async def reserve_demo_usage(user: User, provider: str, db: AsyncSession) -> uuid.UUID | None:
-    """Enforce the demo cooldown and claim it up front. Returns the row to fill in later.
+async def _lock_user(user: User, db: AsyncSession) -> None:
+    """Serialise every reservation for one user against the others.
 
-    Written *before* the LLM call on purpose: a demo request that then times out or
-    hits a provider outage has still spent a real call against the server's free-tier
-    key, so it has to consume the allowance. Recording only on success would leave
-    induced failures unmetered.
+    Transaction-scoped, so it is released by the commit or rollback that ends this
+    reservation. Holding it across the count *and* the insert is what makes them one
+    atomic decision — the alternative (insert first, then rank rows by timestamp) is
+    wrong, because a row's timestamp order and its commit-visibility order are
+    independent: two callers can each commit after stamping and each fail to see the
+    other, and both are then granted.
     """
-    if not user.is_demo:
-        return None
+    await db.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(str(user.id), 0))))
 
-    since = _now() - DEMO_CAPTURE_COOLDOWN
+
+async def _db_now(db: AsyncSession) -> datetime:
+    """The database's clock, as a naive timestamp.
+
+    Every window comparison uses this rather than the worker's own clock. `created_at`
+    is filled by the column's `server_default=now()`, so a worker whose clock has
+    drifted cannot place its rows outside its peers' windows — which would let each
+    worker enforce the ceiling against only its own skew cluster.
+
+    localtimestamp is now()::timestamp, matching exactly what the server_default writes
+    into this naive column.
+    """
+    return (await db.execute(select(func.localtimestamp()))).scalar_one()
+
+
+async def reserve_usage(user: User, provider: str, db: AsyncSession) -> uuid.UUID:
+    """Claim one call against the user's allowance *before* it is spent.
+
+    Claiming up front is what makes a failed call still count: the reservation stays
+    behind with total_tokens=0 when the provider raises, instead of the call going
+    unmetered because record_usage was never reached.
+
+    Returns the row id for record_usage to fill in. Raises 429 if the allowance is gone.
+    """
+    await _lock_user(user, db)
+    now = await _db_now(db)
+
+    try:
+        if user.is_demo:
+            await _enforce_demo_cooldown(user, now, db)
+        await _enforce_window_limits(user, provider, now, db)
+    except HTTPException:
+        # End the transaction to release the lock. Commit rather than rollback: nothing
+        # has been written yet so there is nothing to undo, and rollback expires every
+        # loaded object regardless of expire_on_commit — the caller's `user` included,
+        # so the next attribute read would attempt IO from wherever the 429 surfaces.
+        await db.commit()
+        raise
+
+    # created_at is deliberately not passed: the column's server_default stamps it with
+    # the database's clock, the same clock every window comparison above reads from.
+    event = LLMUsageEvent(user_id=user.id, provider=provider, total_tokens=0)
+    db.add(event)
+    await db.commit()  # releases the advisory lock
+    return event.id
+
+
+async def release_usage(event_id: uuid.UUID, db: AsyncSession) -> None:
+    """Hand back a reservation for a call that was never actually made.
+
+    Only for failures raised *before* any provider request goes out — a configuration
+    error, say. A call that reached the provider and then failed has still been spent
+    and must keep its reservation.
+    """
+    await db.execute(delete(LLMUsageEvent).where(LLMUsageEvent.id == event_id))
+    await db.commit()
+
+
+async def _enforce_demo_cooldown(user: User, now: datetime, db: AsyncSession) -> None:
+    """Demo accounts always spend the server's own free-tier key, so they get one call
+    every DEMO_CAPTURE_COOLDOWN across all providers rather than a per-minute window."""
     last_used = (
         await db.execute(
             select(func.max(LLMUsageEvent.created_at)).where(
                 LLMUsageEvent.user_id == user.id,
-                LLMUsageEvent.created_at > since,
+                LLMUsageEvent.created_at > now - DEMO_CAPTURE_COOLDOWN,
             )
         )
     ).scalar_one()
 
-    if last_used is not None:
-        elapsed = (_now() - last_used).total_seconds()
-        retry_after = max(1, round(DEMO_CAPTURE_COOLDOWN.total_seconds() - elapsed))
+    if last_used is None:
+        return
+
+    elapsed = (now - last_used).total_seconds()
+    raise HTTPException(
+        status_code=429,
+        detail="DEMO_CAPTURE_COOLDOWN",
+        headers={
+            "Retry-After": str(max(1, round(DEMO_CAPTURE_COOLDOWN.total_seconds() - elapsed)))
+        },
+    )
+
+
+async def _enforce_window_limits(
+    user: User, provider: str, now: datetime, db: AsyncSession
+) -> None:
+    rpm, tpm = await _effective_limits(user, provider, db)
+
+    count, tokens = (
+        await db.execute(
+            select(
+                func.count(LLMUsageEvent.id),
+                func.coalesce(func.sum(LLMUsageEvent.total_tokens), 0),
+            ).where(
+                LLMUsageEvent.user_id == user.id,
+                LLMUsageEvent.provider == provider,
+                LLMUsageEvent.created_at > now - WINDOW,
+            )
+        )
+    ).one()
+
+    if count >= rpm or tokens >= tpm:
         raise HTTPException(
             status_code=429,
-            detail="DEMO_CAPTURE_COOLDOWN",
-            headers={"Retry-After": str(retry_after)},
+            detail="LLM_RATE_LIMITED",
+            headers={"Retry-After": str(await _retry_after_seconds(user, provider, now, db))},
         )
-
-    event = LLMUsageEvent(
-        user_id=user.id,
-        provider=provider,
-        total_tokens=0,
-        created_at=_now(),
-    )
-    db.add(event)
-    await db.commit()
-    return event.id
 
 
 async def record_usage(
@@ -136,7 +225,7 @@ async def record_usage(
 ) -> None:
     """Log one usage event, then opportunistically prune stale rows.
 
-    With *event_id*, fills in a row already claimed by reserve_demo_usage instead of
+    With *event_id*, fills in a row already claimed by reserve_usage instead of
     inserting a second one — the reservation is the same call, just counted early.
     """
     if event_id is not None:

@@ -18,7 +18,7 @@ from app.api.services.llm_usage_service import (
     check_rate_limit,
     prune_usage_events,
     record_usage,
-    reserve_demo_usage,
+    reserve_usage,
 )
 from app.db.models import LLMUsageEvent, User
 
@@ -236,21 +236,25 @@ def make_demo_user() -> User:
     return user
 
 
-async def test_reserve_demo_usage_is_a_noop_for_normal_users(api_db: AsyncSession):
+async def test_reserve_usage_claims_a_row_for_normal_users_too(api_db: AsyncSession):
+    """Reservation used to be demo-only, which is what left the general path racy and
+    left failed calls unmetered. Every caller now claims before spending."""
     user = make_user()
     api_db.add(user)
     await api_db.flush()
 
     await add_events(api_db, user, count=3)
 
-    assert await reserve_demo_usage(user, PROVIDER, api_db) is None
+    event_id = await reserve_usage(user, PROVIDER, api_db)
+    assert event_id is not None
 
     rows = (
         (await api_db.execute(select(LLMUsageEvent).where(LLMUsageEvent.user_id == user.id)))
         .scalars()
         .all()
     )
-    assert len(rows) == 3  # nothing claimed
+    assert len(rows) == 4  # the three existing events plus this claim
+    assert next(r for r in rows if r.id == event_id).total_tokens == 0
 
 
 async def test_first_demo_capture_claims_a_row_before_the_llm_call(api_db: AsyncSession):
@@ -258,7 +262,7 @@ async def test_first_demo_capture_claims_a_row_before_the_llm_call(api_db: Async
     api_db.add(user)
     await api_db.flush()
 
-    event_id = await reserve_demo_usage(user, PROVIDER, api_db)
+    event_id = await reserve_usage(user, PROVIDER, api_db)
     assert event_id is not None
 
     row = (
@@ -272,10 +276,10 @@ async def test_second_demo_capture_within_cooldown_is_rejected(api_db: AsyncSess
     api_db.add(user)
     await api_db.flush()
 
-    await reserve_demo_usage(user, PROVIDER, api_db)
+    await reserve_usage(user, PROVIDER, api_db)
 
     with pytest.raises(HTTPException) as exc_info:
-        await reserve_demo_usage(user, PROVIDER, api_db)
+        await reserve_usage(user, PROVIDER, api_db)
     assert exc_info.value.status_code == 429
     assert exc_info.value.detail == "DEMO_CAPTURE_COOLDOWN"
     retry_after = int(exc_info.value.headers["Retry-After"])
@@ -290,7 +294,7 @@ async def test_demo_capture_allowed_again_after_cooldown(api_db: AsyncSession):
     stale = DEMO_CAPTURE_COOLDOWN.total_seconds() + 60
     await add_events(api_db, user, count=1, age_seconds=stale)
 
-    assert await reserve_demo_usage(user, PROVIDER, api_db) is not None
+    assert await reserve_usage(user, PROVIDER, api_db) is not None
 
 
 async def test_demo_cooldown_counts_a_failed_call(api_db: AsyncSession):
@@ -299,11 +303,11 @@ async def test_demo_cooldown_counts_a_failed_call(api_db: AsyncSession):
     api_db.add(user)
     await api_db.flush()
 
-    await reserve_demo_usage(user, PROVIDER, api_db)
+    await reserve_usage(user, PROVIDER, api_db)
     # ...extract() raises here, so record_usage is never reached...
 
     with pytest.raises(HTTPException) as exc_info:
-        await reserve_demo_usage(user, PROVIDER, api_db)
+        await reserve_usage(user, PROVIDER, api_db)
     assert exc_info.value.detail == "DEMO_CAPTURE_COOLDOWN"
 
 
@@ -313,10 +317,10 @@ async def test_demo_cooldown_spans_providers(api_db: AsyncSession):
     api_db.add(user)
     await api_db.flush()
 
-    await reserve_demo_usage(user, "google", api_db)
+    await reserve_usage(user, "google", api_db)
 
     with pytest.raises(HTTPException):
-        await reserve_demo_usage(user, "anthropic", api_db)
+        await reserve_usage(user, "anthropic", api_db)
 
 
 async def test_record_usage_fills_in_the_reserved_row(api_db: AsyncSession):
@@ -324,7 +328,7 @@ async def test_record_usage_fills_in_the_reserved_row(api_db: AsyncSession):
     api_db.add(user)
     await api_db.flush()
 
-    event_id = await reserve_demo_usage(user, PROVIDER, api_db)
+    event_id = await reserve_usage(user, PROVIDER, api_db)
     await record_usage(user, PROVIDER, 350, api_db, event_id=event_id)
 
     rows = (
@@ -347,5 +351,5 @@ async def test_default_prune_keeps_rows_the_demo_cooldown_still_needs(api_db: As
     await prune_usage_events(api_db)
 
     with pytest.raises(HTTPException) as exc_info:
-        await reserve_demo_usage(user, PROVIDER, api_db)
+        await reserve_usage(user, PROVIDER, api_db)
     assert exc_info.value.detail == "DEMO_CAPTURE_COOLDOWN"
