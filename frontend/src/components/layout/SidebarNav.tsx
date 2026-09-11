@@ -35,6 +35,13 @@ const ICaret = () => (
     <path d="m6 9 6 6 6-6"/>
   </svg>
 )
+const IHelp = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M9.2 9.2a2.8 2.8 0 1 1 3.6 3.4c-.6.3-.8.8-.8 1.4v.3"/>
+    <path d="M12 17.2h.01"/>
+  </svg>
+)
 const IFolder = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
     <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
@@ -208,6 +215,17 @@ export function SidebarNav({
 
       {/* Footer — always visible at bottom of viewport */}
       <div className="border-t border-stone-200 dark:border-stone-800 p-2 space-y-0.5 shrink-0">
+        <NavLink
+          to="/manual"
+          onClick={onNavigate}
+          className={({ isActive }) =>
+            `w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-ui-md ${isActive ? 'bg-stone-100 dark:bg-stone-900' : 'text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-900'} tap-safe`
+          }
+        >
+          <span className="text-stone-400"><IHelp /></span>
+          <span>{t('nav.help')}</span>
+        </NavLink>
+
         <NavLink
           to="/config"
           onClick={onNavigate}

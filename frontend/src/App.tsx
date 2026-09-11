@@ -11,6 +11,7 @@ import { AppShell } from './components/layout/AppShell'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { ConfirmEmailPage } from './pages/ConfirmEmailPage'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { ProjectsPage } from './pages/ProjectsPage'
 import { ProjectDetailPage } from './pages/ProjectDetailPage'
@@ -21,6 +22,7 @@ import { InvitationsPage } from './pages/InvitationsPage'
 import { ConfigPage } from './pages/ConfigPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { SearchResultsPage } from './pages/SearchResultsPage'
+import { ManualPage } from './pages/ManualPage'
 
 function ProtectedLayout() {
   return (
@@ -48,6 +50,7 @@ function ThemedApp() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/auth/confirm-email" element={<ConfirmEmailPage />} />
+          <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
 
           {/* Protected */}
@@ -74,6 +77,7 @@ function ThemedApp() {
             <Route path="/invitations" element={<InvitationsPage />} />
             <Route path="/config" element={<ConfigPage />} />
             <Route path="/search" element={<SearchResultsPage />} />
+            <Route path="/manual" element={<ManualPage />} />
           </Route>
 
           <Route path="*" element={<NotFoundPage />} />
