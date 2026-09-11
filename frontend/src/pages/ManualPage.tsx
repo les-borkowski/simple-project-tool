@@ -482,7 +482,10 @@ uv pip install -e .`}</code></pre>
               <p>For a bare <code>spt</code> you can type anywhere, either activate the environment for your shell session with <code>source .venv/bin/activate</code>, or install the package as a standalone tool with <code>uv tool install --editable .</code>. The examples below assume <code>spt</code> resolves on its own — add <code>uv run</code> in front if it doesn't.</p>
 
               <Callout kind="note" label="Pointing the CLI at another server">
-                <p>The CLI talks to <code>http://localhost:8000</code> unless told otherwise, and keeps its settings — including the tokens from <code>spt auth login</code> — in <code>~/.config/spt/config.json</code>. To use a different server, edit <code>api_base_url</code> in that file by hand; there's no command for it yet. Note that <code>spt config set</code> is a different thing: it changes your account preferences on the server, not the CLI's own connection.</p>
+                <p>The CLI talks to <code>http://localhost:8000</code> unless told otherwise. Log in to a different one with <code>--api-url</code>, which is remembered for later commands — sensibly, since your tokens are only valid on the server that issued them:</p>
+                <pre><code>{`spt auth login --api-url https://spt.example.com`}</code></pre>
+                <p>For a one-off, or in a script, set <code>SPT_API_URL</code> instead — the same variable the MCP server reads, so a single export points both at the same place. It wins over the saved setting but is never written to disk. Settings and tokens live in <code>~/.config/spt/config.json</code>.</p>
+                <p>Note that <code>spt config set</code> is a different thing: it changes your account preferences on the server, not the CLI's own connection.</p>
               </Callout>
 
               <h3>API keys</h3>

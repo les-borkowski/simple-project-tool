@@ -219,11 +219,15 @@ cd frontend
 npm install
 npm run dev   # → http://localhost:5173
 
-# 4. CLI (optional)
+# 4. CLI and MCP server (optional) — both are entry points on the backend package
 cd backend
 uv pip install -e .
-spt auth login
+uv run spt auth login
 ```
+
+`uv pip install -e .` puts `spt` and `spt-mcp` in `backend/.venv`, which is not on your PATH — hence the `uv run` prefix. For bare `spt`, either activate the environment (`source .venv/bin/activate`) or install it as a standalone tool with `uv tool install --editable .`. The latter also puts `spt-mcp` where an LLM host can find it, which `claude mcp add ... -- spt-mcp` needs.
+
+The CLI talks to `http://localhost:8000` by default. Point it elsewhere with `spt auth login --api-url https://…` (saved for later commands) or the `SPT_API_URL` environment variable (per-invocation, and what the MCP server already reads).
 
 For full setup instructions (Docker, local PostgreSQL, environment variables, tests) see [**docs/how-to-run.md**](docs/how-to-run.md).
 

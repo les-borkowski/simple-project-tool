@@ -2,6 +2,28 @@
 
 All notable changes to simple-project-tool are documented here. Format: reverse chronological (newest first).
 
+## [2026-09-11] - Features: point the CLI at any server, document installing the tools
+
+**Category**: Features
+
+**The CLI can now reach a server other than localhost.** `spt auth login --api-url https://…` saves the
+address alongside the tokens — which is the right pairing, since those tokens are only valid on the server
+that issued them. For a one-off or a script, `SPT_API_URL` overrides the saved value without being written
+to disk; it is the same variable the MCP server already reads, so a single export points both at the same
+place. Previously the only way to move the CLI off `http://localhost:8000` was to hand-edit
+`~/.config/spt/config.json`. `spt config set` looks like it should have done this but does not — it
+patches account preferences on the server, not the CLI's own connection.
+
+**The manual now says how to install `spt` and `spt-mcp`.** It documented using them in detail but never
+said where they come from, opening with `spt auth login` as though the command already existed. Both are
+entry points on the backend package, so one install gives you both. Two things that bite in practice are
+called out: `uv pip install -e .` puts the commands in `backend/.venv`, which is not on `PATH`, so the
+README's install-then-`spt auth login` sequence never actually worked from a fresh shell; and
+`claude mcp add … -- spt-mcp` needs the command on the *host's* `PATH`, not merely in a shell where the
+virtual environment is active — the likeliest reason an LLM host reports the server failing to start.
+
+---
+
 ## [2026-09-10] - Features: agent key self-service, MCP story/comment tools, demo hardening
 
 **Category**: Features

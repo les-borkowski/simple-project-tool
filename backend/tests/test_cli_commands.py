@@ -66,6 +66,56 @@ def test_auth_login_saves_tokens(tmp_path):
     assert saved["access_token"] == "new_access"
 
 
+def test_auth_login_saves_api_url(tmp_path):
+    """--api-url is persisted, because the tokens are only valid for that server."""
+    from app.cli.main import app
+
+    p = tmp_path / "config.json"
+    token_data = {"access_token": "new_access", "refresh_token": "new_refresh"}
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request", return_value=make_resp(200, token_data)):
+            result = runner.invoke(
+                app,
+                ["auth", "login", "--api-url", "https://spt.example.com/"],
+                input="user@test.com\npassword\n",
+            )
+    assert result.exit_code == 0
+    saved = json.loads(p.read_text())
+    # Trailing slash stripped so it doesn't become a double slash before /api/v1.
+    assert saved["api_base_url"] == "https://spt.example.com"
+    assert saved["access_token"] == "new_access"
+
+
+def test_resolve_api_base_url_precedence(monkeypatch):
+    """Explicit override beats SPT_API_URL, which beats the saved config."""
+    from app.cli.config import CLIConfig
+
+    cfg = CLIConfig(api_base_url="http://saved:8000")
+
+    monkeypatch.delenv("SPT_API_URL", raising=False)
+    assert cfg.resolve_api_base_url() == "http://saved:8000"
+
+    monkeypatch.setenv("SPT_API_URL", "http://from-env:9000/")
+    assert cfg.resolve_api_base_url() == "http://from-env:9000"
+    assert cfg.resolve_api_base_url("http://explicit:7000") == "http://explicit:7000"
+
+    # Blank or whitespace-only env is treated as unset, not as a blank URL.
+    monkeypatch.setenv("SPT_API_URL", "   ")
+    assert cfg.resolve_api_base_url() == "http://saved:8000"
+
+
+def test_env_api_url_does_not_leak_into_saved_config(tmp_path, monkeypatch):
+    """SPT_API_URL must not outlive the shell that set it by baking into config.json."""
+    from app.cli.config import CLIConfig
+
+    p = tmp_path / "config.json"
+    monkeypatch.setenv("SPT_API_URL", "http://from-env:9000")
+    cfg = CLIConfig(access_token="tok", api_base_url="http://saved:8000")
+    with patch("app.cli.config.CONFIG_PATH", p):
+        cfg.save()
+    assert json.loads(p.read_text())["api_base_url"] == "http://saved:8000"
+
+
 def test_auth_logout_clears_tokens(tmp_path):
     from app.cli.main import app
 

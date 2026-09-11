@@ -7,10 +7,12 @@ from .config import CLIConfig
 
 
 class APIClient:
-    def __init__(self, config: CLIConfig, api_key: str | None = None) -> None:
+    def __init__(
+        self, config: CLIConfig, api_key: str | None = None, api_url: str | None = None
+    ) -> None:
         self.config = config
         self._api_key = api_key
-        self._base = config.api_base_url.rstrip("/") + "/api/v1"
+        self._base = config.resolve_api_base_url(api_url) + "/api/v1"
         self._client = httpx.Client(
             base_url=self._base,
             headers={"Accept-Language": config.locale},
