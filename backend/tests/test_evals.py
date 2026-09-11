@@ -407,10 +407,15 @@ class TestRunner:
             )
         )
 
-        if result.misses:
-            pytest.skip(
-                f"{len(result.misses)} cases unrecorded, run --record first: {result.misses}"
-            )
+        # A miss means the fixture keys no longer match the prompt — someone edited
+        # CAPTURE_SYSTEM_PROMPT or bumped LLM_MODEL without re-recording. That must fail
+        # the gate, not skip it: skipping reports success while the thresholds below
+        # never run, which is exactly the silent-regression hole T3 says must not exist.
+        # Re-record with `python -m app.evals.run --record` after an intentional change.
+        assert not result.misses, (
+            f"{len(result.misses)} cases unrecorded — the prompt or model changed since "
+            f"these fixtures were recorded. Re-record with --record. Missing: {result.misses}"
+        )
 
         for field_name, floor in thresholds.items():
             rate = result.overall.get(field_name)
