@@ -209,7 +209,10 @@ def test_get_current_user_or_api_key_valid_bearer():
 def test_get_current_user_or_api_key_valid_api_key():
     """Scenario 7: valid X-API-Key returns user and sets request.state.api_key."""
     user_id = uuid.uuid4()
-    raw_key = "test-raw-api-key-value"
+    # Must have the shape generate_api_key() actually produces: the lookup rejects
+    # structurally impossible keys before hashing, so a hand-written literal never
+    # reaches the bcrypt check.
+    raw_key = secrets.token_urlsafe(32)
     key_hash = bcrypt.hashpw(raw_key.encode(), bcrypt.gensalt(rounds=4)).decode()
 
     mock_user = MagicMock()
@@ -245,7 +248,7 @@ def test_get_current_user_or_api_key_valid_api_key():
 def test_api_key_of_blocked_user_is_rejected():
     """A blocked user's valid, un-revoked key gets 403 — same as the JWT path."""
     user_id = uuid.uuid4()
-    raw_key = "blocked-user-raw-api-key"
+    raw_key = secrets.token_urlsafe(32)
     key_hash = bcrypt.hashpw(raw_key.encode(), bcrypt.gensalt(rounds=4)).decode()
 
     mock_user = MagicMock()
@@ -340,7 +343,7 @@ def test_optional_auth_invalid_token():
 def test_require_scope_api_key_with_scope_passes():
     """Scenario 12: API key with required scope passes (200)."""
     user_id = uuid.uuid4()
-    raw_key = "scoped-api-key-value"
+    raw_key = secrets.token_urlsafe(32)
     key_hash = bcrypt.hashpw(raw_key.encode(), bcrypt.gensalt(rounds=4)).decode()
 
     mock_user = MagicMock()
@@ -398,7 +401,7 @@ def test_get_current_user_or_api_key_deleted_user_raises_401():
 def test_require_scope_api_key_missing_scope_returns_403():
     """Scenario 13: API key missing required scope returns 403."""
     user_id = uuid.uuid4()
-    raw_key = "no-scope-api-key-value"
+    raw_key = secrets.token_urlsafe(32)
     key_hash = bcrypt.hashpw(raw_key.encode(), bcrypt.gensalt(rounds=4)).decode()
 
     mock_user = MagicMock()

@@ -51,6 +51,15 @@ class Settings(BaseSettings):
     LLM_MAX_RPM: int = 20
     LLM_MAX_TPM: int = 100_000
 
+    # API keys issued before the key_prefix migration carry key_prefix=''. A prefix cannot
+    # be recovered from a bcrypt hash, so those rows can only be rotated, not backfilled —
+    # until then they need a second lookup bucket. That bucket is scanned for any key that
+    # matches no prefix, so every unauthenticated request costs one hash per legacy row.
+    # Rotate the remaining legacy keys, confirm with
+    #   SELECT count(*) FROM api_keys WHERE key_prefix = '' AND revoked_at IS NULL;
+    # and set this to False to close that amplification for good.
+    API_KEY_LEGACY_PREFIX_FALLBACK: bool = True
+
     # Credential encryption — Fernet key for encrypting user-supplied LLM API keys at rest.
     # Dedicated from SECRET_KEY: rotating SECRET_KEY must not brick stored credentials.
     # Empty disables BYO credentials.

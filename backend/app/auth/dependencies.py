@@ -4,10 +4,12 @@ from uuid import UUID
 
 import bcrypt
 from fastapi import Depends, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.security import check_scope, decode_token
+from app.core.config import settings
 from app.db.database import get_db
 
 if TYPE_CHECKING:
@@ -45,20 +47,39 @@ async def _find_api_key(db: AsyncSession, api_key_header: str) -> "APIKey | None
     """Look up the APIKey matching the raw header, bcrypt-checking one bucket at a time."""
     from sqlalchemy import select
 
-    from app.auth.security import PREFIX_LENGTH
+    from app.auth.security import PREFIX_LENGTH, looks_like_api_key
     from app.db.models.api_key import APIKey
+
+    # Reject structurally impossible keys before any hashing. Without this, `X-API-Key: x`
+    # from an unauthenticated caller still costs one bcrypt check per legacy row.
+    if not looks_like_api_key(api_key_header):
+        return None
 
     # Second pass matches rows created before the prefix migration (server_default='');
     # it only runs when the indexed prefix lookup found no match, so the happy path
-    # costs a single bcrypt check.  Remove it once all legacy keys are rotated.
-    for candidate_prefix in (api_key_header[:PREFIX_LENGTH], ""):
+    # costs a single bcrypt check.  Remove it once all legacy keys are rotated —
+    # API_KEY_LEGACY_PREFIX_FALLBACK=False does that without a code change, and closes
+    # the one path where a single bogus key costs one hash per legacy row.
+    buckets = [api_key_header[:PREFIX_LENGTH]]
+    if settings.API_KEY_LEGACY_PREFIX_FALLBACK:
+        buckets.append("")
+
+    for candidate_prefix in buckets:
         stmt = select(APIKey).where(
             APIKey.key_prefix == candidate_prefix,
             APIKey.revoked_at.is_(None),
         )
         candidates = (await db.scalars(stmt)).all()
         for key_record in candidates:
-            if bcrypt.checkpw(api_key_header.encode(), key_record.key_hash.encode()):
+            # bcrypt at production cost is ~250ms of pure CPU. Run inline in this
+            # coroutine it blocks the entire worker's event loop, stalling every
+            # concurrent request — not just this one. require_scope put this path on
+            # ~24 routes and an MCP agent turn hits several per turn, so it has to
+            # go to a thread.
+            matched = await run_in_threadpool(
+                bcrypt.checkpw, api_key_header.encode(), key_record.key_hash.encode()
+            )
+            if matched:
                 return key_record
     return None
 

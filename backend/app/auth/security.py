@@ -1,3 +1,4 @@
+import re
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -115,12 +116,34 @@ def verify_email_confirmation_token(token: str) -> uuid.UUID:
 PREFIX_LENGTH = 8
 
 
+# Shared by the generator and the structural pre-check below, so the two cannot drift:
+# changing this changes both, rather than silently 401ing every newly issued key.
+API_KEY_BYTES = 32
+
+
 def generate_api_key() -> tuple[str, str, str]:
     """Generate a new API key. Returns (raw_key, key_hash, key_prefix)."""
-    raw_key = secrets.token_urlsafe(32)
+    raw_key = secrets.token_urlsafe(API_KEY_BYTES)
     key_prefix = raw_key[:PREFIX_LENGTH]
     key_hash = bcrypt.hashpw(raw_key.encode(), bcrypt.gensalt(rounds=12)).decode()
     return raw_key, key_hash, key_prefix
+
+
+# Every key this app has ever issued is secrets.token_urlsafe(32): 43 characters drawn
+# from the URL-safe base64 alphabet. Anything else cannot match any stored hash, so it
+# can be rejected before spending a single ~250ms bcrypt check. That matters because a
+# key matching no prefix is otherwise scanned against every legacy (key_prefix='') row.
+API_KEY_LENGTH = len(secrets.token_urlsafe(API_KEY_BYTES))
+_API_KEY_SHAPE = re.compile(rf"\A[A-Za-z0-9_-]{{{API_KEY_LENGTH}}}\Z")
+
+
+def looks_like_api_key(candidate: str) -> bool:
+    """Cheap structural pre-check: could this string possibly be an issued API key?
+
+    Never rejects a real key — it only encodes the generator's own output shape — so a
+    False here is a guaranteed non-match, not a heuristic.
+    """
+    return _API_KEY_SHAPE.match(candidate) is not None
 
 
 # --- Scope checking ---
