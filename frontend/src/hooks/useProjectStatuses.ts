@@ -21,6 +21,9 @@ export function useProjectStatuses(projectId: string | undefined) {
   // on reloadKey alone, also re-arms on a plain projectId change (no
   // explicit refresh()), matching the original fetch-on-every-dependency-
   // change behaviour.
+  // This `loading = !!id && loadedTarget !== target` shape is this codebase's
+  // canonical pattern for derived loading state — see useProjectSprints.ts
+  // for the other instance.
   const loading = !!projectId && loadedTarget !== target
 
   useEffect(() => {

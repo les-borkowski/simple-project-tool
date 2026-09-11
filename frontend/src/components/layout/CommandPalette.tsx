@@ -234,11 +234,13 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     },
   })
 
-  // A cleared query shows nothing without needing to write state: `results`
-  // may still hold the previous query's response until the next debounced
-  // search resolves, so read it through the query gate everywhere it feeds
-  // the rendered list.
-  const visibleResults = query ? results : []
+  // `results` can still hold a stale response: the previous query's rows, or
+  // (after the box is cleared and retyped) rows from before the clear, until
+  // the next debounced search resolves. Gating on searchedFor === query as
+  // well as query !== '' — rather than only the latter — keeps those stale
+  // rows from rendering under "Searching…" during the debounce window; read
+  // results through this gate everywhere it feeds the rendered list.
+  const visibleResults = query !== '' && searchedFor === query ? results : []
 
   // Build displayed result rows (capped at 5)
   const displayedResults = visibleResults.slice(0, 5)

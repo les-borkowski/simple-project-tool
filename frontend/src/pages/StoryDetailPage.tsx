@@ -84,9 +84,13 @@ export function StoryDetailPage() {
     if (wantsCreateTaskModal) setShowCreateTask(true)
   }
 
+  // Depends on location.state itself, not just the derived wantsCreateTaskModal:
+  // CommandPalette can push the same `modal` value twice in a row, which
+  // leaves the derived boolean unchanged even though a fresh state object
+  // arrived, and this must still scrub it from window.history.state.
   useEffect(() => {
     if (wantsCreateTaskModal) window.history.replaceState({}, '')
-  }, [wantsCreateTaskModal])
+  }, [location.state, wantsCreateTaskModal])
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null)
   const [editTask, setEditTask] = useState<{ id: string; title: string; description: string } | null>(null)
   const [savingTask, setSavingTask] = useState(false)

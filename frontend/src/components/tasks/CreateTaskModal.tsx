@@ -41,7 +41,10 @@ export function CreateTaskModal({
   const [priority, setPriority] = useState<Priority>('medium')
   const [storyId, setStoryId] = useState(defaultStoryId ?? '')
   const [sprintId, setSprintId] = useState(defaultSprintId ?? '')
-  const [assigneeId, setAssigneeId] = useState(user?.id ?? '')
+  // null means "not chosen yet" so the field can fall back to the current
+  // user. '' is a legitimate user choice (Unassigned), so it can't double as
+  // that sentinel — see effectiveAssigneeId below.
+  const [assigneeId, setAssigneeId] = useState<string | null>(null)
   const [effort, setEffort] = useState('')
   const [creating, setCreating] = useState(false)
 
@@ -54,7 +57,7 @@ export function CreateTaskModal({
     defaultStoryId ||
     (storiesHook.items.find((s) => s.is_default) ?? storiesHook.items[0])?.id.toString() ||
     ''
-  const effectiveAssigneeId = assigneeId || user?.id || ''
+  const effectiveAssigneeId = assigneeId ?? user?.id ?? ''
 
   // Fetch project members
   useEffect(() => {

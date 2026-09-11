@@ -92,9 +92,13 @@ export function ProjectsPage() {
     if (wantsCreateModal) setShowCreate(true)
   }
 
+  // Depends on location.state itself, not just the derived wantsCreateModal:
+  // CommandPalette can push the same `modal` value twice in a row, which
+  // leaves the derived boolean unchanged even though a fresh state object
+  // arrived, and this must still scrub it from window.history.state.
   useEffect(() => {
     if (wantsCreateModal) window.history.replaceState({}, '')
-  }, [wantsCreateModal])
+  }, [location.state, wantsCreateModal])
 
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')

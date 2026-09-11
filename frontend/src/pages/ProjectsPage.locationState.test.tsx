@@ -36,6 +36,22 @@ describe('ProjectsPage deep-linked create modal', () => {
       route: { pathname: '/projects', state: { modal: 'create-project' } },
     })
 
-    expect(await screen.findByRole('dialog')).toBeVisible()
+    // Named, not just any dialog: ProjectsPage renders two <Modal>s (create
+    // and edit), so an unnamed query would pass even if the wrong one opened.
+    expect(await screen.findByRole('dialog', { name: 'New project' })).toBeVisible()
+  })
+
+  it('opens no dialog when rendered without router state', async () => {
+    vi.mocked(projectsApi.list).mockResolvedValue({
+      data: { items: [makeProject({ id: 'proj-1', name: 'Alpha' })], next_cursor: null },
+    } as never)
+
+    renderWithProviders(<ProjectsPage />, {
+      auth: { user: makeUser({ role: 'manager' }), isAuthenticated: true },
+      route: { pathname: '/projects' },
+    })
+
+    await screen.findByText('Alpha')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

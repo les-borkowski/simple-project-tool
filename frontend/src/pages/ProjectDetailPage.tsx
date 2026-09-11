@@ -336,11 +336,15 @@ export function ProjectDetailPage() {
     else if (locationModal === 'create-task') setShowCreateTask(true)
   }
 
+  // Depends on location.state itself, not just the derived locationModal:
+  // CommandPalette can push the same `modal` value twice in a row, which
+  // leaves the derived string unchanged even though a fresh state object
+  // arrived, and this must still scrub it from window.history.state.
   useEffect(() => {
     if (locationModal === 'create-story' || locationModal === 'create-task') {
       window.history.replaceState({}, '')
     }
-  }, [locationModal])
+  }, [location.state, locationModal])
 
   useEffect(() => {
     if (!id) return
