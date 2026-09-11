@@ -53,6 +53,8 @@
   "api_key.warning": "Store this key safely — it will not be shown again.",
   "api_key.revoked": "API key revoked.",
   "config.updated": "Configuration updated.",
+  "config.unknown_key": "Unknown config key '{name}'. Settable keys: {keys}.",
+  "config.set_api_url_hint": "The API server address is a CLI setting, not an account preference, so 'config set' cannot change it. Use 'spt auth login --api-url <url>' to save it, or set SPT_API_URL for a single command.",
   "time.total_time": "Total Time",
   "time.status_breakdown": "Status Breakdown",
   "time.changed_at": "Changed At",

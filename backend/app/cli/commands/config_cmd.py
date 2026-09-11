@@ -16,6 +16,20 @@ app.add_typer(llm_app, name="llm")
 
 LOCALE_FIELDS = {"locale", "theme"}
 
+# What `config set` will send. Mirrors UserConfigUpdate minus display_preferences,
+# which takes a dict and so cannot come from a CLI string argument. Kept separate
+# from LOCALE_FIELDS above, which answers a different question — whether to mirror
+# the value into the local config file — even though the two sets coincide today.
+SETTABLE_KEYS = ("locale", "theme")
+
+# Keys people reach for that this command cannot set, pointing at what does.
+# The server ignores unknown fields rather than rejecting them, so without this
+# `config set api_base_url ...` reported success and changed nothing.
+REDIRECTED_KEYS = {
+    "api_base_url": "config.set_api_url_hint",
+    "api_url": "config.set_api_url_hint",
+}
+
 
 def _setup() -> tuple[CLIConfig, APIClient]:
     config = CLIConfig.load()
@@ -42,6 +56,13 @@ def config_set(
 ) -> None:
     """Set a configuration value."""
     config, client = _setup()
+    if key in REDIRECTED_KEYS:
+        console.print(t(REDIRECTED_KEYS[key]))
+        raise typer.Exit(1)
+    if key not in SETTABLE_KEYS:
+        # `name=`, not `key=`: t()'s own first parameter is called `key`.
+        console.print(t("config.unknown_key", name=key, keys=", ".join(SETTABLE_KEYS)))
+        raise typer.Exit(1)
     client.patch("/config", json={key: value})
     if key in LOCALE_FIELDS:
         setattr(config, key, value)

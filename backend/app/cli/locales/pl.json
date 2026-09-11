@@ -53,6 +53,8 @@
   "api_key.warning": "Zachowaj klucz bezpiecznie — nie zostanie pokazany ponownie.",
   "api_key.revoked": "Klucz API unieważniony.",
   "config.updated": "Konfiguracja zaktualizowana.",
+  "config.unknown_key": "Nieznany klucz konfiguracji '{name}'. Klucze, które można ustawić: {keys}.",
+  "config.set_api_url_hint": "Adres serwera API to ustawienie CLI, a nie preferencja konta, więc 'config set' nie może go zmienić. Użyj 'spt auth login --api-url <url>', aby go zapisać, albo ustaw SPT_API_URL dla pojedynczego polecenia.",
   "time.total_time": "Całkowity czas",
   "time.status_breakdown": "Podział według statusu",
   "time.changed_at": "Zmieniono",

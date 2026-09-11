@@ -428,6 +428,54 @@ def test_config_get(tmp_path):
     assert result.exit_code == 0
 
 
+def test_config_set_valid_key(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    cfg_data = {"locale": "pl", "theme": "light", "display_preferences": {}}
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request", return_value=make_resp(200, cfg_data)) as req:
+            result = runner.invoke(app, ["config", "set", "locale", "pl"])
+    assert result.exit_code == 0
+    assert req.called
+
+
+def test_config_set_rejects_unknown_key(tmp_path):
+    """An unknown key must fail loudly instead of being sent and silently ignored.
+
+    UserConfigUpdate does not forbid extra fields, so the server accepted
+    {"nonsense": ...}, updated nothing, and returned 200 — and the CLI reported
+    success. The request must not be made at all.
+    """
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request") as req:
+            result = runner.invoke(app, ["config", "set", "nonsense", "x"])
+    assert result.exit_code == 1
+    assert not req.called
+    assert "nonsense" in result.output
+    # The message has to name what you *can* set, or it just says no.
+    assert "locale" in result.output and "theme" in result.output
+
+
+def test_config_set_api_base_url_points_at_the_real_command(tmp_path):
+    """The specific confusion this guards: api_base_url is a CLI setting."""
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request") as req:
+            result = runner.invoke(
+                app, ["config", "set", "api_base_url", "https://spt.example.com"]
+            )
+    assert result.exit_code == 1
+    assert not req.called
+    assert "--api-url" in result.output
+    assert "SPT_API_URL" in result.output
+
+
 def _preview_data(low_confidence: bool = False) -> dict:
     return {
         "tasks": [

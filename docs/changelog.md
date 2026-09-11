@@ -14,6 +14,12 @@ place. Previously the only way to move the CLI off `http://localhost:8000` was t
 `~/.config/spt/config.json`. `spt config set` looks like it should have done this but does not — it
 patches account preferences on the server, not the CLI's own connection.
 
+**`spt config set` now rejects keys it cannot set** instead of reporting success and changing nothing.
+`UserConfigUpdate` does not forbid extra fields, so the server accepted any key, ignored it and returned
+200 — which made `spt config set api_base_url …` look like it had worked. Unknown keys now fail with the
+list of settable ones, and the two names people actually reach for, `api_base_url` and `api_url`, point at
+`spt auth login --api-url` and `SPT_API_URL` instead.
+
 **The manual now says how to install `spt` and `spt-mcp`.** It documented using them in detail but never
 said where they come from, opening with `spt auth login` as though the command already existed. Both are
 entry points on the backend package, so one install gives you both. Two things that bite in practice are
