@@ -393,7 +393,6 @@ def test_no_asyncsession_import():
 
 async def test_replay_client_end_to_end(tmp_path):
     from app.api.services.capture_service import extract
-
     from app.core.llm.replay import FixtureMissError, ReplayClient
 
     with patch("app.core.llm.replay.settings.LLM_MODEL", "gemini-3.6-flash"):
