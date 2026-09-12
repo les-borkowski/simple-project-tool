@@ -72,7 +72,7 @@ describe('ManualPage', () => {
 
     expect(within(toc).getByRole('link', { name: 'Timeline' })).toHaveAttribute(
       'aria-current',
-      'true'
+      'location'
     )
     expect(within(toc).getByRole('link', { name: 'Getting started' })).not.toHaveAttribute(
       'aria-current'
@@ -85,7 +85,7 @@ describe('ManualPage', () => {
 
     expect(within(toc).getByRole('link', { name: 'Getting started' })).toHaveAttribute(
       'aria-current',
-      'true'
+      'location'
     )
   })
 })
