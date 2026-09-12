@@ -8,9 +8,9 @@ from app.core.crypto import CredentialEncryptionUnavailable, decrypt_secret, enc
 
 @pytest.fixture(autouse=True)
 def clear_fernet_cache():
-    crypto._fernet_for_key.cache_clear()
+    crypto.reset_cipher_cache()
     yield
-    crypto._fernet_for_key.cache_clear()
+    crypto.reset_cipher_cache()
 
 
 def test_round_trip(monkeypatch):
@@ -60,5 +60,6 @@ def test_malformed_key_degrades_gracefully(monkeypatch):
     with pytest.raises(CredentialEncryptionUnavailable):
         decrypt_secret("some-ciphertext")
 
-    # a raising Fernet() construction isn't cached by lru_cache — confirm no stale entry lingers
-    assert crypto._fernet_for_key.cache_info().currsize == 0
+    # A key that fails to construct must not be memoised — otherwise fixing the typo
+    # without restarting would keep serving the broken cipher.
+    assert crypto._cache == {}

@@ -30,5 +30,9 @@ class APIKey(Base):
     last_used_at: Mapped[datetime | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    # Nullable so pre-existing keys keep working; new keys always get one. These are
+    # handed to third-party LLM hosts and live in config files on user machines, so an
+    # unbounded lifetime means a leaked key is valid until somebody notices.
+    expires_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
     user: Mapped["User"] = relationship("User", back_populates="api_keys")

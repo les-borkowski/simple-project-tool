@@ -31,6 +31,10 @@ class User(TimestampMixin, Base):
         Boolean, nullable=False, default=False, server_default="false"
     )
     password_changed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Throttles password-reset emails per account. Stored on the user rather than in a
+    # request log because no mail is sent for an unknown address anyway, so per-account
+    # is the granularity that actually bounds the mail-bombing and the Mailgun spend.
+    last_password_reset_request_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     llm_rpm_ceiling: Mapped[int | None] = mapped_column(Integer, nullable=True)
     llm_tpm_ceiling: Mapped[int | None] = mapped_column(Integer, nullable=True)
 

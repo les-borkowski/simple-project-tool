@@ -45,7 +45,7 @@ async def get_current_user(
 
 async def _find_api_key(db: AsyncSession, api_key_header: str) -> "APIKey | None":
     """Look up the APIKey matching the raw header, bcrypt-checking one bucket at a time."""
-    from sqlalchemy import select
+    from sqlalchemy import or_, select
 
     from app.auth.security import PREFIX_LENGTH, looks_like_api_key
     from app.db.models.api_key import APIKey
@@ -68,6 +68,11 @@ async def _find_api_key(db: AsyncSession, api_key_header: str) -> "APIKey | None
         stmt = select(APIKey).where(
             APIKey.key_prefix == candidate_prefix,
             APIKey.revoked_at.is_(None),
+            # NULL means "issued before expiry existed" and stays valid.
+            or_(
+                APIKey.expires_at.is_(None),
+                APIKey.expires_at > datetime.now(UTC).replace(tzinfo=None),
+            ),
         )
         candidates = (await db.scalars(stmt)).all()
         for key_record in candidates:

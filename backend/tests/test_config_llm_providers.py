@@ -40,9 +40,9 @@ class _FakeAuthErrorClient:
 def clear_fernet_cache():
     from app.core import crypto
 
-    crypto._fernet_for_key.cache_clear()
+    crypto.reset_cipher_cache()
     yield
-    crypto._fernet_for_key.cache_clear()
+    crypto.reset_cipher_cache()
 
 
 @pytest.fixture(autouse=True)

@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -77,6 +77,7 @@ async def create_api_key(data: APIKeyCreate, user: User, db: AsyncSession) -> AP
         key_prefix=key_prefix,
         label=data.label,
         scopes=data.scopes,
+        expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(days=data.expires_in_days),
     )
     db.add(key)
     await db.commit()
@@ -86,6 +87,7 @@ async def create_api_key(data: APIKeyCreate, user: User, db: AsyncSession) -> AP
         label=key.label,
         scopes=key.scopes,
         key=raw_key,
+        expires_at=key.expires_at,
     )
 
 
