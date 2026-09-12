@@ -1,3 +1,6 @@
+from datetime import date
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -47,7 +50,10 @@ class Settings(BaseSettings):
     # Demo/replay only: pins the "today" the extractor reasons from, so a recorded
     # fixture keeps matching tomorrow. Empty (the default) uses the real date.
     CAPTURE_REFERENCE_DATE: str = ""
-    LLM_ALLOW_SERVER_KEY_FALLBACK: bool = True
+    # Off by default: a multi-tenant deployment should not silently spend the operator's
+    # own provider key for users who have not supplied one. Turn on deliberately for a
+    # single-tenant or internal instance.
+    LLM_ALLOW_SERVER_KEY_FALLBACK: bool = False
     LLM_MAX_RPM: int = 20
     LLM_MAX_TPM: int = 100_000
 
@@ -64,6 +70,24 @@ class Settings(BaseSettings):
     # Dedicated from SECRET_KEY: rotating SECRET_KEY must not brick stored credentials.
     # Empty disables BYO credentials.
     CREDENTIAL_ENCRYPTION_KEY: str = ""
+
+    @field_validator("CAPTURE_REFERENCE_DATE")
+    @classmethod
+    def _validate_capture_reference_date(cls, v: str) -> str:
+        """Fail at startup, not on every capture request.
+
+        This is parsed with date.fromisoformat inside the request handler, so a typo
+        here used to surface as a 500 on every single capture rather than as a refusal
+        to boot with a clear message.
+        """
+        if v:
+            try:
+                date.fromisoformat(v)
+            except ValueError as exc:
+                raise ValueError(
+                    f"CAPTURE_REFERENCE_DATE must be an ISO date (YYYY-MM-DD), got {v!r}"
+                ) from exc
+        return v
 
     @property
     def cors_origins_list(self) -> list[str]:

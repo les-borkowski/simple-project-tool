@@ -76,7 +76,33 @@ class GeminiClient:
         }
 
         start = time.monotonic()
-        resp = None
+        try:
+            # LLM_TIMEOUT_SECONDS bounds the whole call, not just one attempt. httpx's
+            # own timeout is per-request, so without this a provider that keeps
+            # answering 429 with a long Retry-After could hold the request for
+            # MAX_RETRIES x timeout + backoff — minutes — and capture_service calls
+            # complete() twice on its retry path, doubling that again.
+            async with asyncio.timeout(settings.LLM_TIMEOUT_SECONDS):
+                resp = await self._post_with_retries(url, body, headers)
+        except TimeoutError as e:
+            raise LLMUnavailable(f"request timed out after {settings.LLM_TIMEOUT_SECONDS}s") from e
+
+        data = resp.json()
+        try:
+            text = data["candidates"][0]["content"]["parts"][0]["text"]
+        except (KeyError, IndexError, TypeError) as e:
+            raise LLMUnavailable("malformed response") from e
+
+        usage = data.get("usageMetadata", {})
+        return LLMResponse(
+            text=text,
+            model=resolved_model,
+            prompt_tokens=usage.get("promptTokenCount", 0),
+            completion_tokens=usage.get("candidatesTokenCount", 0),
+            latency_ms=int((time.monotonic() - start) * 1000),
+        )
+
+    async def _post_with_retries(self, url: str, body: dict, headers: dict) -> httpx.Response:
         async with httpx.AsyncClient(
             timeout=settings.LLM_TIMEOUT_SECONDS, transport=self._transport
         ) as client:
@@ -109,23 +135,12 @@ class GeminiClient:
                         raise LLMAuthError("credential rejected: 400 API_KEY_INVALID")
                 if resp.status_code >= 400:
                     raise LLMUnavailable(f"unexpected status {resp.status_code}")
-                break
+                # Every path above either raises or continues, so reaching here means
+                # a success status. (A trailing raise_for_status would be dead code.)
+                return resp
 
-        resp.raise_for_status()
-        data = resp.json()
-        try:
-            text = data["candidates"][0]["content"]["parts"][0]["text"]
-        except (KeyError, IndexError, TypeError) as e:
-            raise LLMUnavailable("malformed response") from e
-
-        usage = data.get("usageMetadata", {})
-        return LLMResponse(
-            text=text,
-            model=resolved_model,
-            prompt_tokens=usage.get("promptTokenCount", 0),
-            completion_tokens=usage.get("candidatesTokenCount", 0),
-            latency_ms=int((time.monotonic() - start) * 1000),
-        )
+        # Unreachable: the loop either returns or raises on its final attempt.
+        raise LLMUnavailable("retries exhausted")
 
     def _retry_after(self, resp: httpx.Response) -> float:
         raw = resp.headers.get("Retry-After")

@@ -6,11 +6,15 @@ Providers with `available=False` are visible in the catalogue (e.g. for a
 future "choose your provider" UI) without any adapter code to maintain.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from fastapi import HTTPException
 
 from app.core.config import settings
+
+# Identity-compared sentinel meaning "whatever settings.LLM_MODEL says right now".
+# A plain string default would be captured at import time and never see an override.
+_SERVER_DEFAULT_MODEL = "<server default>"
 
 
 @dataclass(frozen=True)
@@ -29,7 +33,10 @@ PROVIDERS: dict[str, ProviderSpec] = {
     "google": ProviderSpec(
         id="google",
         label="Google Gemini",
-        default_model=settings.LLM_MODEL,
+        # Sentinel, resolved per call by get_provider — a bare settings.LLM_MODEL here
+        # is frozen at import time, so a runtime override would never reach
+        # GET /config/llm-providers/available.
+        default_model=_SERVER_DEFAULT_MODEL,
         available=True,
         key_hint="starts with AIza",
         docs_url="https://aistudio.google.com/apikey",
@@ -59,12 +66,23 @@ PROVIDERS: dict[str, ProviderSpec] = {
 }
 
 
+def _resolved(spec: ProviderSpec) -> ProviderSpec:
+    """Swap the sentinel for whatever LLM_MODEL currently says."""
+    if spec.default_model is not _SERVER_DEFAULT_MODEL:
+        return spec
+    return replace(spec, default_model=settings.LLM_MODEL)
+
+
 def get_provider(provider_id: str) -> ProviderSpec:
     try:
-        return PROVIDERS[provider_id]
+        return _resolved(PROVIDERS[provider_id])
     except KeyError:
         raise HTTPException(status_code=422, detail="UNKNOWN_PROVIDER") from None
 
 
+def all_providers() -> list[ProviderSpec]:
+    return [_resolved(spec) for spec in PROVIDERS.values()]
+
+
 def available_providers() -> list[ProviderSpec]:
-    return [spec for spec in PROVIDERS.values() if spec.available]
+    return [_resolved(spec) for spec in PROVIDERS.values() if spec.available]

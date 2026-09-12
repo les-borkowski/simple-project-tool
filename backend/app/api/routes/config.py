@@ -12,7 +12,7 @@ from app.api.schemas.llm_provider import (
 )
 from app.api.services import config_service, llm_credential_service
 from app.auth.dependencies import get_current_user
-from app.core.llm.providers import PROVIDERS
+from app.core.llm.providers import all_providers
 from app.db.database import get_db
 from app.db.models import User
 
@@ -68,9 +68,13 @@ async def revoke_api_key(
 
 
 @router.get("/llm-providers/available", response_model=list[ProviderCatalogueItem])
-async def list_available_providers():
+async def list_available_providers(user: User = Depends(get_current_user)):
     """The provider catalogue — static metadata, no per-user state. Must be registered
-    before /llm-providers/{provider} or FastAPI matches "available" as a provider id."""
+    before /llm-providers/{provider} or FastAPI matches "available" as a provider id.
+
+    Authenticated even though the data is not per-user: it exposes the configured
+    LLM_MODEL and the provider catalogue, which anonymous callers have no business
+    enumerating."""
     return [
         ProviderCatalogueItem(
             id=spec.id,
@@ -80,7 +84,7 @@ async def list_available_providers():
             key_hint=spec.key_hint,
             docs_url=spec.docs_url,
         )
-        for spec in PROVIDERS.values()
+        for spec in all_providers()
     ]
 
 

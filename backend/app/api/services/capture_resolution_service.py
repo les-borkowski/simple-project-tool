@@ -33,6 +33,7 @@ from app.api.services.story_service import get_default_story
 from app.api.services.task_service import assemble_task
 from app.auth.permissions import require_not_demo, require_project_access
 from app.core.config import settings
+from app.core.llm import get_llm_client_for
 from app.core.llm.base import LLMNotConfigured
 from app.db.models import Project, Story, Task, User
 
@@ -127,6 +128,15 @@ async def preview_capture(
 
     cred = await resolve_credential(user, db)
     provider = cred.provider if cred else settings.LLM_PROVIDER
+
+    # The adapter must match the credential, not the global LLM_PROVIDER. The injected
+    # `client` is built from settings, so a user whose default credential is for another
+    # provider would have their key sent to the wrong one — an Anthropic key in a
+    # x-goog-api-key header to Google. Unreachable today (only "google" is available),
+    # but it becomes live credential exfiltration the moment another provider is
+    # switched on in app/core/llm/providers.py.
+    if cred is not None and cred.provider != settings.LLM_PROVIDER:
+        client = get_llm_client_for(cred.provider)
     # Claimed before the call, for every user rather than just demo accounts. The claim
     # is what closes the window against concurrent callers, and it is what makes a
     # failed call still count: if extract raises below, this row stays behind with
@@ -247,7 +257,7 @@ async def confirm_capture(
     if not project:
         raise HTTPException(status_code=404, detail="PROJECT_NOT_FOUND")
 
-    await require_project_access(user, project_id, db)
+    role = await require_project_access(user, project_id, db)
 
     backlog = await get_default_story(project_id, db)
 
@@ -279,7 +289,13 @@ async def confirm_capture(
                 sprint_id=None,
             )
             task = await assemble_task(
-                project_id, story_id, data, user, db, default_assignee_to_creator=False
+                project_id,
+                story_id,
+                data,
+                user,
+                db,
+                caller_role=role,
+                default_assignee_to_creator=False,
             )
             created_tasks.append(task)
         await db.commit()

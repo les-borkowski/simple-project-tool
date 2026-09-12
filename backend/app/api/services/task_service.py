@@ -17,7 +17,7 @@ from app.api.services.project_status_service import get_default_status_slug, val
 from app.api.services.story_service import get_default_story
 from app.api.utils import escape_like
 from app.auth.permissions import require_manager, require_not_demo, require_project_access
-from app.db.base import PriorityEnum
+from app.db.base import PriorityEnum, RoleEnum
 from app.db.models import Project, Sprint, StatusHistory, Story, Task, User
 
 
@@ -83,9 +83,17 @@ async def assemble_task(
     user: User,
     db: AsyncSession,
     *,
+    caller_role: RoleEnum,
     default_assignee_to_creator: bool = True,
 ) -> Task:
-    """Validate, build, and stage a Task + its initial StatusHistory row. Does NOT commit."""
+    """Validate, build, and stage a Task + its initial StatusHistory row. Does NOT commit.
+
+    Checks no permissions of its own — it takes `project_id` directly rather than
+    deriving it from an authorised object, so it is the one function here that writes a
+    Task without establishing that the caller may. `caller_role` is required and
+    keyword-only precisely so that cannot happen by accident: a caller has to have
+    resolved the role, which means it has to have done the access check.
+    """
     if data.status is not None:
         status_val = await validate_status_slug(project_id, data.status, db)
     else:
@@ -140,9 +148,9 @@ async def create_task(
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
 
-    await require_project_access(user, story.project_id, db)
+    role = await require_project_access(user, story.project_id, db)
 
-    task = await assemble_task(story.project_id, story_id, data, user, db)
+    task = await assemble_task(story.project_id, story_id, data, user, db, caller_role=role)
     await db.commit()
 
     return TaskResponse.model_validate(task)
@@ -157,11 +165,11 @@ async def create_task_for_project(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    await require_project_access(user, project_id, db)
+    role = await require_project_access(user, project_id, db)
 
     backlog = await get_default_story(project_id, db)
 
-    task = await assemble_task(project_id, backlog.id, data, user, db)
+    task = await assemble_task(project_id, backlog.id, data, user, db, caller_role=role)
     await db.commit()
 
     return TaskResponse.model_validate(task)

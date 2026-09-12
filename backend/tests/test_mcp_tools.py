@@ -12,11 +12,10 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.main import app
-from app.api.schemas.api_key import APIKeyCreate
-from app.api.services import config_service
+from app.auth.security import generate_api_key
 from app.core.llm.base import LLMResponse
 from app.db.database import get_db
-from app.db.models import User
+from app.db.models import APIKey, User
 from app.mcp.client import SPTClient
 from app.mcp.config import MCPConfig
 from app.mcp.server import (
@@ -113,10 +112,23 @@ async def _make_mcp_client(
 
     app.dependency_overrides[get_db] = locked_get_db
 
-    key = await config_service.create_api_key(
-        APIKeyCreate(label=label, scopes=scopes), manager_user, api_db
+    # Built directly rather than through config_service.create_api_key, which is
+    # require_not_demo-guarded — and one caller here is deliberately a demo account, to
+    # prove the *write* is refused downstream. Still uses generate_api_key, so the key
+    # goes through the real hashing path the auth lookup will exercise.
+    raw_key, key_hash, key_prefix = generate_api_key()
+    api_db.add(
+        APIKey(
+            user_id=manager_user.id,
+            key_hash=key_hash,
+            key_prefix=key_prefix,
+            label=label,
+            scopes=scopes,
+        )
     )
-    config = MCPConfig(api_url="http://test", api_key=key.key, locale="en-GB", timeout=30.0)
+    await api_db.commit()
+
+    config = MCPConfig(api_url="http://test", api_key=raw_key, locale="en-GB", timeout=30.0)
     return SPTClient(config, transport=httpx.ASGITransport(app=app))
 
 

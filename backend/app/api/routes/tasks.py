@@ -20,7 +20,7 @@ from app.api.schemas.task import (
 from app.api.services import capture_resolution_service, task_service
 from app.auth.dependencies import get_current_user, require_scope
 from app.core.llm import get_llm_client
-from app.core.llm.base import LLMClient, LLMNotConfigured, LLMUnavailable
+from app.core.llm.base import LLMAuthError, LLMClient, LLMNotConfigured, LLMUnavailable
 from app.db.base import PriorityEnum
 from app.db.database import get_db
 from app.db.models import User
@@ -101,6 +101,12 @@ async def capture_tasks(
         )
     except LLMNotConfigured as e:
         raise HTTPException(status_code=503, detail="LLM_NOT_CONFIGURED") from e
+    except LLMAuthError as e:
+        # Must precede LLMUnavailable, which it subclasses. Without this arm a user
+        # whose own stored key was revoked is told the service is "temporarily
+        # unavailable" forever, with nothing pointing at the key they need to replace.
+        # 502, not 503: the provider answered, it rejected this credential.
+        raise HTTPException(status_code=502, detail="LLM_KEY_INVALID") from e
     except LLMUnavailable as e:
         raise HTTPException(status_code=503, detail="LLM_UNAVAILABLE") from e
 

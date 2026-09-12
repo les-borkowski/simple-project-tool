@@ -157,7 +157,9 @@ async def test_patch_invalid_key_rejected(api_client: AsyncClient, auth_headers:
     monkeypatch.setattr(svc, "get_llm_client_for", lambda provider_id: _FakeAuthErrorClient())
     resp = await api_client.patch(
         "/api/v1/config/llm-providers/google",
-        json={"api_key": "bad-key"},
+        # Long enough to clear the schema's min_length, so this exercises the live
+        # provider rejection rather than being turned away at the boundary.
+        json={"api_key": "bad-key-but-long-enough"},
         headers=auth_headers,
     )
     assert resp.status_code == 422
@@ -253,6 +255,12 @@ async def test_patch_encryption_unavailable_returns_503(
 
 @pytest.mark.asyncio
 async def test_patch_rpm_limit_clamped_to_ceiling(api_client: AsyncClient, auth_headers: dict):
+    """The ceiling binds what is *enforced*, not what is stored.
+
+    Persisting the clamped value would destroy the user's stated intent: raising their
+    ceiling later could not restore the limit they originally asked for, because the
+    request had been overwritten with the old ceiling.
+    """
     resp = await api_client.patch(
         "/api/v1/config/llm-providers/google",
         json={"api_key": RAW_KEY, "rpm_limit": 999_999},
@@ -260,8 +268,8 @@ async def test_patch_rpm_limit_clamped_to_ceiling(api_client: AsyncClient, auth_
     )
     assert resp.status_code == 200
     body = resp.json()
-    assert body["rpm_limit"] == settings.LLM_MAX_RPM
-    assert body["effective_rpm"] == settings.LLM_MAX_RPM
+    assert body["rpm_limit"] == 999_999, "the user's requested limit should be preserved"
+    assert body["effective_rpm"] == settings.LLM_MAX_RPM, "but the ceiling is what applies"
 
 
 @pytest.mark.asyncio

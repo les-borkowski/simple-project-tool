@@ -17,7 +17,7 @@ from app.api.schemas.llm_provider import UserLLMProviderResponse, UserLLMProvide
 from app.auth.permissions import require_not_demo
 from app.core.crypto import CredentialEncryptionUnavailable, decrypt_secret, encrypt_secret
 from app.core.llm import get_llm_client_for
-from app.core.llm.base import LLMAuthError
+from app.core.llm.base import LLMAuthError, LLMUnavailable
 from app.core.llm.providers import get_provider
 from app.db.models import User, UserLLMProvider
 from app.db.models.user_llm_provider import effective_rpm_limit, effective_tpm_limit
@@ -67,7 +67,7 @@ async def list_providers(user: User, db: AsyncSession) -> list[UserLLMProviderRe
     return [_to_response(row, user) for row in rows]
 
 
-async def _validate_key_live(provider_id: str, api_key: str) -> None:
+async def _validate_key_live(provider_id: str, api_key: str, model: str | None = None) -> None:
     """One minimal generation call to catch a pasted typo/wrong key.
 
     Only LLMAuthError (401/403) blocks the save with a client-facing 422 — a
@@ -79,14 +79,26 @@ async def _validate_key_live(provider_id: str, api_key: str) -> None:
     """
     try:
         client = get_llm_client_for(provider_id)
+        # Probe the model the credential will actually be used with. Validating against
+        # settings.LLM_MODEL instead would pass for a key that has no access to the
+        # model the user picked, and fail for one that does.
         await client.complete(
-            "You are a test.", "Reply with OK.", max_tokens=1, temperature=0.0, api_key=api_key
+            "You are a test.",
+            "Reply with OK.",
+            max_tokens=1,
+            temperature=0.0,
+            api_key=api_key,
+            model=model,
         )
     except LLMAuthError:
         raise HTTPException(status_code=422, detail="LLM_KEY_INVALID") from None
     except ValueError as exc:
         raise HTTPException(status_code=503, detail="LLM_PROVIDER_MISCONFIGURED") from exc
-    except Exception as exc:  # noqa: BLE001 - deliberately broad: network/timeout/provider-outage only
+    except LLMUnavailable as exc:
+        # Only a provider-side failure — network, timeout, outage — is treated as
+        # "probably fine, store it anyway". Narrowed from a bare Exception, which also
+        # swallowed TypeError/AttributeError from a genuine adapter bug and stored the
+        # key unvalidated as though nothing were wrong.
         _logger.warning("LLM key validation call failed for provider %s: %s", provider_id, exc)
 
 
@@ -115,7 +127,7 @@ async def upsert_provider(
         except CredentialEncryptionUnavailable as exc:
             raise HTTPException(status_code=503, detail="CREDENTIAL_STORAGE_UNAVAILABLE") from exc
         hint = data.api_key[-4:]
-        await _validate_key_live(provider_id, data.api_key)
+        await _validate_key_live(provider_id, data.api_key, data.model)
 
     is_first_ever = False
     if existing is not None:
@@ -167,11 +179,10 @@ async def upsert_provider(
     if data.enabled is not None:
         row.enabled = data.enabled
 
-    # Clamp to the effective ceiling rather than rejecting an over-the-ceiling request.
-    if row.rpm_limit is not None:
-        row.rpm_limit = effective_rpm_limit(row, user)
-    if row.tpm_limit is not None:
-        row.tpm_limit = effective_tpm_limit(row, user)
+    # The ceiling is applied on read by effective_rpm_limit/effective_tpm_limit, so it
+    # is deliberately NOT written back here. Persisting the clamped value destroys the
+    # user's stated intent: someone who asks for 999 under a ceiling of 20 would have 20
+    # written, and raising their ceiling later would not restore what they asked for.
 
     if is_first_ever:
         row.is_default = True
@@ -221,6 +232,15 @@ async def resolve_credential(user: User, db: AsyncSession) -> ResolvedCredential
     elif len(rows) == 1:
         row = rows[0]
     else:
+        # Several enabled credentials and no single default. Picking one arbitrarily
+        # would spend an unpredictable key, so nothing is resolved — but say so, because
+        # the caller's alternative is to silently spend the server's key instead.
+        _logger.warning(
+            "User %s has %d enabled credentials and %d marked default; none resolved",
+            user.id,
+            len(rows),
+            len(defaults),
+        )
         return None
 
     try:
