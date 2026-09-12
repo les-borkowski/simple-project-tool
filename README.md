@@ -68,15 +68,25 @@ Each user can also configure their own personal LLM API key (currently only Goog
 | `GOOGLE_API_KEY` | *(empty)* | the server-wide fallback key; leave empty to disable server-key fallback entirely |
 | `LLM_TIMEOUT_SECONDS` | `30` | |
 | `LLM_CAPTURE_MIN_CONFIDENCE` | `0.5` | extracted tasks below this confidence are flagged `low_confidence` in the API/UI/CLI, not dropped |
-| `CREDENTIAL_ENCRYPTION_KEY` | *(empty)* | required before any user can save a personal credential — an empty value means `503 CREDENTIAL_STORAGE_UNAVAILABLE` on save. Generate one with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. A dedicated key, deliberately not derived from `SECRET_KEY`, so rotating one never invalidates the other |
-| `LLM_ALLOW_SERVER_KEY_FALLBACK` | `True` | when `false`, a user with no personal credential gets a clean `503 LLM_NOT_CONFIGURED` instead of silently falling back to `GOOGLE_API_KEY` — how a public/multi-tenant deployment stops involuntarily funding everyone's LLM usage off one shared key |
+| `CREDENTIAL_ENCRYPTION_KEY` | *(empty)* | comma-separated Fernet keys, **newest first**; required before any user can save a personal credential — an empty value means `503 CREDENTIAL_STORAGE_UNAVAILABLE` on save. Generate one with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. A dedicated key, deliberately not derived from `SECRET_KEY`, so rotating one never invalidates the other. See rotation below |
+| `LLM_ALLOW_SERVER_KEY_FALLBACK` | `False` | when `false` (the default), a user with no personal credential gets a clean `503 LLM_NOT_CONFIGURED` instead of silently falling back to `GOOGLE_API_KEY`. Set it to `true` only on a single-tenant or internal instance where funding everyone's usage off one shared key is intended |
 | `LLM_MAX_RPM` | `20` | server-wide default requests-per-minute ceiling per user; an admin can override it per user, and a user's own credential-level RPM limit can only clamp below this ceiling, never above it |
 | `LLM_MAX_TPM` | `100000` | same shape, tokens-per-minute |
 | `CAPTURE_REFERENCE_DATE` | *(empty)* | demo/replay only — pins the "today" the extractor reasons from so recorded fixtures keep matching. Overrides the date the client sends; leave empty in production |
 
 Demo accounts (`is_demo`) are additionally capped at **one capture per 2 hours**, regardless of the ceilings above. They can never hold a personal credential, so every demo capture spends the server's own key; the allowance is claimed *before* the provider call, so an attempt that times out still counts.
 
-An empty `GOOGLE_API_KEY` with `LLM_ALLOW_SERVER_KEY_FALLBACK=true` (the default) still disables capture for users with no personal credential — they get `503 LLM_NOT_CONFIGURED` rather than a crash. Capture is an optional, additive feature.
+An empty `GOOGLE_API_KEY` with `LLM_ALLOW_SERVER_KEY_FALLBACK=true` still disables capture for users with no personal credential — they get `503 LLM_NOT_CONFIGURED` rather than a crash. Capture is an optional, additive feature.
+
+**Rotating `CREDENTIAL_ENCRYPTION_KEY`** is three steps, and the middle one is not optional:
+
+```bash
+CREDENTIAL_ENCRYPTION_KEY=<new>,<old>        # 1. prepend the new key, keep the old
+uv run python -m scripts.rotate_credentials  # 2. re-encrypt every stored row (--dry-run to preview)
+CREDENTIAL_ENCRYPTION_KEY=<new>              # 3. drop the old key
+```
+
+Skipping step 2 and dropping the old key leaves every stored credential undecryptable — and the capture path reads that as "this user has no credential", so instead of an error the whole user base silently falls back to the server key.
 
 This feature adds three user-facing surfaces:
 
@@ -100,7 +110,7 @@ uv run python -m scripts.demo_capture record --as-user <email>      # one live c
 LLM_PROVIDER=replay CAPTURE_REFERENCE_DATE=2026-09-04 uv run python -m app.main
 ```
 
-The demo phrases and project shape live in `backend/evals/fixtures/demo_script.json` — edit that and re-run `record` to change the script. Recording needs a real key: `GOOGLE_API_KEY` if set, otherwise `--as-user` names an account whose stored credential to borrow. Anything typed during the demo that isn't a recorded phrase raises `FixtureMissError` → `503`, so it's a scripted demo, not a sandbox.
+The demo phrases and project shape live in `backend/evals/fixtures/demo_script.json` — edit that and re-run `record` to change the script. Recording needs a real key: `GOOGLE_API_KEY` if set, otherwise `--as-user` names an account whose stored credential to borrow. Note that `--as-user` decrypts and spends that account's stored provider key — it needs database and `CREDENTIAL_ENCRYPTION_KEY` access, so it grants nothing an operator does not already have, but it is an operator-side path to a user's credential and is worth knowing about. Anything typed during the demo that isn't a recorded phrase raises `FixtureMissError` → `503`, so it's a scripted demo, not a sandbox.
 
 **`seed` creates real, loginable accounts**, and their email addresses are committed in `demo_script.json`. It therefore refuses to run when `DEBUG` is off unless you pass `--force`. The password is never a literal in the repo: set `DEMO_SEED_PASSWORD` to choose one, or leave it unset and the script prints a generated password once, at seed time, which is the only time it is shown. If you seeded a deployed instance with an earlier version of this script, delete those accounts — they had a password published in this repository.
 

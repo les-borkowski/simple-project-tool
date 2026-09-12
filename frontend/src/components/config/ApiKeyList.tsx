@@ -17,6 +17,10 @@ const ALL_SCOPES = [
   'read:comments', 'write:comments',
 ]
 
+function isExpired(expiresAt: string | null): boolean {
+  return expiresAt !== null && new Date(expiresAt).getTime() <= Date.now()
+}
+
 export function ApiKeyList() {
   const { t } = useTranslation()
   const [keys, setKeys] = useState<ApiKeyResponse[]>([])
@@ -110,6 +114,19 @@ export function ApiKeyList() {
                 </p>
                 <p className="text-xs text-stone-400 dark:text-stone-400 mt-0.5">
                   {t('api_keys.last_used')}: {key.last_used_at ? formatDate(key.last_used_at, i18n.language) : t('api_keys.never')}
+                </p>
+                {/* An expiry the holder cannot see is one they cannot plan around —
+                    an agent's key going quiet is otherwise indistinguishable from a bug. */}
+                <p
+                  className={`text-xs mt-0.5 ${
+                    isExpired(key.expires_at)
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-stone-400 dark:text-stone-400'
+                  }`}
+                >
+                  {key.expires_at
+                    ? `${isExpired(key.expires_at) ? t('api_keys.expired') : t('api_keys.expires')}: ${formatDate(key.expires_at, i18n.language)}`
+                    : `${t('api_keys.expires')}: ${t('api_keys.never')}`}
                 </p>
               </div>
               <button

@@ -4,6 +4,8 @@ import functools
 from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 
+import httpx
+
 T = TypeVar("T")
 
 
@@ -40,5 +42,17 @@ def tool_errors(fn: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
             return await fn(*args, **kwargs)
         except SPTAPIError as exc:
             raise Exception(str(exc)) from exc
+        except httpx.HTTPError as exc:
+            # The API being unreachable is the most likely failure for a host that has
+            # just been configured, and httpx's own text for it ("All connection
+            # attempts failed") says nothing about what to check. Name the URL — taken
+            # from the failed request itself — so the answer is in the message the
+            # assistant actually reads.
+            target = getattr(getattr(exc, "request", None), "url", None)
+            where = f" at {target}" if target else ""
+            raise Exception(
+                f"Cannot reach the SPT API{where}: {exc}. "
+                "Check the server is running and SPT_API_URL is correct."
+            ) from exc
 
     return wrapper

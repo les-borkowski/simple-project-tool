@@ -164,6 +164,8 @@ export interface ApiKeyResponse {
   scopes: string[]
   last_used_at: string | null
   created_at: string
+  /** null only for keys issued before expiry existed; those never expire. */
+  expires_at: string | null
 }
 
 export interface ApiKeyCreatedResponse extends ApiKeyResponse {

@@ -62,6 +62,7 @@
   "capture.confirm_prompt": "Create these tasks?",
   "capture.unparseable": "Could not extract any tasks from that text.",
   "capture.no_tasks": "No tasks found.",
+  "capture.text_required": "Provide capture text as an argument, with --file, or via stdin with '-'.",
   "capture.created": "{count} task(s) created.",
   "col.due_date": "Due Date",
   "col.story": "Story",

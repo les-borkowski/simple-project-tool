@@ -207,12 +207,12 @@ async def preview_capture(
         assignee_id, assignee_resolved = resolve_assignee_hint(task.assignee_hint, members)
         if task.assignee_hint is not None and not assignee_resolved:
             warnings.append(
-                f"Could not resolve assignee '{task.assignee_hint}' to a project member"
+                translate(request, "CAPTURE_ASSIGNEE_UNRESOLVED", hint=task.assignee_hint)
             )
 
         story_id, story_resolved = resolve_story_hint(task.story_hint, stories)
         if task.story_hint is not None and not story_resolved:
-            warnings.append(f"Could not resolve story '{task.story_hint}' to a project story")
+            warnings.append(translate(request, "CAPTURE_STORY_UNRESOLVED", hint=task.story_hint))
         if story_id is None and payload.story_id is not None:
             story_id = payload.story_id
             story_resolved = True

@@ -452,9 +452,10 @@ async def capture_tasks(
     preview and call confirm_capture with the (possibly edited) tasks before anything is
     actually created. reference_date is YYYY-MM-DD and defaults to today if omitted - it
     anchors relative dates like "tomorrow" in the input text. story_id, if given, is used
-    as the default story for any task the model didn't resolve a story hint for. Requires
-    the API key owner to have configured a personal LLM key; an LLM_NOT_CONFIGURED error
-    means they have not."""
+    as the default story for any task the model did not resolve a story hint for. Needs an
+    LLM credential: either one the API key owner configured for themselves, or a
+    server-wide key if the operator allows that fallback. LLM_NOT_CONFIGURED means
+    neither is available; LLM_KEY_INVALID means the owner's own key was rejected."""
     client: SPTClient = ctx.request_context.lifespan_context
     return await _capture_tasks_impl(client, project_id, text, reference_date, story_id)
 

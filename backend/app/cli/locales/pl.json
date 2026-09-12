@@ -62,6 +62,7 @@
   "capture.confirm_prompt": "Utworzyć te zadania?",
   "capture.unparseable": "Nie udało się wyodrębnić żadnych zadań z tego tekstu.",
   "capture.no_tasks": "Nie znaleziono zadań.",
+  "capture.text_required": "Podaj tekst jako argument, przez --file albo ze standardowego wejścia przy użyciu '-'.",
   "capture.created": "Utworzono {count} zadanie(a).",
   "col.due_date": "Termin",
   "col.story": "Wątek",

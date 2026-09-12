@@ -2,6 +2,28 @@
 
 All notable changes to simple-project-tool are documented here. Format: reverse chronological (newest first).
 
+## [2026-09-12] - Security & correctness: pre-deploy review fixes
+
+**Category**: Security, Fixes
+
+**API keys now expire.** New keys last 90 days unless you choose otherwise (`expires_in_days`, 1-3650), and the expiry shows in the key list. Keys issued before this change have no expiry and keep working. This branch is the one that hands API keys to third-party LLM hosts, where they live in a config file on the user's machine — an unbounded lifetime meant a leaked key stayed valid until somebody noticed.
+
+**`CREDENTIAL_ENCRYPTION_KEY` is rotatable.** It now accepts comma-separated keys, newest first: encryption uses the first, decryption tries each. `scripts/rotate_credentials.py` re-encrypts stored rows so the old key can be retired. Previously rotating it made every stored credential undecryptable, and the capture path reads that as "no credential" — so an operator rotating for an unrelated reason would have silently moved their whole user base's LLM spend onto the server key.
+
+**`LLM_ALLOW_SERVER_KEY_FALLBACK` now defaults to `False`.** A multi-tenant deployment should not spend the operator's own provider key for users who have not supplied one. Set it to `True` deliberately for a single-tenant or internal instance.
+
+**Password reset is rate limited** — one email per account per 15 minutes. Throttled requests are byte-identical to un-throttled and unknown-address ones, so the limit does not become an account-existence oracle.
+
+**Quick capture says what actually went wrong.** "Not configured", "your key was rejected", "you have hit your limit" and "the provider is unreachable" were all reported as _"temporarily unavailable, try again later"_ — advice that never comes true for the first two. The Story field also reads **Backlog (no story)** instead of rendering blank when no story was resolved.
+
+**`spt tasks capture` accepts `--file` and stdin**, so capture text — which routinely quotes people or describes unreleased work — need not go through your shell history.
+
+**The user manual is translated.** It was 574 lines of hardcoded English, so a `pl` user clicking "Pomoc" got an entirely English document. Content now lives in per-locale modules; the Polish is new and unreviewed by a native speaker.
+
+**Also**: an overall deadline on LLM calls (a throttling provider could previously hold a request for minutes); `bcrypt` moved off the event loop on the API-key path; the LLM rate limit is now claimed before the call rather than recorded after it, so concurrent callers cannot all pass and a failed call still counts; demo accounts can no longer mint API keys; `GET /config/llm-providers/available` requires authentication; and per-credential rate limits are no longer overwritten with the clamped value.
+
+---
+
 ## [2026-09-11] - Features: point the CLI at any server, document installing the tools
 
 **Category**: Features

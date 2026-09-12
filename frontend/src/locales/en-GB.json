@@ -88,6 +88,8 @@
   "api_keys.scopes": "Scopes",
   "api_keys.last_used": "Last used",
   "api_keys.never": "Never",
+  "api_keys.expires": "Expires",
+  "api_keys.expired": "Expired",
   "api_keys.revoke": "Revoke",
   "api_keys.empty": "No API keys",
   "api_keys.copy_warning": "Copy this key now — it won't be shown again.",

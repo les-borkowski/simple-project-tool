@@ -90,6 +90,8 @@
   "api_keys.scopes": "Uprawnienia",
   "api_keys.last_used": "Ostatnio użyty",
   "api_keys.never": "Nigdy",
+  "api_keys.expires": "Wygasa",
+  "api_keys.expired": "Wygasł",
   "api_keys.revoke": "Odwołaj",
   "api_keys.empty": "Brak kluczy API",
   "api_keys.copy_warning": "Skopiuj ten klucz teraz — nie będzie pokazany ponownie.",

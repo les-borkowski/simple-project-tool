@@ -28,6 +28,8 @@
   "LLM_RATE_LIMITED": "AI task capture is temporarily rate-limited — please try again shortly",
   "DEMO_CAPTURE_COOLDOWN": "The demo account allows one AI capture every 2 hours — please try again later",
   "CAPTURE_UNPARSEABLE": "Could not understand the input as a task",
+  "CAPTURE_ASSIGNEE_UNRESOLVED": "Could not match '{hint}' to a project member",
+  "CAPTURE_STORY_UNRESOLVED": "Could not match '{hint}' to a project story",
   "CAPTURE_NOT_A_TASK": "This does not look like a task request",
   "INVALID_ASSIGNEE": "Assignee is not a member of this project",
   "UNKNOWN_PROVIDER": "Unknown LLM provider",

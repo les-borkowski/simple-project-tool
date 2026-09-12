@@ -171,6 +171,63 @@ Email sending is disabled when `MAILGUN_API_KEY` is empty — the app works full
 | `MAILGUN_FROM_NAME` | From display name | `Simple Project Tool` |
 | `FRONTEND_URL` | Base URL included in email links | `http://localhost:5173` |
 
+### LLM / AI capture
+
+All optional. With `GOOGLE_API_KEY` empty and no user supplying their own key, the capture
+endpoints return `503 LLM_NOT_CONFIGURED` and every other feature works normally.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LLM_PROVIDER` | Active provider adapter. `replay` serves recorded fixtures for an offline demo | `google` |
+| `LLM_MODEL` | Model id used when a user has not overridden it | `gemini-3.1-flash-lite` |
+| `GOOGLE_API_KEY` | Server-wide Gemini key (empty = no server key) | empty |
+| `LLM_TIMEOUT_SECONDS` | Deadline for one complete LLM call, retries and backoff included | `30` |
+| `LLM_CAPTURE_MIN_CONFIDENCE` | Below this, an extracted task is marked low-confidence and starts unticked | `0.5` |
+| `LLM_ALLOW_SERVER_KEY_FALLBACK` | Let users with no key of their own spend `GOOGLE_API_KEY`. Off by default: on a multi-tenant deployment this is the operator's own bill | `False` |
+| `LLM_MAX_RPM` | Requests per minute ceiling per user | `20` |
+| `LLM_MAX_TPM` | Tokens per minute ceiling per user | `100000` |
+| `CAPTURE_REFERENCE_DATE` | Demo only — pins the "today" the extractor reasons from. **Must be empty in production** | empty |
+| `DEMO_SEED_PASSWORD` | Password for accounts created by `scripts.demo_capture seed`. Never set on a real deployment | empty |
+
+### Credential encryption
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `CREDENTIAL_ENCRYPTION_KEY` | Comma-separated Fernet keys, **newest first**. Empty disables user-supplied LLM keys | empty |
+
+Generate one with:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Rotating it is a three-step job, and skipping the middle step strands every stored
+credential — the capture path reads an undecryptable credential as "no credential", so
+users silently fall back to the server key instead of seeing an error:
+
+```bash
+# 1. prepend the new key, keeping the old one
+CREDENTIAL_ENCRYPTION_KEY=<new>,<old>
+
+# 2. re-encrypt everything under the new key
+uv run python -m scripts.rotate_credentials    # --dry-run to preview
+
+# 3. drop the old key
+CREDENTIAL_ENCRYPTION_KEY=<new>
+```
+
+### API keys
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `API_KEY_LEGACY_PREFIX_FALLBACK` | Keep matching API keys issued before `key_prefix` existed. Those rows can only be rotated, not backfilled; set to `False` once they are gone | `True` |
+
+Check whether any remain:
+
+```sql
+SELECT count(*) FROM api_keys WHERE key_prefix = '' AND revoked_at IS NULL;
+```
+
 ---
 
 ## Running Tests
