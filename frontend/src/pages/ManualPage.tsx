@@ -537,7 +537,7 @@ spt config llm providers
 spt config llm set google
 spt config llm delete google`}</code></pre>
 
-              <p>For unattended use, point the CLI at an API key instead of a login with <code>--api-key</code> or the <code>SPT_API_KEY</code> environment variable.</p>
+              <p>Most commands work from a saved login. <code>spt tasks capture</code> additionally accepts <code>--api-key</code> or the <code>SPT_API_KEY</code> environment variable, so it can run unattended; other commands still need <code>spt auth login</code>.</p>
 
               <h3>AI assistants (MCP)</h3>
               <p>The <code>spt-mcp</code> server exposes the tool to an LLM host such as Claude Code or Claude Desktop, so an assistant can browse and edit your projects directly. It comes from the same install as the CLI — see <a href="#power">Installing the tools</a> above.</p>

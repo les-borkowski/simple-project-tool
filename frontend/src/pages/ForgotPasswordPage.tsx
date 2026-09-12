@@ -45,10 +45,14 @@ export function ForgotPasswordPage() {
               <p className="text-ui-md text-stone-500 mb-6">{t('auth.forgot_password_subtitle')}</p>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium mb-1">
+                  <label
+                    htmlFor="forgot-password-email"
+                    className="block text-ui-xs uppercase tracking-wider text-stone-400 font-medium mb-1"
+                  >
                     {t('auth.email')}
                   </label>
                   <input
+                    id="forgot-password-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}

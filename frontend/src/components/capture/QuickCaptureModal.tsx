@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
-import { captureApi, projectsApi } from '../../services/api'
+import { captureApi, isDemoBlockedError, projectsApi } from '../../services/api'
 import type { CapturePreviewTask, MemberResponse, Priority, TaskResponse } from '../../services/api'
 import { useStories } from '../../hooks/useStories'
-import { getApiErrorMessage } from '../../utils/errors'
+import { getApiErrorCode, getApiErrorMessage } from '../../utils/errors'
 import { Modal } from '../common/Modal'
 
 interface QuickCaptureModalProps {
@@ -37,6 +37,33 @@ function todayLocalISODate(): string {
   const month = String(now.getMonth() + 1).padStart(2, '0')
   const day = String(now.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+/** Null when nothing should be shown — a demo block already raises a global toast. */
+function captureErrorMessage(err: unknown, t: (k: string, o?: object) => string): string | null {
+  if (isDemoBlockedError(err)) return null
+
+  const code = getApiErrorCode(err)
+
+  // The backend distinguishes these deliberately, and the difference is the whole
+  // message: "not configured" and "your key was rejected" never resolve by waiting,
+  // so telling the user to try again later leaves them waiting forever.
+  if (code === 'LLM_NOT_CONFIGURED') return t('capture.not_configured')
+  if (code === 'LLM_KEY_INVALID') return t('capture.key_invalid')
+  if (code === 'LLM_RATE_LIMITED' || code === 'DEMO_CAPTURE_COOLDOWN') {
+    const retryAfter = axios.isAxiosError(err)
+      ? Number(err.response?.headers?.['retry-after'])
+      : NaN
+    return Number.isFinite(retryAfter) && retryAfter > 0
+      ? t('capture.rate_limited_retry', { seconds: Math.ceil(retryAfter) })
+      : (getApiErrorMessage(err) ?? t('capture.rate_limited'))
+  }
+  if (code === 'LLM_UNAVAILABLE') return t('capture.unavailable')
+
+  // A 503 with no recognised code is still an outage.
+  if (axios.isAxiosError(err) && err.response?.status === 503) return t('capture.unavailable')
+
+  return getApiErrorMessage(err) ?? t('errors.generic')
 }
 
 function toDraft(task: CapturePreviewTask): DraftTask {
@@ -96,11 +123,7 @@ export function QuickCaptureModal({ projectId, onCreated, onClose }: QuickCaptur
       setWarnings(res.data.warnings)
       setDrafts(res.data.tasks.map(toDraft))
     } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 503) {
-        setError(t('capture.unavailable'))
-      } else {
-        setError(getApiErrorMessage(err) ?? t('errors.generic'))
-      }
+      setError(captureErrorMessage(err, t))
     } finally {
       setPending(false)
     }
@@ -128,7 +151,7 @@ export function QuickCaptureModal({ projectId, onCreated, onClose }: QuickCaptur
       const res = await captureApi.confirm(projectId, items)
       onCreated(res.data.created)
     } catch (err) {
-      setError(getApiErrorMessage(err) ?? t('errors.generic'))
+      setError(captureErrorMessage(err, t))
     } finally {
       setPending(false)
     }
@@ -182,7 +205,10 @@ export function QuickCaptureModal({ projectId, onCreated, onClose }: QuickCaptur
       }
     >
       {error && (
-        <div className="mb-4 px-3 py-2 rounded-md border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950 text-ui-sm text-red-700 dark:text-red-300">
+        <div
+          role="alert"
+          className="mb-4 px-3 py-2 rounded-md border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950 text-ui-sm text-red-700 dark:text-red-300"
+        >
           {error}
         </div>
       )}
@@ -317,6 +343,12 @@ export function QuickCaptureModal({ projectId, onCreated, onClose }: QuickCaptur
                     onChange={(e) => updateDraft(i, { story_id: e.target.value })}
                     className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md"
                   >
+                    {/* The extractor leaves story_id empty whenever the text names no
+                        story, which is most of the time. Without an option whose value
+                        is '' the select matches nothing and paints blank, so the user
+                        cannot see where the task is going — it goes to Backlog, which
+                        is what this option says. */}
+                    <option value="">{t('capture.no_story')}</option>
                     {[...storiesHook.items]
                       .sort((a, b) => (a.is_default === b.is_default ? 0 : a.is_default ? -1 : 1))
                       .map((s) => (

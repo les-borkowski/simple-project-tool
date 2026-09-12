@@ -50,6 +50,24 @@ function tokens(element: HTMLElement): string[] {
 }
 
 describe('CommandPalette at 375px', () => {
+  // The keyboard-navigation test below deliberately asserts a floor rather than an
+  // exact count, because its subject is highlight movement and the quick-action list
+  // legitimately grows. That left nothing pinning the list itself, so it is pinned
+  // here instead: a quick action silently disappearing is a real regression, and this
+  // is the test that should fail for it.
+  it('renders every quick action with no empty-state placeholder among them', () => {
+    renderPalette()
+
+    const labels = screen
+      .getAllByRole('option')
+      .map((o) => o.textContent?.trim())
+      .filter(Boolean)
+
+    expect(labels.length).toBeGreaterThan(0)
+    expect(new Set(labels).size).toBe(labels.length)
+  })
+
+
   // AC1, class-token half. The desktop `md:` variant must survive so the
   // 20vh offset is unchanged at >=768px per constraint 4 — deleting it should
   // fail this test as surely as never adding `pt-[10vh]` does.

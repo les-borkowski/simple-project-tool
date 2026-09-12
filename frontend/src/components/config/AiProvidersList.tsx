@@ -31,38 +31,47 @@ function ProviderRow({ provider, userRow, onChanged }: RowProps) {
   const [error, setError] = useState<string | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
 
+  /** A limit field's value, or null if it is blank. Throws its own message if invalid. */
+  const parseLimit = (raw: string): number | null => {
+    if (!raw.trim()) return null
+    const n = Number(raw)
+    // A NaN would serialize to `null`, which the backend reads as "field not provided",
+    // silently discarding the change. A value below 1 is rejected by the backend too
+    // (0 would 429 every request forever), so catch it here rather than round-tripping.
+    if (!Number.isInteger(n) || n < 1) throw new RangeError('invalid limit')
+    return n
+  }
+
   const handleSave = async () => {
+    // Validate before setting `saving`, so a local rejection never enters the request
+    // path — and, crucially, never reaches the `finally` that clears the key field.
+    // Wiping a typed key because an unrelated number was mistyped makes the user retype
+    // a long secret for nothing; no request went out, so nothing was exposed.
+    const data: UserLlmProviderUpdate = {}
+    try {
+      const rpmValue = parseLimit(rpm)
+      const tpmValue = parseLimit(tpm)
+      if (rpmValue !== null) data.rpm_limit = rpmValue
+      if (tpmValue !== null) data.tpm_limit = tpmValue
+    } catch {
+      setError(t('ai_providers.invalid_number'))
+      return
+    }
+
+    if (defaultTouched) data.is_default = isDefault
+    if (apiKey.trim()) data.api_key = apiKey.trim()
+    if (model.trim()) data.model = model.trim()
+
     setSaving(true)
     setError(null)
     try {
-      const data: UserLlmProviderUpdate = {}
-      if (defaultTouched) data.is_default = isDefault
-      if (apiKey.trim()) data.api_key = apiKey.trim()
-      if (model.trim()) data.model = model.trim()
-      // A NaN here would serialize to `null`, which the backend reads as "field not
-      // provided" — silently discarding the user's change instead of surfacing it.
-      if (rpm.trim()) {
-        const n = Number(rpm)
-        if (Number.isNaN(n)) {
-          setError(t('ai_providers.invalid_number'))
-          return
-        }
-        data.rpm_limit = n
-      }
-      if (tpm.trim()) {
-        const n = Number(tpm)
-        if (Number.isNaN(n)) {
-          setError(t('ai_providers.invalid_number'))
-          return
-        }
-        data.tpm_limit = n
-      }
       await configApi.setLlmProvider(provider.id, data)
       onChanged()
     } catch (e) {
       if (!isDemoBlockedError(e)) setError(getApiErrorMessage(e) ?? t('errors.generic'))
     } finally {
-      // Cleared on both success and failure — a rejected key must never sit in the DOM.
+      // Cleared on both success and failure — once a key has been sent, a rejected one
+      // must never sit in the DOM.
       setApiKey('')
       setSaving(false)
     }
@@ -139,7 +148,7 @@ function ProviderRow({ provider, userRow, onChanged }: RowProps) {
           <input
             id={`${provider.id}-rpm`}
             type="number"
-            min={0}
+            min={1}
             value={rpm}
             onChange={(e) => setRpm(e.target.value)}
             className="w-full px-3 py-1.5 text-ui-md rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
@@ -155,7 +164,7 @@ function ProviderRow({ provider, userRow, onChanged }: RowProps) {
           <input
             id={`${provider.id}-tpm`}
             type="number"
-            min={0}
+            min={1}
             value={tpm}
             onChange={(e) => setTpm(e.target.value)}
             className="w-full px-3 py-1.5 text-ui-md rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900"
@@ -179,7 +188,7 @@ function ProviderRow({ provider, userRow, onChanged }: RowProps) {
         <span className="text-ui-sm">{t('ai_providers.default_label')}</span>
       </label>
 
-      {error && <p className="text-ui-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-ui-sm text-red-500">{error}</p>}
 
       <div className="flex gap-3">
         <button
