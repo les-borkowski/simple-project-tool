@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.schemas.comment import CommentCreate, CommentResponse, CommentUpdate
 from app.api.schemas.common import PaginatedResponse
 from app.api.services import comment_service
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, require_scope
 from app.db.database import get_db
 from app.db.models import User
 
@@ -16,7 +16,7 @@ router = APIRouter(tags=["comments"])
 @router.get("/projects/{project_id}/comments", response_model=PaginatedResponse[CommentResponse])
 async def list_project_comments(
     project_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("read:comments")),
     db: AsyncSession = Depends(get_db),
     cursor: str | None = Query(None),
     limit: int = Query(25, ge=1, le=100),
@@ -28,7 +28,7 @@ async def list_project_comments(
 @router.get("/stories/{story_id}/comments", response_model=PaginatedResponse[CommentResponse])
 async def list_story_comments(
     story_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("read:comments")),
     db: AsyncSession = Depends(get_db),
     cursor: str | None = Query(None),
     limit: int = Query(25, ge=1, le=100),
@@ -40,7 +40,7 @@ async def list_story_comments(
 @router.get("/tasks/{task_id}/comments", response_model=PaginatedResponse[CommentResponse])
 async def list_task_comments(
     task_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("read:comments")),
     db: AsyncSession = Depends(get_db),
     cursor: str | None = Query(None),
     limit: int = Query(25, ge=1, le=100),
@@ -53,7 +53,7 @@ async def list_task_comments(
 async def create_project_comment(
     project_id: uuid.UUID,
     data: CommentCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("write:comments")),
     db: AsyncSession = Depends(get_db),
 ):
     """Add a comment to a project."""
@@ -64,7 +64,7 @@ async def create_project_comment(
 async def create_story_comment(
     story_id: uuid.UUID,
     data: CommentCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("write:comments")),
     db: AsyncSession = Depends(get_db),
 ):
     """Add a comment to a story."""
@@ -75,7 +75,7 @@ async def create_story_comment(
 async def create_task_comment(
     task_id: uuid.UUID,
     data: CommentCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("write:comments")),
     db: AsyncSession = Depends(get_db),
 ):
     """Add a comment to a task."""

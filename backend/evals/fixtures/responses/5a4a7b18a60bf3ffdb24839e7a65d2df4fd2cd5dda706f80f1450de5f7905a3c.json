@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"Finish the auth refactor\",\n      \"confidence\": 0.9,\n      \"due_date\": \"2026-09-11\",\n      \"priority\": \"medium\"\n    },\n    {\n      \"title\": \"Review the payments PR\",\n      \"confidence\": 0.9,\n      \"due_date\": \"2026-09-11\",\n      \"priority\": \"medium\",\n      \"story_hint\": \"Payments\"\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 469,
+  "completion_tokens": 142,
+  "latency_ms": 7939
+}

@@ -41,10 +41,21 @@ def get_locale(request: Request) -> str:
     return getattr(request.state, "locale", "en-GB")
 
 
-def translate(request: Request, code: str) -> str:
-    """Translate an error code based on request locale."""
+def translate(request: Request, code: str, **params: object) -> str:
+    """Translate an error code based on request locale.
+
+    `params` fill {placeholders} in the message. A template whose placeholders do not
+    match falls back to the untouched string rather than raising — a translation typo
+    must not turn into a 500 on a request that was otherwise fine.
+    """
     locale = get_locale(request)
-    return LOCALES.get(locale, LOCALES.get("en-GB", {})).get(code, code)
+    message = LOCALES.get(locale, LOCALES.get("en-GB", {})).get(code, code)
+    if not params:
+        return message
+    try:
+        return message.format(**params)
+    except (KeyError, IndexError):
+        return message
 
 
 async def check_db_connection():
@@ -137,6 +148,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
                 "details": [],
             }
         },
+        headers=exc.headers,
     )
 
 

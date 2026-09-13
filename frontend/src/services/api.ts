@@ -164,6 +164,8 @@ export interface ApiKeyResponse {
   scopes: string[]
   last_used_at: string | null
   created_at: string
+  /** null only for keys issued before expiry existed; those never expire. */
+  expires_at: string | null
 }
 
 export interface ApiKeyCreatedResponse extends ApiKeyResponse {
@@ -174,6 +176,37 @@ export interface UserConfigResponse {
   theme: Theme
   locale: Locale
   display_preferences: Record<string, unknown>
+}
+
+export interface UserLlmProviderResponse {
+  provider: string
+  label: string
+  api_key_hint: string
+  model: string | null
+  rpm_limit: number | null
+  tpm_limit: number | null
+  effective_rpm: number
+  effective_tpm: number
+  is_default: boolean
+  enabled: boolean
+}
+
+export interface LlmProviderCatalogueItem {
+  id: string
+  label: string
+  default_model: string
+  available: boolean
+  key_hint: string
+  docs_url: string
+}
+
+export interface UserLlmProviderUpdate {
+  api_key?: string
+  model?: string
+  rpm_limit?: number
+  tpm_limit?: number
+  is_default?: boolean
+  enabled?: boolean
 }
 
 export interface PaginatedResponse<T> {
@@ -384,6 +417,54 @@ export const storiesApi = {
 // Tasks API
 // ---------------------------------------------------------------------------
 
+export interface CapturePreviewTask {
+  title: string
+  description: string | null
+  story_hint: string | null
+  story_id: string | null
+  story_resolved: boolean
+  assignee_hint: string | null
+  assignee_id: string | null
+  assignee_resolved: boolean
+  due_date: string | null
+  priority: Priority | null
+  confidence: number
+  low_confidence: boolean
+}
+
+export interface CaptureResponse {
+  tasks: CapturePreviewTask[]
+  unparseable: boolean
+  needs_confirmation: boolean
+  warnings: string[]
+  model: string
+  prompt_version: string
+  latency_ms: number
+}
+
+export interface CaptureConfirmTaskItem {
+  title: string
+  description?: string | null
+  story_id?: string | null
+  assignee_id?: string | null
+  due_date?: string | null
+  priority?: Priority | null
+}
+
+export interface CaptureConfirmResponse {
+  created: TaskResponse[]
+}
+
+export const captureApi = {
+  preview: (projectId: string, text: string, referenceDate: string) =>
+    api.post<CaptureResponse>(`/projects/${projectId}/tasks/capture`, {
+      text,
+      reference_date: referenceDate,
+    }),
+  confirm: (projectId: string, tasks: CaptureConfirmTaskItem[]) =>
+    api.post<CaptureConfirmResponse>(`/projects/${projectId}/tasks/capture/confirm`, { tasks }),
+}
+
 export const tasksApi = {
   list: (storyId: string, params?: Record<string, unknown>) =>
     api.get<PaginatedResponse<TaskResponse>>(`/stories/${storyId}/tasks`, { params }),
@@ -478,6 +559,11 @@ export const configApi = {
   createApiKey: (data: { label: string; scopes: string[] }) =>
     api.post<ApiKeyCreatedResponse>('/config/api-keys', data),
   revokeApiKey: (id: string) => api.delete(`/config/api-keys/${id}`),
+  listLlmProviders: () => api.get<UserLlmProviderResponse[]>('/config/llm-providers'),
+  availableLlmProviders: () => api.get<LlmProviderCatalogueItem[]>('/config/llm-providers/available'),
+  setLlmProvider: (provider: string, data: UserLlmProviderUpdate) =>
+    api.patch<UserLlmProviderResponse>(`/config/llm-providers/${provider}`, data),
+  deleteLlmProvider: (provider: string) => api.delete(`/config/llm-providers/${provider}`),
 }
 
 // ---------------------------------------------------------------------------

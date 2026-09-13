@@ -5,7 +5,7 @@
 ## Project Purpose & Features
 
 A three-level work hierarchy (Project → Story → Task) with:
-- Status tracking: `to_do`, `in_progress`, `in_review`, `in_testing`, `done`
+- Status tracking: each project owns its own ordered status set (stored in the `project_statuses` table); new projects are seeded with `to_do`, `in_progress`, `in_review`, `done`
 - Priority levels: `low`, `medium`, `high`
 - Role-based access control: Manager (create/delete/manage) vs Contributor (view/update status/comment)
 - Global + per-project role overrides
@@ -31,7 +31,7 @@ A three-level work hierarchy (Project → Story → Task) with:
 
 ## Architecture Layers
 
-The codebase follows **four clearly separated layers**, each with distinct responsibilities:
+The codebase follows **clearly separated layers**, each with distinct responsibilities:
 
 ### 1. Database Layer — `backend/app/db/`
 
@@ -41,7 +41,8 @@ Schema, ORM models, migrations. No business logic.
   - `user.py` — Users, roles, API keys
   - `project.py` — Projects, members, metadata
   - `story.py` — Stories (medium-level work items)
-  - `task.py` — Tasks (smallest work items; optional story binding; direct project binding)
+  - `task.py` — Tasks (smallest work items; always bound to a story — project-level tasks use the project's default Backlog story)
+  - `project_status.py` — Per-project status definitions (slug, name, colour, order)
   - `comment.py` — Comments on projects, stories, tasks
   - `status_history.py` — Immutable append-only status changes
   - `invitation.py` — Project member invitations
@@ -51,7 +52,7 @@ Schema, ORM models, migrations. No business logic.
 
 - **migrations/** — Alembic version control (one reversible migration per schema change)
 - **database.py** — Connection pooling, session management
-- **base.py** — Base model, enums (Status, Priority), mixins (TimestampMixin)
+- **base.py** — Base model, enums (Priority, Role, Theme, Locale, InvitationStatus), mixins (TimestampMixin). Task/story status is a free string slug, not an enum — see `project_status.py`.
 
 ### 2. Authentication Layer — `backend/app/auth/`
 
@@ -127,19 +128,60 @@ React frontend. Communicates only via REST API (no direct DB access).
   - `en-GB.json` — English
   - `pl.json` — Polish
 
+### 5. LLM / Task-Capture Layer — `backend/app/core/llm/` + `backend/app/api/services/capture*.py`
+
+Backs the natural-language task capture feature: turning a free-text sentence into structured task candidates.
+
+- **`app/core/llm/`** — provider-agnostic LLM access
+  - `base.py` defines the `LLMClient` Protocol (`complete(system, user, json_schema, max_tokens, temperature, api_key=None, model=None) -> LLMResponse`); `api_key`/`model` let a call override the server-configured credential/model, backing per-user resolution
+  - `GeminiClient` — real HTTP calls to Google's Gemini API. Raw `httpx`, no vendor SDK, matching the existing pattern in `app/core/email.py`. Uses constrained decoding: the response schema is passed as Gemini's `responseSchema` generation-config field so the model is forced to return matching JSON
+  - `ReplayClient` — fixture-based, offline; reads from `backend/evals/fixtures/responses/`. Used by tests and by the eval harness's default (`replay`) mode
+  - `providers.py` — the declarative `ProviderSpec`/`PROVIDERS` catalogue (`id`, `label`, `default_model`, `available`, `key_hint`, `docs_url`, `default_rpm`, `default_tpm`). `google` is `available=True`; `anthropic`/`openai` are declared (visible in the catalogue) but `available=False` — deliberately no stub adapter classes for either, since dead code that must be maintained buys nothing
+  - `__init__.py`'s `_ADAPTERS` dict maps a provider id to its adapter factory; `get_llm_client()` (resolves the server-configured `LLM_PROVIDER`) and `get_llm_client_for(provider_id)` (per-user resolution) both resolve through this one registry
+
+- **`app/api/services/capture_service.py`** — pure extraction logic: builds the prompt, calls the LLM client, validates/repairs the response JSON against a Pydantic schema (`ExtractionResult`). Deliberately has no database access — its own docstring states this, and `backend/tests/test_capture_service.py::test_no_asyncsession_import` scans the module's source to assert `AsyncSession` never appears in it.
+
+- **`app/api/services/capture_resolution_service.py`** — the DB-touching layer built on top: resolves the LLM's assignee/story name hints against actual project members and stories, assembles the preview response, and performs the all-or-nothing confirm-and-create.
+
+- **`app/api/services/llm_credential_service.py`** — per-user credential CRUD (`list_providers`/`upsert_provider`/`delete_provider`/`resolve_credential`), backing the `/config/llm-providers*` routes. The raw API key is Fernet-encrypted at rest (`app/core/crypto.py`) and never appears in any API response — only an `api_key_hint` (last 4 chars).
+
+- **`app/api/services/llm_usage_service.py`** — Postgres-backed rolling 60-second RPM/TPM (requests/tokens per minute) rate limiting (`check_rate_limit`/`record_usage`/`prune_usage_events`), enforced per user+provider, deliberately not in-process (the deployment runs multiple workers).
+
+The split exists so extraction can be tested and evaluated in complete isolation from the database: the eval harness (`app/evals/run.py`) runs `capture_service.extract()` directly against fixtures with no DB, no auth, and no running server, and a passing test suite is proof the boundary hasn't eroded.
+
+#### Adding an LLM provider
+
+No database migration is required — `user_llm_providers.provider` is a plain string column (not a DB enum), validated against the `PROVIDERS` registry at the service layer, specifically so this stays a code-only change. Three touch points:
+
+1. A new adapter module in `app/core/llm/` implementing the `LLMClient` Protocol's `complete()` signature (see `gemini_client.py` for the shape).
+2. One entry in the `_ADAPTERS` dict (`app/core/llm/__init__.py`) mapping the provider id to that adapter's factory.
+3. One entry in the `PROVIDERS` dict (`app/core/llm/providers.py`), a `ProviderSpec` with `available=True`.
+
+### 6. MCP Server Layer — `backend/app/mcp/`
+
+Exposes the REST API as an MCP (Model Context Protocol) server (`spt-mcp` console script) so an LLM host can call the tool directly.
+
+- **`config.py`** — `MCPConfig.load()` reads `SPT_API_URL`, `SPT_API_KEY` (required), `SPT_LOCALE`, `SPT_TIMEOUT_SECONDS` from the environment
+- **`client.py`** — `SPTClient`, an async `httpx` wrapper that sends `X-API-Key` and paginates cursor responses via `fetch_all()`
+- **`server.py`** — the FastMCP app and its 13 `@mcp.tool()` functions (`whoami`, `list_projects`, `get_project`, `list_stories`, `list_tasks`, `get_task`, `search`, `update_task`, `add_comment`, `create_task`, `create_story`, `capture_tasks`, `confirm_capture`) — no delete or member-management tools by design
+- **`errors.py`** — maps a failed REST call into a clean MCP tool error instead of a fake success result
+
+**Key pattern:** this layer imports no services, models, or DB session — it only speaks HTTP to the same API layer everything else uses. That's deliberate: every existing permission check (`require_project_access`, `require_manager`, `require_scope`, per-project RBAC) still runs on every MCP tool call, because the call is a normal HTTP request. The tool list enforces nothing by itself; the API key's scopes are the actual security boundary. A read-only agent is a differently-scoped API key, not a different server build.
+
+> **Dependency note:** the `mcp` package is pinned `>=1.2,<2` in `backend/pyproject.toml`. `mcp` 2.x replaces `FastMCP` with an incompatible `MCPServer` API — do not relax this pin without rewriting `server.py`.
+
 ## Data Model
 
 ### Three-Level Hierarchy
 
 ```
 Project
-├── Story (optional, medium-level work)
-│   └── Task (smallest unit)
-└── Task (direct, no story binding)
+└── Story (medium-level work; every project has a default "Backlog" story)
+    └── Task (smallest unit; project-level tasks live in the Backlog story)
 ```
 
 Each level has:
-- **Status** (enum): `to_do`, `in_progress`, `in_review`, `in_testing`, `done`
+- **Status**: a string slug (`VARCHAR(100)`), not an enum. Valid values come from the owning project's `project_statuses` rows and are checked by `validate_status_slug` (HTTP 422 on an unknown slug). New projects are seeded with `to_do`, `in_progress`, `in_review`, `done`; managers can add, rename, recolour, or reorder them.
 - **Priority** (enum): `low`, `medium`, `high`
 - **Timestamps**: `created_at`, `updated_at`
 - **Author tracking**: `created_by`, `updated_by`
@@ -152,10 +194,10 @@ Each level has:
 tasks:
   id UUID PK
   project_id UUID FK → projects (NOT NULL)
-  story_id UUID FK → stories (NULLABLE)
+  story_id UUID FK → stories (NULLABLE in schema, but always set in practice — see below)
   title VARCHAR(500) NOT NULL
   description TEXT NULLABLE
-  status StatusEnum (DEFAULT 'to_do')
+  status VARCHAR(100) NOT NULL (DEFAULT 'to_do'; slug validated against project_statuses)
   priority PriorityEnum (DEFAULT 'medium')
   assignee_id UUID FK → users (NULLABLE)
   created_by UUID FK → users (NOT NULL)
@@ -168,11 +210,13 @@ tasks:
   - (assignee_id) — for filtering by assignee
 ```
 
-Tasks can exist **with or without a story**:
-- **With story**: `story_id` set, task is nested under story, shown in story detail view → URL `/stories/:storyId/tasks/:taskId`
-- **Without story** (project-level): `story_id` IS NULL, task is directly under project, shown on board → URL `/projects/:projectId/tasks/:taskId`
+Every task belongs to a story. There are two ways a task is created:
+- **Under an explicit story**: `story_id` is that story; shown in the story detail view → URL `/stories/:storyId/tasks/:taskId`
+- **Under a project** (project-level task): `create_task_for_project()` calls `get_default_story()` and assigns the project's default "Backlog" story (`Story.is_default = True`); shown on the board → URL `/projects/:projectId/tasks/:taskId`
 
-> **Decision:** project-level tasks get their own frontend route rather than being assigned to a phantom "backlog" story. The backend `GET /tasks/{id}` already requires no `story_id`; `TaskDetailPage` already handles the null case. A default-story approach was rejected because it pollutes story lists and obscures the data model.
+The `story_id` column is nullable in the schema, but the service layer always sets it. Every project has exactly one default Backlog story; `get_default_story()` raises HTTP 500 if one is missing.
+
+> **Decision:** project-level tasks keep their own frontend route (`/projects/:projectId/tasks/:taskId`) so the board can address them without a story in the URL. Backend `GET /tasks/{id}` needs no `story_id`. Data-model-wise they still hang off the default Backlog story rather than being storyless.
 
 ### Key Patterns
 
@@ -184,8 +228,8 @@ status_history:
   project_id UUID FK (NULLABLE)
   story_id UUID FK (NULLABLE)
   task_id UUID FK (NULLABLE)
-  from_status StatusEnum (NULLABLE)
-  to_status StatusEnum
+  from_status VARCHAR(100) (NULLABLE)   -- status slug, not an enum
+  to_status VARCHAR(100) NOT NULL       -- status slug, not an enum
   changed_by UUID FK → users
   created_at TIMESTAMP
   
@@ -279,7 +323,7 @@ DELETE /comments/{id}           — Delete comment (author only)
 - **Filtering**: `?status=in_progress&priority=high&q=search`
 - **Error Format**: `{"error": {"code": "...", "message": "...", "details": [...]}}`
 - **Authentication**: Bearer token in `Authorization: Bearer <token>` or `X-API-Key: <key>`
-- **API Key Scopes**: `read:projects`, `write:projects`, `read:stories`, `write:stories`, `read:tasks`, `write:tasks`, `read:comments`, `write:comments`, `admin`
+- **API Key Scopes**: `read:projects`, `write:projects`, `read:stories`, `write:stories`, `read:tasks`, `write:tasks`, `read:comments`, `write:comments`, `admin` (a `write:X` scope implies `read:X`). `write:projects` is defined but currently unused by any route — it's aspirational, only appearing as an example scope string in CLI help text. Actual scoped-key coverage per resource: GET only on projects (list, get, list members); GET/POST/PATCH on stories and tasks; GET/POST on comments (create and list — no PATCH, so an API key can't edit a comment, matching the MCP server's `add_comment`-only tool). Project create/update/archive/restore, all member management, deletes, admin/config endpoints, and most of `/auth` remain JWT-only (`GET /auth/me` is the exception: an API key can call it too, and the response includes the key's label and scopes)
 
 ### Documentation
 

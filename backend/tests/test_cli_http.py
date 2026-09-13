@@ -48,7 +48,7 @@ def test_401_triggers_refresh_and_retry():
 
 
 def test_401_without_refresh_token_raises_exit():
-    from click.exceptions import Exit
+    from typer import Exit
 
     from app.cli.http import APIClient
 
@@ -63,8 +63,27 @@ def test_401_without_refresh_token_raises_exit():
             client.get("/projects")
 
 
+def test_401_with_api_key_does_not_attempt_refresh():
+    from typer import Exit
+
+    from app.cli.http import APIClient
+
+    config = CLIConfig(
+        access_token="old", refresh_token="ref", api_base_url="http://localhost:8000"
+    )
+    client = APIClient(config, api_key="some-key")
+    with patch.object(
+        client._client,
+        "request",
+        return_value=make_response(401, {"error": {"message": "Unauthorized"}}),
+    ) as mock_req:
+        with pytest.raises(Exit):
+            client.get("/projects")
+    assert mock_req.call_count == 1
+
+
 def test_non_success_raises_exit():
-    from click.exceptions import Exit
+    from typer import Exit
 
     from app.cli.http import APIClient
 
@@ -101,3 +120,23 @@ def test_delete_204_returns_empty_dict():
     with patch.object(client._client, "request", return_value=make_response(204, content=b"")):
         result = client.delete("/projects/some-id")
     assert result == {}
+
+
+def test_auth_headers_api_key_overrides_bearer():
+    from app.cli.http import APIClient
+
+    config = CLIConfig(access_token="mytoken", api_base_url="http://localhost:8000")
+    client = APIClient(config, api_key="k")
+    assert client._auth_headers() == {"X-API-Key": "k"}
+
+
+def test_auth_headers_without_api_key_unchanged():
+    from app.cli.http import APIClient
+
+    config = CLIConfig(access_token="mytoken", api_base_url="http://localhost:8000")
+    client = APIClient(config)
+    assert client._auth_headers() == {"Authorization": "Bearer mytoken"}
+
+    config_no_token = CLIConfig(access_token=None, api_base_url="http://localhost:8000")
+    client_no_token = APIClient(config_no_token)
+    assert client_no_token._auth_headers() == {}

@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"napraw b\u0142\u0105d logowania\",\n      \"confidence\": 0.9,\n      \"due_date\": \"2026-09-11\",\n      \"story_hint\": \"Auth Refactor\"\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 463,
+  "completion_tokens": 83,
+  "latency_ms": 2919
+}

@@ -52,6 +52,10 @@ export function useProjectSprints(projectId: string | undefined) {
     }
   }, [projectId, reloadKey])
 
+  // Returns void, unlike useProjectStatuses' refresh(): no caller here awaits it.
+  // If one ever needs to, copy that hook's promise-returning version rather than
+  // writing `await refresh()` against this one — awaiting undefined resolves on the
+  // next microtask, not when the refetch lands.
   const refresh = useCallback(() => setReloadKey((k) => k + 1), [])
 
   return { sprints, loading, error, refresh }

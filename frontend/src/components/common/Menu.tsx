@@ -89,6 +89,13 @@ export function Menu({ trigger, children }: MenuProps) {
 
   const close = ({ restoreFocus = false }: { restoreFocus?: boolean } = {}) => {
     setOpen(false)
+    // Discard the measured position too, so the next open re-measures from hidden
+    // rather than painting at the previous open's coordinates. panelStyle's comment
+    // below promises the panel is "kept invisible until the first position is
+    // measured"; keeping a stale position makes that true only for the first open,
+    // and leaves the layout effect as the sole thing standing between the user and a
+    // flash at the wrong spot.
+    setPanelPosition(null)
     // Only pull focus back to the trigger for closes the keyboard user
     // initiated (Escape, item selection). Outside clicks leave focus wherever
     // the user actually clicked instead of yanking it back to the trigger.

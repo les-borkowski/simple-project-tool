@@ -7,9 +7,12 @@ from .config import CLIConfig
 
 
 class APIClient:
-    def __init__(self, config: CLIConfig) -> None:
+    def __init__(
+        self, config: CLIConfig, api_key: str | None = None, api_url: str | None = None
+    ) -> None:
         self.config = config
-        self._base = config.api_base_url.rstrip("/") + "/api/v1"
+        self._api_key = api_key
+        self._base = config.resolve_api_base_url(api_url) + "/api/v1"
         self._client = httpx.Client(
             base_url=self._base,
             headers={"Accept-Language": config.locale},
@@ -17,6 +20,8 @@ class APIClient:
         )
 
     def _auth_headers(self) -> dict[str, str]:
+        if self._api_key:
+            return {"X-API-Key": self._api_key}
         if self.config.access_token:
             return {"Authorization": f"Bearer {self.config.access_token}"}
         return {}
@@ -25,7 +30,7 @@ class APIClient:
         headers = {**self._auth_headers(), **kwargs.pop("headers", {})}
         resp = self._client.request(method, path, headers=headers, **kwargs)
 
-        if resp.status_code == 401 and _retry and self.config.refresh_token:
+        if resp.status_code == 401 and _retry and self.config.refresh_token and not self._api_key:
             r = self._client.request(
                 "POST",
                 "/auth/refresh",

@@ -13,11 +13,19 @@ app = typer.Typer(help="Authentication commands")
 def login(
     email: str = typer.Option(..., prompt=True, help="Your email address"),
     password: str = typer.Option(..., prompt=True, hide_input=True, help="Your password"),
+    api_url: str | None = typer.Option(
+        None,
+        "--api-url",
+        help="API server to log in to; saved for later commands (default http://localhost:8000)",
+    ),
 ) -> None:
     """Log in to Simple Project Tool."""
     config = CLIConfig.load()
     load_locale(config.locale)
-    client = APIClient(config)
+    if api_url:
+        # Persist alongside the tokens: they are only valid for this server.
+        config.api_base_url = api_url.strip().rstrip("/")
+    client = APIClient(config, api_url=api_url)
     data = client.post("/auth/login", json={"email": email, "password": password})
     config.access_token = data["access_token"]
     config.refresh_token = data["refresh_token"]

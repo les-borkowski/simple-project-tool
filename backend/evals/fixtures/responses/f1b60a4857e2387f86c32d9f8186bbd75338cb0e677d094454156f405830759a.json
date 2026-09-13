@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"Sko\u0144cz dokumentacj\u0119\",\n      \"confidence\": 0.9,\n      \"due_date\": \"2026-09-18\"\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 463,
+  "completion_tokens": 70,
+  "latency_ms": 957
+}

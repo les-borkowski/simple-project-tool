@@ -12,6 +12,11 @@ def make_resp(status_code: int, data: dict | None = None) -> httpx.Response:
     return httpx.Response(status_code, content=content)
 
 
+def make_list_resp(status_code: int, data: list) -> httpx.Response:
+    """Bare JSON array response — `make_resp`'s `data or {}` mishandles an empty list."""
+    return httpx.Response(status_code, content=json.dumps(data).encode())
+
+
 def mock_config(tmp_path, **kwargs):
     from app.cli.config import DEFAULT_API_BASE_URL, DEFAULT_LOCALE, CLIConfig
 
@@ -59,6 +64,56 @@ def test_auth_login_saves_tokens(tmp_path):
     assert result.exit_code == 0
     saved = json.loads(p.read_text())
     assert saved["access_token"] == "new_access"
+
+
+def test_auth_login_saves_api_url(tmp_path):
+    """--api-url is persisted, because the tokens are only valid for that server."""
+    from app.cli.main import app
+
+    p = tmp_path / "config.json"
+    token_data = {"access_token": "new_access", "refresh_token": "new_refresh"}
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request", return_value=make_resp(200, token_data)):
+            result = runner.invoke(
+                app,
+                ["auth", "login", "--api-url", "https://spt.example.com/"],
+                input="user@test.com\npassword\n",
+            )
+    assert result.exit_code == 0
+    saved = json.loads(p.read_text())
+    # Trailing slash stripped so it doesn't become a double slash before /api/v1.
+    assert saved["api_base_url"] == "https://spt.example.com"
+    assert saved["access_token"] == "new_access"
+
+
+def test_resolve_api_base_url_precedence(monkeypatch):
+    """Explicit override beats SPT_API_URL, which beats the saved config."""
+    from app.cli.config import CLIConfig
+
+    cfg = CLIConfig(api_base_url="http://saved:8000")
+
+    monkeypatch.delenv("SPT_API_URL", raising=False)
+    assert cfg.resolve_api_base_url() == "http://saved:8000"
+
+    monkeypatch.setenv("SPT_API_URL", "http://from-env:9000/")
+    assert cfg.resolve_api_base_url() == "http://from-env:9000"
+    assert cfg.resolve_api_base_url("http://explicit:7000") == "http://explicit:7000"
+
+    # Blank or whitespace-only env is treated as unset, not as a blank URL.
+    monkeypatch.setenv("SPT_API_URL", "   ")
+    assert cfg.resolve_api_base_url() == "http://saved:8000"
+
+
+def test_env_api_url_does_not_leak_into_saved_config(tmp_path, monkeypatch):
+    """SPT_API_URL must not outlive the shell that set it by baking into config.json."""
+    from app.cli.config import CLIConfig
+
+    p = tmp_path / "config.json"
+    monkeypatch.setenv("SPT_API_URL", "http://from-env:9000")
+    cfg = CLIConfig(access_token="tok", api_base_url="http://saved:8000")
+    with patch("app.cli.config.CONFIG_PATH", p):
+        cfg.save()
+    assert json.loads(p.read_text())["api_base_url"] == "http://saved:8000"
 
 
 def test_auth_logout_clears_tokens(tmp_path):
@@ -373,22 +428,317 @@ def test_config_get(tmp_path):
     assert result.exit_code == 0
 
 
+def test_config_set_valid_key(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    cfg_data = {"locale": "pl", "theme": "light", "display_preferences": {}}
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request", return_value=make_resp(200, cfg_data)) as req:
+            result = runner.invoke(app, ["config", "set", "locale", "pl"])
+    assert result.exit_code == 0
+    assert req.called
+
+
+def test_config_set_rejects_unknown_key(tmp_path):
+    """An unknown key must fail loudly instead of being sent and silently ignored.
+
+    UserConfigUpdate does not forbid extra fields, so the server accepted
+    {"nonsense": ...}, updated nothing, and returned 200 — and the CLI reported
+    success. The request must not be made at all.
+    """
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request") as req:
+            result = runner.invoke(app, ["config", "set", "nonsense", "x"])
+    assert result.exit_code == 1
+    assert not req.called
+    assert "nonsense" in result.output
+    # The message has to name what you *can* set, or it just says no.
+    assert "locale" in result.output and "theme" in result.output
+
+
+def test_config_set_api_base_url_points_at_the_real_command(tmp_path):
+    """The specific confusion this guards: api_base_url is a CLI setting."""
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request") as req:
+            result = runner.invoke(
+                app, ["config", "set", "api_base_url", "https://spt.example.com"]
+            )
+    assert result.exit_code == 1
+    assert not req.called
+    assert "--api-url" in result.output
+    assert "SPT_API_URL" in result.output
+
+
+def _preview_data(low_confidence: bool = False) -> dict:
+    return {
+        "tasks": [
+            {
+                "title": "Fix the login bug",
+                "description": None,
+                "story_hint": "Auth",
+                "story_id": "story-uuid-1",
+                "story_resolved": True,
+                "assignee_hint": "Alice",
+                "assignee_id": "user-uuid-1",
+                "assignee_resolved": True,
+                "due_date": "2026-09-10",
+                "priority": "high",
+                "confidence": 0.4 if low_confidence else 0.9,
+                "low_confidence": low_confidence,
+            }
+        ],
+        "unparseable": False,
+        "needs_confirmation": True,
+        "warnings": [],
+        "model": "test-model",
+        "prompt_version": "v1",
+        "latency_ms": 10,
+    }
+
+
+def test_tasks_capture_happy_path_with_yes(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    preview = _preview_data()
+    confirm = {"created": [{"id": "t-1"}]}
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch(
+            "httpx.Client.request",
+            side_effect=[make_resp(200, preview), make_resp(201, confirm)],
+        ):
+            result = runner.invoke(app, ["tasks", "capture", "proj-1", "some text", "--yes"])
+    assert result.exit_code == 0
+    assert "1 task(s) created." in result.output
+
+
+def test_tasks_capture_declined_prompt(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    preview = _preview_data()
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request", return_value=make_resp(200, preview)) as mock_req:
+            result = runner.invoke(app, ["tasks", "capture", "proj-1", "some text"], input="n\n")
+    assert result.exit_code != 0
+    assert mock_req.call_count == 1
+    assert "task(s) created" not in result.output
+
+
+def test_tasks_capture_unparseable(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    preview = {
+        "tasks": [],
+        "unparseable": True,
+        "needs_confirmation": True,
+        "warnings": [],
+        "model": "test-model",
+        "prompt_version": "v1",
+        "latency_ms": 5,
+    }
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request", return_value=make_resp(200, preview)) as mock_req:
+            result = runner.invoke(app, ["tasks", "capture", "proj-1", "gibberish", "--yes"])
+    assert result.exit_code == 0
+    assert "Could not extract any tasks from that text." in result.output
+    assert mock_req.call_count == 1
+
+
+def test_tasks_capture_api_key_flag(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path, access_token="stored-bearer-token")
+    preview = _preview_data()
+    confirm = {"created": [{"id": "t-1"}]}
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch(
+            "httpx.Client.request",
+            side_effect=[make_resp(200, preview), make_resp(201, confirm)],
+        ) as mock_req:
+            result = runner.invoke(
+                app,
+                ["tasks", "capture", "proj-1", "some text", "--yes", "--api-key", "some-key"],
+            )
+    assert result.exit_code == 0
+    first_call_headers = mock_req.call_args_list[0].kwargs.get("headers", {})
+    assert first_call_headers.get("X-API-Key") == "some-key"
+    assert "Authorization" not in first_call_headers
+
+
+def test_tasks_capture_api_key_env_var(tmp_path, monkeypatch):
+    from app.cli.main import app
+
+    monkeypatch.setenv("SPT_API_KEY", "some-key")
+    p = mock_config(tmp_path, access_token="stored-bearer-token")
+    preview = _preview_data()
+    confirm = {"created": [{"id": "t-1"}]}
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch(
+            "httpx.Client.request",
+            side_effect=[make_resp(200, preview), make_resp(201, confirm)],
+        ) as mock_req:
+            result = runner.invoke(app, ["tasks", "capture", "proj-1", "some text", "--yes"])
+    assert result.exit_code == 0
+    first_call_headers = mock_req.call_args_list[0].kwargs.get("headers", {})
+    assert first_call_headers.get("X-API-Key") == "some-key"
+    assert "Authorization" not in first_call_headers
+
+
 def test_config_api_keys_list(tmp_path):
     from app.cli.main import app
 
     p = mock_config(tmp_path)
-    data = {
-        "items": [
-            {
-                "id": "key-uuid-1",
-                "label": "My key",
-                "scopes": ["read:projects"],
-                "last_used_at": None,
-            }
-        ],
-        "next_cursor": None,
-    }
+    # GET /config/api-keys returns a bare JSON array, not a paginated envelope.
+    data = [
+        {
+            "id": "3f2b8c1e-0a4d-4e5f-9b6a-7c8d9e0f1a2b",
+            "label": "My key",
+            "scopes": ["read:projects"],
+            "last_used_at": None,
+        }
+    ]
     with patch("app.cli.config.CONFIG_PATH", p):
-        with patch("httpx.Client.request", return_value=make_resp(200, data)):
+        with patch("httpx.Client.request", return_value=make_list_resp(200, data)):
             result = runner.invoke(app, ["config", "api-keys", "list"])
     assert result.exit_code == 0
+    assert "My key" in result.output
+    # The full id, because it is what `api-keys revoke` takes.
+    assert "3f2b8c1e-0a4d-4e5f-9b6a-7c8d9e0f1a2b" in result.output.replace("\n", "")
+
+
+# --- config llm tests ---
+
+
+def test_config_llm_list_empty(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request", return_value=make_list_resp(200, [])):
+            result = runner.invoke(app, ["config", "llm", "list"])
+    assert result.exit_code == 0
+    assert "No LLM credentials configured." in result.output
+
+
+def test_config_llm_list_populated(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    data = [
+        {
+            "provider": "google",
+            "label": "Gemini",
+            "api_key_hint": "abcd",
+            "model": "flash",
+            "rpm_limit": 10,
+            "tpm_limit": None,
+            "effective_rpm": 10,
+            "effective_tpm": 100000,
+            "is_default": True,
+            "enabled": True,
+        }
+    ]
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request", return_value=make_list_resp(200, data)):
+            result = runner.invoke(app, ["config", "llm", "list"])
+    assert result.exit_code == 0
+    assert "google" in result.output
+    assert "Gemini" in result.output
+    assert "abcd" in result.output
+    assert "flash" in result.output
+
+
+def test_config_llm_providers(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    data = [
+        {
+            "id": "google",
+            "label": "Google Gemini",
+            "default_model": "gemini-2.5-flash",
+            "available": True,
+            "key_hint": "AIza...",
+            "docs_url": "https://ai.google.dev",
+        },
+        {
+            "id": "openai",
+            "label": "OpenAI",
+            "default_model": "gpt-4o",
+            "available": False,
+            "key_hint": "sk-...",
+            "docs_url": "https://platform.openai.com",
+        },
+    ]
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request", return_value=make_list_resp(200, data)):
+            result = runner.invoke(app, ["config", "llm", "providers"])
+    assert result.exit_code == 0
+    assert "google" in result.output
+    assert "openai" in result.output
+    assert "Yes" in result.output
+    assert "No" in result.output
+
+
+def test_config_llm_set(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    resp_data = {
+        "provider": "google",
+        "label": "Google Gemini",
+        "api_key_hint": "cret",
+        "model": "gemini-2.5-pro",
+        "rpm_limit": 5,
+        "tpm_limit": None,
+        "effective_rpm": 5,
+        "effective_tpm": 100000,
+        "is_default": True,
+        "enabled": True,
+    }
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request", return_value=make_resp(200, resp_data)) as mock_req:
+            result = runner.invoke(
+                app,
+                [
+                    "config",
+                    "llm",
+                    "set",
+                    "google",
+                    "--model",
+                    "gemini-2.5-pro",
+                    "--rpm",
+                    "5",
+                    "--default",
+                ],
+                input="my-secret-key\n",
+            )
+    assert result.exit_code == 0
+    assert "my-secret-key" not in result.stdout
+    assert "LLM credential saved." in result.output
+    sent_body = mock_req.call_args.kwargs["json"]
+    assert sent_body["api_key"] == "my-secret-key"
+    assert sent_body["model"] == "gemini-2.5-pro"
+    assert sent_body["rpm_limit"] == 5
+    assert sent_body["is_default"] is True
+    assert "tpm_limit" not in sent_body
+
+
+def test_config_llm_delete(tmp_path):
+    from app.cli.main import app
+
+    p = mock_config(tmp_path)
+    with patch("app.cli.config.CONFIG_PATH", p):
+        with patch("httpx.Client.request", return_value=make_resp(204)):
+            result = runner.invoke(app, ["config", "llm", "delete", "google"])
+    assert result.exit_code == 0
+    assert "LLM credential deleted." in result.output

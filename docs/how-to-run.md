@@ -73,18 +73,77 @@ The UI is now running at `http://localhost:5173`.
 
 ---
 
-## 4. CLI (optional)
+## 4. CLI and MCP server (optional)
+
+`spt` and `spt-mcp` are HTTP clients for the API. They do **not** need a local server, a database, or
+any of the backend's dependencies — you can install them on their own and point them at a server
+someone else is running. Sections 1 and 2 above are only required if you also want to host one.
 
 ```bash
 cd backend
-uv pip install -e .
+uv tool install --editable .
 
-# Authenticate
+# Authenticate (add --api-url for a server other than localhost:8000)
 spt auth login
 
 # Try it
 spt projects list
 ```
+
+`spt auth login` prompts for your email and password (hidden as you type, so it stays out of your
+shell history). Add `--api-url https://…` to log in to a server other than `localhost:8000`; it is
+saved for later commands.
+
+**If `spt` is not found**, `uv tool install` put it in `~/.local/bin`, which is not on your PATH — it
+warns you about this at the end of the install. Run `uv tool update-shell` and open a new terminal.
+
+**`spt-mcp` is not covered by the login above.** You never run it yourself — an LLM host launches it,
+and it authenticates with a scoped API key from the environment, refusing to start without one. The
+install above is all it needs from this section; see [5. MCP Server](#5-mcp-server-optional) for the
+key and host registration.
+
+`--editable` keeps the install pointed at this folder, so `git pull` updates both commands without a
+reinstall — but moving or deleting the folder breaks them. To keep them inside the backend's own
+virtual environment instead — useful when you are developing the backend — use `uv pip install -e .`
+and prefix commands with `uv run`.
+
+---
+
+## 5. MCP Server (optional)
+
+`spt-mcp` exposes the API as an MCP (Model Context Protocol) server for LLM hosts like Claude Code or Claude Desktop. It authenticates with a scoped API key — an agent's permissions are exactly what that key's scopes allow, same as any other API key user.
+
+**1. Create a scoped API key:**
+
+```bash
+spt config api-keys create --label "claude-code" --scopes read:projects,read:stories,read:tasks,read:comments,write:tasks,write:comments
+```
+
+The key is printed once — save it.
+
+**2. Register with Claude Code:**
+
+```bash
+claude mcp add spt -e SPT_API_KEY=<key> -e SPT_API_URL=http://localhost:8000 -- spt-mcp
+```
+
+**3. Or register with Claude Desktop**, by adding this to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "spt": {
+      "command": "spt-mcp",
+      "env": {
+        "SPT_API_KEY": "<key>",
+        "SPT_API_URL": "http://localhost:8000"
+      }
+    }
+  }
+}
+```
+
+`spt-mcp` also reads `SPT_LOCALE` (defaults to `en-GB`) and `SPT_TIMEOUT_SECONDS` (defaults to `30`). If `SPT_API_URL` is omitted it falls back to the CLI's configured API URL, then to `http://localhost:8000`.
 
 ---
 
@@ -131,6 +190,63 @@ Email sending is disabled when `MAILGUN_API_KEY` is empty — the app works full
 | `MAILGUN_FROM_EMAIL` | From address | `noreply@yourdomain.com` |
 | `MAILGUN_FROM_NAME` | From display name | `Simple Project Tool` |
 | `FRONTEND_URL` | Base URL included in email links | `http://localhost:5173` |
+
+### LLM / AI capture
+
+All optional. With `GOOGLE_API_KEY` empty and no user supplying their own key, the capture
+endpoints return `503 LLM_NOT_CONFIGURED` and every other feature works normally.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LLM_PROVIDER` | Active provider adapter. `replay` serves recorded fixtures for an offline demo | `google` |
+| `LLM_MODEL` | Model id used when a user has not overridden it | `gemini-3.1-flash-lite` |
+| `GOOGLE_API_KEY` | Server-wide Gemini key (empty = no server key) | empty |
+| `LLM_TIMEOUT_SECONDS` | Deadline for one complete LLM call, retries and backoff included | `30` |
+| `LLM_CAPTURE_MIN_CONFIDENCE` | Below this, an extracted task is marked low-confidence and starts unticked | `0.5` |
+| `LLM_ALLOW_SERVER_KEY_FALLBACK` | Let users with no key of their own spend `GOOGLE_API_KEY`. Off by default: on a multi-tenant deployment this is the operator's own bill | `False` |
+| `LLM_MAX_RPM` | Requests per minute ceiling per user | `20` |
+| `LLM_MAX_TPM` | Tokens per minute ceiling per user | `100000` |
+| `CAPTURE_REFERENCE_DATE` | Demo only — pins the "today" the extractor reasons from. **Must be empty in production** | empty |
+| `DEMO_SEED_PASSWORD` | Password for accounts created by `scripts.demo_capture seed`. Never set on a real deployment | empty |
+
+### Credential encryption
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `CREDENTIAL_ENCRYPTION_KEY` | Comma-separated Fernet keys, **newest first**. Empty disables user-supplied LLM keys | empty |
+
+Generate one with:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Rotating it is a three-step job, and skipping the middle step strands every stored
+credential — the capture path reads an undecryptable credential as "no credential", so
+users silently fall back to the server key instead of seeing an error:
+
+```bash
+# 1. prepend the new key, keeping the old one
+CREDENTIAL_ENCRYPTION_KEY=<new>,<old>
+
+# 2. re-encrypt everything under the new key
+uv run python -m scripts.rotate_credentials    # --dry-run to preview
+
+# 3. drop the old key
+CREDENTIAL_ENCRYPTION_KEY=<new>
+```
+
+### API keys
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `API_KEY_LEGACY_PREFIX_FALLBACK` | Keep matching API keys issued before `key_prefix` existed. Those rows can only be rotated, not backfilled; set to `False` once they are gone | `True` |
+
+Check whether any remain:
+
+```sql
+SELECT count(*) FROM api_keys WHERE key_prefix = '' AND revoked_at IS NULL;
+```
 
 ---
 

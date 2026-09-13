@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { statusesApi } from '../services/api'
 import type { ProjectStatusResponse } from '../services/api'
 
@@ -25,9 +25,23 @@ export function useProjectStatuses(projectId: string | undefined) {
   // canonical pattern for derived loading state — see useProjectSprints.ts
   // for the other instance.
   const loading = !!projectId && loadedTarget !== target
+  // Resolvers for refresh() calls whose refetch has not settled yet. Callers write
+  // `await refresh()` and reasonably expect the new data to be in hand afterwards;
+  // without this, refresh() returns undefined and that await is a no-op.
+  const pendingRefreshes = useRef<Array<() => void>>([])
+
+  const settlePendingRefreshes = useCallback(() => {
+    const waiting = pendingRefreshes.current
+    pendingRefreshes.current = []
+    waiting.forEach((resolve) => resolve())
+  }, [])
 
   useEffect(() => {
-    if (!projectId) return
+    if (!projectId) {
+      // Nothing to fetch, so nobody should be left awaiting one.
+      settlePendingRefreshes()
+      return
+    }
     let cancelled = false
     // Computed from this effect's own dependencies, not closed over from
     // outside — keeps this in sync with `target` above without adding an
@@ -46,14 +60,31 @@ export function useProjectStatuses(projectId: string | undefined) {
         if (!cancelled) setError('Failed to load statuses')
       })
       .finally(() => {
-        if (!cancelled) setLoadedTarget(settledTarget)
+        // Only the fetch that is still current may settle them. A cancelled fetch has
+        // had its data discarded, so resolving from it would hand the caller back
+        // control with the hook still holding the stale list — precisely what
+        // `await refresh()` is supposed to rule out. The refetch that superseded it
+        // settles them instead, and is by definition at least as fresh.
+        if (cancelled) return
+        setLoadedTarget(settledTarget)
+        settlePendingRefreshes()
       })
     return () => {
       cancelled = true
     }
-  }, [projectId, reloadKey])
+  }, [projectId, reloadKey, settlePendingRefreshes])
 
-  const refresh = useCallback(() => setReloadKey((k) => k + 1), [])
+  // Nothing will ever supersede an in-flight fetch once the component is gone, so
+  // settle any stragglers rather than leaving their promises pending forever.
+  // settlePendingRefreshes is a stable useCallback, so this cleanup runs on unmount only.
+  useEffect(() => () => settlePendingRefreshes(), [settlePendingRefreshes])
+
+  const refresh = useCallback(() => {
+    setReloadKey((k) => k + 1)
+    return new Promise<void>((resolve) => {
+      pendingRefreshes.current.push(resolve)
+    })
+  }, [])
 
   return { statuses, loading, error, refresh }
 }

@@ -94,6 +94,41 @@ async def test_me_authenticated(api_client: AsyncClient, auth_token: str):
 
 
 @pytest.mark.asyncio
+async def test_me_jwt_has_no_api_key_identity(api_client: AsyncClient, auth_token: str):
+    resp = await api_client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {auth_token}"},
+    )
+    assert resp.status_code == 200
+    assert resp.json().get("api_key") is None
+
+
+@pytest.mark.asyncio
+async def test_me_api_key_returns_key_identity(
+    api_client: AsyncClient, api_db: AsyncSession, auth_token: str
+):
+    from app.api.schemas.api_key import APIKeyCreate
+    from app.api.services import config_service
+
+    me = await api_client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {auth_token}"})
+    user = await api_db.get(User, me.json()["id"])
+    created = await config_service.create_api_key(
+        APIKeyCreate(label="agent key", scopes=["read:tasks", "write:comments"]),
+        user,
+        api_db,
+    )
+
+    resp = await api_client.get("/api/v1/auth/me", headers={"X-API-Key": created.key})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == str(user.id)
+    assert data["api_key"] == {
+        "label": "agent key",
+        "scopes": ["read:tasks", "write:comments"],
+    }
+
+
+@pytest.mark.asyncio
 async def test_me_unauthenticated(api_client: AsyncClient):
     resp = await api_client.get("/api/v1/auth/me")
     assert resp.status_code == 401

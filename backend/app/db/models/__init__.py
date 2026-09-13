@@ -1,6 +1,7 @@
 from app.db.models.api_key import APIKey
 from app.db.models.comment import Comment
 from app.db.models.invitation import Invitation
+from app.db.models.llm_usage_event import LLMUsageEvent
 from app.db.models.project import Project
 from app.db.models.project_member import ProjectMember
 from app.db.models.project_status import ProjectStatus
@@ -10,6 +11,7 @@ from app.db.models.story import Story
 from app.db.models.task import Task
 from app.db.models.user import User
 from app.db.models.user_config import UserConfig
+from app.db.models.user_llm_provider import UserLLMProvider
 from app.db.models.user_project_preferences import UserProjectPreferences
 
 __all__ = [
@@ -26,4 +28,6 @@ __all__ = [
     "StatusHistory",
     "Invitation",
     "APIKey",
+    "UserLLMProvider",
+    "LLMUsageEvent",
 ]

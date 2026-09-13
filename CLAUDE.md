@@ -14,6 +14,7 @@ For detailed architecture, tech stack, data models, and API structure, see **[`d
 - **Frontend**: React 19 + TypeScript + Vite + Tailwind
 - **Auth**: JWT (stateless) + bcrypt, Role-based access control (Manager/Contributor)
 - **Features**: Three-level hierarchy, status tracking, comments, member management, API keys for agents
+- **MCP**: `spt-mcp` (`backend/app/mcp/`) exposes the API as an MCP server for LLM hosts (Claude Code, Claude Desktop)
 - **i18n**: en-GB, pl (via i18next)
 
 ## Essential Commands
@@ -21,7 +22,7 @@ For detailed architecture, tech stack, data models, and API structure, see **[`d
 ### Backend (Python)
 ```bash
 cd backend
-uv sync                           # Install
+uv sync                           # Install (full backend: base + `server` + `dev` groups)
 cp .env.example .env              # Create env config
 uv run alembic upgrade head       # Migrate DB
 uv run python -m app.main         # Start server (localhost:8000)
@@ -55,9 +56,10 @@ npm run lint                      # Lint
 **Critical pattern**: Routes call services. Services enforce permissions and query DB. No direct DB queries in routes.
 
 **Data model**:
-- Project → Story (optional) → Task
-- Task can exist without a story (directly under project)
+- Project → Story → Task
+- Every project has a default "Backlog" story (`Story.is_default=True`); "project-level" tasks are auto-assigned to it by `create_task_for_project()` (they are never storyless)
 - Each level has: status, priority, comments, status history
+- Status is a string slug, not an enum; each project owns its status set in the `project_statuses` table (seeded with `to_do`, `in_progress`, `in_review`, `done`), validated by `validate_status_slug`
 - Status history is immutable (audit trail + time tracking)
 
 ## Working with the Code
@@ -69,6 +71,7 @@ npm run lint                      # Lint
 3. Add route in `backend/app/api/routes/`
 4. Update `frontend/src/services/api.ts` with client method
 5. Use in React component via `useEffect` hook or mutation
+6. If the endpoint is agent-facing, wire `require_scope` in the route and add a matching tool in `backend/app/mcp/server.py`
 
 ### Modifying Database
 
@@ -92,11 +95,13 @@ npm run lint                      # Lint
 | Service layer | Centralized permission + business logic checking |
 | Status history | Immutable append-only audit trail + time tracking |
 | `(project_id, story_id, task_id)` FK pattern | DB-level referential integrity; no polymorphic mess |
-| Tasks without stories | Board view can show project-level tasks + story-level tasks |
-| Project-level task URL | `/projects/:projectId/tasks/:taskId` — no default/phantom story; backend `GET /tasks/{id}` needs no story_id; frontend route added alongside `/stories/:storyId/tasks/:taskId` |
+| Default "Backlog" story per project | Project-level tasks attach to it, so the board can show project-level + story-level tasks without a storyless case |
+| Per-project status sets | Projects configure their own workflow; status stored as a slug string validated against `project_statuses` |
+| Project-level task URL | `/projects/:projectId/tasks/:taskId` — board addresses the task without a story in the URL; backend `GET /tasks/{id}` needs no story_id; route added alongside `/stories/:storyId/tasks/:taskId` |
 
 ## Important Notes
 
+- **Dependencies**: `[project.dependencies]` in `backend/pyproject.toml` is the **CLI/MCP client set only** (typer, rich, httpx, babel, mcp) — that is what makes `uv tool install` work without the server stack. Server dependencies go in the `server` dependency group, which `[tool.uv] default-groups` installs on every `uv sync`. Adding a server dep to `[project.dependencies]` silently bloats the client install; put it in the group.
 - **Migrations**: Always use Alembic; never modify models without a migration file
 - **Security**: `.env` file with secrets (DB_URL, SECRET_KEY); never commit
 - **Async**: FastAPI is async; database calls use async driver (asyncpg)

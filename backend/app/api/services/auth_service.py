@@ -1,5 +1,6 @@
 import logging
 import uuid
+from datetime import timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -17,6 +18,10 @@ from app.auth.security import (
 )
 from app.db.base import LocaleEnum, RoleEnum, ThemeEnum
 from app.db.models import User, UserConfig
+
+# One reset email per account per window. Long enough to stop a mail-bomb, short enough
+# that a user who genuinely mistyped their inbox is not locked out for the afternoon.
+PASSWORD_RESET_THROTTLE = timedelta(minutes=15)
 
 _logger = logging.getLogger(__name__)
 
@@ -138,16 +143,38 @@ async def resend_confirmation(email: str, db: AsyncSession, background_tasks) ->
 
 
 async def request_password_reset(email: str, db: AsyncSession, background_tasks=None) -> None:
-    """Create a password reset token and send it via email."""
+    """Create a password reset token and send it via email.
+
+    Throttled per account: without it, a script pointed at one known address mail-bombs
+    the victim and burns the operator's Mailgun quota. Unknown addresses send no mail at
+    all, so per-account is the granularity that actually bounds both.
+
+    Throttling must stay invisible to the caller — the route's response is deliberately
+    identical whether or not the account exists, and a throttled request has to look the
+    same too, or it becomes an account-existence oracle.
+    """
+    from datetime import UTC
+    from datetime import datetime as dt
+
     from app.core.email import send_password_reset_email
 
     stmt = select(User).where(User.email == email)
     user = await db.scalar(stmt)
 
-    if user:
-        token = create_password_reset_token(user.id, user.password_changed_at)
-        if background_tasks is not None:
-            background_tasks.add_task(send_password_reset_email, user.email, user.name, token)
+    if not user:
+        return
+
+    now = dt.now(UTC).replace(tzinfo=None)
+    last = user.last_password_reset_request_at
+    if last is not None and now - last < PASSWORD_RESET_THROTTLE:
+        return
+
+    user.last_password_reset_request_at = now
+    await db.commit()
+
+    token = create_password_reset_token(user.id, user.password_changed_at)
+    if background_tasks is not None:
+        background_tasks.add_task(send_password_reset_email, user.email, user.name, token)
 
 
 async def confirm_password_reset(token: str, new_password: str, db: AsyncSession) -> None:

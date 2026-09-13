@@ -1,10 +1,19 @@
-from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, HTTPException, Response
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Cookie,
+    Depends,
+    HTTPException,
+    Request,
+    Response,
+)
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.schemas.user import UserCreate, UserResponse
+from app.api.schemas.api_key import APIKeyIdentity
+from app.api.schemas.user import MeResponse, UserCreate, UserResponse
 from app.api.services import auth_service
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, get_current_user_or_api_key
 from app.auth.security import create_email_confirmation_token
 from app.core.config import settings
 from app.core.email import send_admin_new_user_notification, send_confirmation_email
@@ -68,10 +77,15 @@ async def logout(response: Response):
     return {"message": "Logged out"}
 
 
-@router.get("/me", response_model=UserResponse)
-async def get_me(user: User = Depends(get_current_user)):
-    """Get current user info."""
-    return await auth_service.get_me(user)
+# exclude_none keeps the JWT response byte-identical to before: no api_key key at all.
+@router.get("/me", response_model=MeResponse, response_model_exclude_none=True)
+async def get_me(request: Request, user: User = Depends(get_current_user_or_api_key)):
+    """Get current user info, plus the calling key's identity when authenticated by API key."""
+    me = MeResponse.model_validate(await auth_service.get_me(user))
+    api_key = getattr(request.state, "api_key", None)
+    if api_key:
+        me.api_key = APIKeyIdentity(label=api_key.label, scopes=list(api_key.scopes))
+    return me
 
 
 class ConfirmEmailRequest(BaseModel):

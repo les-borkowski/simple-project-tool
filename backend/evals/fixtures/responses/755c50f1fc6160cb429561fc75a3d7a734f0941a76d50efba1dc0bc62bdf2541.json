@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"Przegl\u0105d PR-a\",\n      \"confidence\": 0.9,\n      \"due_date\": \"2026-09-07\"\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 470,
+  "completion_tokens": 71,
+  "latency_ms": 14682
+}

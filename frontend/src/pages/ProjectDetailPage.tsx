@@ -22,6 +22,7 @@ import { projectsApi, invitationsApi, storiesApi, tasksApi, preferencesApi } fro
 import { TabConfigPanel } from '../components/settings/TabConfigPanel'
 import type { ProjectResponse, MemberResponse, StoryResponse, TaskResponse, Status, Priority, Role, ProjectStatusResponse } from '../services/api'
 import { CreateTaskModal } from '../components/tasks/CreateTaskModal'
+import { QuickCaptureModal } from '../components/capture/QuickCaptureModal'
 import { useRole } from '../hooks/useRole'
 import { useDragSensors } from '../hooks/useDragSensors'
 import { useStories } from '../hooks/useStories'
@@ -302,6 +303,7 @@ export function ProjectDetailPage() {
   const [tasksByStory, setTasksByStory] = useState<Record<string, TaskResponse[]>>({})
 
   const [showCreateTask, setShowCreateTask] = useState(false)
+  const [showQuickCapture, setShowQuickCapture] = useState(false)
 
   const [storySearch, setStorySearch] = useState('')
   const [storyFilterStatus, setStoryFilterStatus] = useState<Status | 'all'>('all')
@@ -734,6 +736,7 @@ export function ProjectDetailPage() {
           >
             <MenuItem onSelect={() => setShowCreateStory(true)}>Story</MenuItem>
             <MenuItem onSelect={() => setShowCreateTask(true)}>Task</MenuItem>
+            <MenuItem onSelect={() => setShowQuickCapture(true)}>{t('capture.quick_capture')}</MenuItem>
           </Menu>
           <Menu
             trigger={
@@ -1247,6 +1250,25 @@ export function ProjectDetailPage() {
             setShowCreateTask(false)
           }}
           onClose={() => setShowCreateTask(false)}
+        />
+      )}
+
+      {showQuickCapture && (
+        <QuickCaptureModal
+          projectId={id!}
+          onCreated={(tasks) => {
+            setTasksByStory((prev) => {
+              const next = { ...prev }
+              for (const task of tasks) {
+                if (task.story_id) {
+                  next[task.story_id] = [task, ...(next[task.story_id] ?? [])]
+                }
+              }
+              return next
+            })
+            setShowQuickCapture(false)
+          }}
+          onClose={() => setShowQuickCapture(false)}
         />
       )}
 

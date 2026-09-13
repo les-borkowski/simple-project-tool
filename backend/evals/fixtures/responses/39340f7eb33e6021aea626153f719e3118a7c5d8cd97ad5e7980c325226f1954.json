@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"Review the checkout flow\",\n      \"confidence\": 0.95,\n      \"assignee_hint\": \"Anna Kowalska\",\n      \"story_hint\": \"Payments\"\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 460,
+  "completion_tokens": 75,
+  "latency_ms": 10796
+}

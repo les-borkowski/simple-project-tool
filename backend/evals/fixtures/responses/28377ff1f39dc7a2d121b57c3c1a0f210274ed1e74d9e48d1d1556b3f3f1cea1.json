@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"Clean up unused imports\",\n      \"confidence\": 0.95\n    },\n    {\n      \"title\": \"Fix the flaky test\",\n      \"confidence\": 0.95\n    },\n    {\n      \"title\": \"Update CHANGELOG\",\n      \"confidence\": 0.95\n    },\n    {\n      \"title\": \"Close old PRs\",\n      \"confidence\": 0.95\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 473,
+  "completion_tokens": 131,
+  "latency_ms": 2390
+}

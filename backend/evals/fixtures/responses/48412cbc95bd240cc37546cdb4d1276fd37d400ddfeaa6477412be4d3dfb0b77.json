@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"Update the onboarding docs\",\n      \"confidence\": 1,\n      \"due_date\": \"2026-09-30\",\n      \"story_hint\": \"Onboarding\"\n    },\n    {\n      \"title\": \"File a ticket for the flaky CI job\",\n      \"confidence\": 0.9\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 489,
+  "completion_tokens": 108,
+  "latency_ms": 2766
+}

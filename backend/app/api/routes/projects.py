@@ -17,7 +17,7 @@ from app.api.schemas.user_preferences import (
     UserProjectPreferencesUpdate,
 )
 from app.api.services import project_service, user_preferences_service
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, require_scope
 from app.db.base import PriorityEnum
 from app.db.database import get_db
 from app.db.models import User
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 
 @router.get("", response_model=PaginatedResponse[ProjectResponse])
 async def list_projects(
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("read:projects")),
     db: AsyncSession = Depends(get_db),
     cursor: str | None = Query(None),
     limit: int = Query(25, ge=1, le=100),
@@ -56,7 +56,7 @@ async def create_project(
 @router.get("/{project_id}", response_model=ProjectResponse)
 async def get_project(
     project_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("read:projects")),
     db: AsyncSession = Depends(get_db),
 ):
     """Get a project by ID."""
@@ -107,7 +107,7 @@ async def restore_project(
 @router.get("/{project_id}/members", response_model=list[MemberResponse])
 async def list_members(
     project_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("read:projects")),
     db: AsyncSession = Depends(get_db),
 ):
     """List members of a project."""

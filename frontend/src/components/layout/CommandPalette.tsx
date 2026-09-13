@@ -62,6 +62,13 @@ const ISun = () => (
     <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
   </svg>
 )
+const IHelp = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M9.2 9.2a2.8 2.8 0 1 1 3.6 3.4c-.6.3-.8.8-.8 1.4v.3"/>
+    <path d="M12 17.2h.01"/>
+  </svg>
+)
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -216,6 +223,13 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     label: t('palette.open_settings'),
     icon: <ICog />,
     onClick: () => { navigate('/config'); onClose() },
+  })
+
+  quickActions.push({
+    id: 'open-manual',
+    label: t('palette.open_manual'),
+    icon: <IHelp />,
+    onClick: () => { navigate('/manual'); onClose() },
   })
 
   const currentTheme = getCurrentTheme()

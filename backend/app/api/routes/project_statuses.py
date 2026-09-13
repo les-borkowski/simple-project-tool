@@ -9,7 +9,7 @@ from app.api.schemas.project_status import (
     ProjectStatusUpdate,
 )
 from app.api.services import project_status_service
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, require_scope
 from app.db.database import get_db
 from app.db.models import User
 
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/projects", tags=["project-statuses"])
 @router.get("/{project_id}/statuses", response_model=list[ProjectStatusResponse])
 async def list_project_statuses(
     project_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("read:projects")),
     db: AsyncSession = Depends(get_db),
 ):
     return await project_status_service.list_project_statuses(project_id, user, db)

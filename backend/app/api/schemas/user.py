@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from app.api.schemas.api_key import APIKeyIdentity
 from app.db.base import RoleEnum
 
 
@@ -28,3 +29,10 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class MeResponse(UserResponse):
+    """GET /auth/me only — keeps the api_key field off the shared UserResponse contract."""
+
+    # Only set when the request authenticated with an API key; absent for JWT callers.
+    api_key: APIKeyIdentity | None = None

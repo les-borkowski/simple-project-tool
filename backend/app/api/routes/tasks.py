@@ -1,8 +1,14 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.schemas.capture import (
+    CaptureRequest,
+    CaptureResponse,
+    ConfirmRequest,
+    ConfirmResponse,
+)
 from app.api.schemas.common import PaginatedResponse
 from app.api.schemas.task import (
     TaskCreate,
@@ -11,8 +17,10 @@ from app.api.schemas.task import (
     TaskResponse,
     TaskUpdate,
 )
-from app.api.services import task_service
-from app.auth.dependencies import get_current_user
+from app.api.services import capture_resolution_service, task_service
+from app.auth.dependencies import get_current_user, require_scope
+from app.core.llm import get_llm_client
+from app.core.llm.base import LLMAuthError, LLMClient, LLMNotConfigured, LLMUnavailable
 from app.db.base import PriorityEnum
 from app.db.database import get_db
 from app.db.models import User
@@ -23,7 +31,7 @@ router = APIRouter(tags=["tasks"])
 @router.get("/projects/{project_id}/tasks", response_model=PaginatedResponse[TaskResponse])
 async def list_project_tasks(
     project_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("read:tasks")),
     db: AsyncSession = Depends(get_db),
     cursor: str | None = Query(None),
     limit: int = Query(25, ge=1, le=500),
@@ -66,17 +74,62 @@ async def reorder_tasks(
 async def create_task_for_project(
     project_id: uuid.UUID,
     data: TaskCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("write:tasks")),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a task directly under a project (no story required)."""
     return await task_service.create_task_for_project(project_id, data, user, db)
 
 
+@router.post("/projects/{project_id}/tasks/capture", response_model=CaptureResponse)
+async def capture_tasks(
+    project_id: uuid.UUID,
+    payload: CaptureRequest,
+    request: Request,
+    user: User = Depends(require_scope("write:tasks")),
+    db: AsyncSession = Depends(get_db),
+    client: LLMClient = Depends(get_llm_client),
+):
+    """Extract candidate tasks from free text. Writes no task data — a preview only.
+    Does record a rate-limiting usage event (token count) for the caller.
+
+    Returns 429 `LLM_RATE_LIMITED` if the caller is over their effective rate limit.
+    """
+    try:
+        return await capture_resolution_service.preview_capture(
+            project_id, payload, user, db, client, request
+        )
+    except LLMNotConfigured as e:
+        raise HTTPException(status_code=503, detail="LLM_NOT_CONFIGURED") from e
+    except LLMAuthError as e:
+        # Must precede LLMUnavailable, which it subclasses. Without this arm a user
+        # whose own stored key was revoked is told the service is "temporarily
+        # unavailable" forever, with nothing pointing at the key they need to replace.
+        # 502, not 503: the provider answered, it rejected this credential.
+        raise HTTPException(status_code=502, detail="LLM_KEY_INVALID") from e
+    except LLMUnavailable as e:
+        raise HTTPException(status_code=503, detail="LLM_UNAVAILABLE") from e
+
+
+@router.post(
+    "/projects/{project_id}/tasks/capture/confirm",
+    response_model=ConfirmResponse,
+    status_code=201,
+)
+async def confirm_capture_tasks(
+    project_id: uuid.UUID,
+    payload: ConfirmRequest,
+    user: User = Depends(require_scope("write:tasks")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create tasks from a reviewed capture batch. All-or-nothing; calls no LLM."""
+    return await capture_resolution_service.confirm_capture(project_id, payload, user, db)
+
+
 @router.get("/stories/{story_id}/tasks", response_model=PaginatedResponse[TaskResponse])
 async def list_tasks(
     story_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("read:tasks")),
     db: AsyncSession = Depends(get_db),
     cursor: str | None = Query(None),
     limit: int = Query(25, ge=1, le=100),
@@ -96,7 +149,7 @@ async def list_tasks(
 async def create_task(
     story_id: uuid.UUID,
     data: TaskCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("write:tasks")),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a task in a story."""
@@ -106,7 +159,7 @@ async def create_task(
 @router.get("/tasks/{task_id}", response_model=TaskResponse)
 async def get_task(
     task_id: uuid.UUID,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("read:tasks")),
     db: AsyncSession = Depends(get_db),
 ):
     """Get a task by ID."""
@@ -117,7 +170,7 @@ async def get_task(
 async def update_task(
     task_id: uuid.UUID,
     data: TaskUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_scope("write:tasks")),
     db: AsyncSession = Depends(get_db),
 ):
     """Update a task."""

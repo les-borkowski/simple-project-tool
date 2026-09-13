@@ -26,6 +26,16 @@ export function useRole(projectId?: string): RoleInfo {
     setIsLoading(false)
   }
 
+  // Re-arm loading when the project we are asked about changes. Without this, a global
+  // manager who is only a Contributor on the newly-selected project keeps isManager=true
+  // and isLoading=false until the membership request lands, so callers that gate on
+  // isLoading render manager-only controls for a round-trip before they disappear.
+  const [loadedProjectId, setLoadedProjectId] = useState(projectId)
+  if (projectId !== loadedProjectId) {
+    setLoadedProjectId(projectId)
+    if (projectId && user) setIsLoading(true)
+  }
+
   useEffect(() => {
     if (!projectId || !user) return
     let cancelled = false

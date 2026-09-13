@@ -267,6 +267,36 @@ describe('ProjectStatusManager reordering (T06)', () => {
     await waitFor(() => expect(nameOrder()).toEqual(['In Progress', 'To Do', 'Done']))
   })
 
+  it('never exposes an interactive row list still showing the discarded optimistic order after a failed reorder', async () => {
+    const user = userEvent.setup()
+    await renderManager()
+
+    vi.mocked(statusesApi.update).mockRejectedValue(new Error('network error'))
+
+    // Hold the post-failure re-sync open. `localStatuses` still holds the optimistic
+    // order the failure invalidated — the component's own comment calls a
+    // client-invented order "a lie". Any reorder control reachable in this window
+    // would compute its `order` indices from exactly that lie and PATCH them over
+    // the server's real state, so there must be none.
+    let resolveResync!: (value: unknown) => void
+    vi.mocked(statusesApi.list).mockImplementationOnce(
+      () => new Promise((resolve) => { resolveResync = resolve }) as never
+    )
+
+    await user.click(screen.getAllByRole('button', { name: 'Move down' })[0])
+    await screen.findByText('Failed to save changes')
+
+    expect(screen.queryAllByRole('button', { name: 'Move down' })).toHaveLength(0)
+    expect(screen.queryAllByRole('button', { name: 'Move up' })).toHaveLength(0)
+
+    resolveResync({ data: threeStatuses() })
+
+    await waitFor(() => expect(nameOrder()).toEqual(['To Do', 'In Progress', 'Done']))
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: 'Move down' })[0]).toBeEnabled()
+    )
+  })
+
   it('does not leak an unhandled promise rejection when the reorder PATCH fails', async () => {
     const user = userEvent.setup()
     await renderManager()

@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"Update the API docs\",\n      \"confidence\": 0.95,\n      \"assignee_hint\": \"Ben\",\n      \"due_date\": \"2026-09-05\"\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 475,
+  "completion_tokens": 81,
+  "latency_ms": 10818
+}

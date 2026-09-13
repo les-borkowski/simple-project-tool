@@ -10,7 +10,33 @@ name = "simple-project-tool"
 version = "0.1.0"
 requires-python = ">=3.11"
 
+# Only what `spt` and `spt-mcp` need.
+#
+# Both are pure API clients: they talk to the server over HTTP and import nothing
+# from app.api, app.db or app.auth, so installing them pulls in none of the server
+# stack — no database drivers, no FastAPI, no password hashing. That is what makes
+# `uv tool install` against a remote server reasonable for someone who is never
+# going to run one.
+#
+# The server's own dependencies are the `server` dependency group below, which
+# `[tool.uv] default-groups` installs on every `uv sync`. So the developer and CI
+# workflow is unchanged, while a plain `uv pip install -e .` / `uv tool install`
+# gets the client alone. Anything imported by app/api, app/db, app/auth, app/admin
+# or app/core belongs in that group, NOT here.
 dependencies = [
+    "typer>=0.12",
+    "rich>=13",
+    "httpx>=0.28.1",
+    "babel>=2.14",
+    "mcp>=1.2,<2",
+]
+
+[project.scripts]
+spt = "app.cli.main:app"
+spt-mcp = "app.mcp.server:main"
+
+[dependency-groups]
+server = [
     "fastapi>=0.115",
     "sqlalchemy[asyncio]>=2.0",
     "alembic>=1.13",
@@ -20,21 +46,13 @@ dependencies = [
     "pydantic-settings>=2.0",
     "pyjwt>=2.8",
     "bcrypt>=4.1",
-    "typer>=0.12",
-    "rich>=13",
-    "httpx>=0.28.1",
-    "babel>=2.14",
-    "keyring>=25.7.0",
     "uvicorn>=0.29",
     "jinja2>=3.1",
     "python-multipart>=0.0.9",
     "itsdangerous>=2.2.0",
+    "cryptography>=44",
+    "keyring>=25.7.0",
 ]
-
-[project.scripts]
-spt = "app.cli.main:app"
-
-[dependency-groups]
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.23",
@@ -42,6 +60,11 @@ dev = [
     "anyio>=4.13.0",
     "ruff>=0.4",
 ]
+
+# Keeps `uv sync` installing the full backend, so nothing in CI, the Dockerfile or
+# a developer's checkout has to learn a new flag. `--no-dev` still drops only `dev`.
+[tool.uv]
+default-groups = ["dev", "server"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

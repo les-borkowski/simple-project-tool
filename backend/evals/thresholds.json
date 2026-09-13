@@ -1,0 +1,13 @@
+{
+  "model": "gemini-3.1-flash-lite",
+  "prompt_version": "capture/v1",
+  "thresholds": {
+    "count": 0.85,
+    "title": 0.80,
+    "due_date": 0.90,
+    "assignee": 0.80,
+    "story": 0.65,
+    "priority": 0.80,
+    "not_a_task": 0.80
+  }
+}

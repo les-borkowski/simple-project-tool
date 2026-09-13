@@ -17,7 +17,7 @@ from app.api.services.project_status_service import get_default_status_slug, val
 from app.api.services.story_service import get_default_story
 from app.api.utils import escape_like
 from app.auth.permissions import require_manager, require_not_demo, require_project_access
-from app.db.base import PriorityEnum
+from app.db.base import PriorityEnum, RoleEnum
 from app.db.models import Project, Sprint, StatusHistory, Story, Task, User
 
 
@@ -76,24 +76,31 @@ async def list_tasks(
     )
 
 
-async def create_task(
-    story_id: uuid.UUID, data: TaskCreate, user: User, db: AsyncSession
-) -> TaskResponse:
-    """Create a task in a story."""
-    require_not_demo(user)
-    story = await db.get(Story, story_id)
-    if not story:
-        raise HTTPException(status_code=404, detail="Story not found")
+async def assemble_task(
+    project_id: uuid.UUID,
+    story_id: uuid.UUID,
+    data: TaskCreate,
+    user: User,
+    db: AsyncSession,
+    *,
+    caller_role: RoleEnum,
+    default_assignee_to_creator: bool = True,
+) -> Task:
+    """Validate, build, and stage a Task + its initial StatusHistory row. Does NOT commit.
 
-    await require_project_access(user, story.project_id, db)
-
+    Checks no permissions of its own — it takes `project_id` directly rather than
+    deriving it from an authorised object, so it is the one function here that writes a
+    Task without establishing that the caller may. `caller_role` is required and
+    keyword-only precisely so that cannot happen by accident: a caller has to have
+    resolved the role, which means it has to have done the access check.
+    """
     if data.status is not None:
-        status_val = await validate_status_slug(story.project_id, data.status, db)
+        status_val = await validate_status_slug(project_id, data.status, db)
     else:
-        status_val = await get_default_status_slug(story.project_id, db)
+        status_val = await get_default_status_slug(project_id, db)
 
     if data.sprint_id is not None:
-        await _validate_sprint(data.sprint_id, story.project_id, db)
+        await _validate_sprint(data.sprint_id, project_id, db)
 
     # Best-effort position: concurrent creates may produce duplicates; reorder endpoint normalizes
     # positions.
@@ -101,13 +108,17 @@ async def create_task(
     max_pos = pos_result.scalar() or 0
 
     task = Task(
-        project_id=story.project_id,
+        project_id=project_id,
         story_id=story_id,
         title=data.title,
         description=data.description,
         status=status_val,
         priority=data.priority or PriorityEnum.medium,
-        assignee_id=data.assignee_id if data.assignee_id is not None else user.id,
+        assignee_id=(
+            data.assignee_id
+            if data.assignee_id is not None
+            else (user.id if default_assignee_to_creator else None)
+        ),
         created_by=user.id,
         effort=data.effort,
         due_date=data.due_date,
@@ -124,6 +135,22 @@ async def create_task(
         changed_by=user.id,
     )
     db.add(history)
+
+    return task
+
+
+async def create_task(
+    story_id: uuid.UUID, data: TaskCreate, user: User, db: AsyncSession
+) -> TaskResponse:
+    """Create a task in a story."""
+    require_not_demo(user)
+    story = await db.get(Story, story_id)
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+
+    role = await require_project_access(user, story.project_id, db)
+
+    task = await assemble_task(story.project_id, story_id, data, user, db, caller_role=role)
     await db.commit()
 
     return TaskResponse.model_validate(task)
@@ -138,49 +165,11 @@ async def create_task_for_project(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    await require_project_access(user, project_id, db)
+    role = await require_project_access(user, project_id, db)
 
     backlog = await get_default_story(project_id, db)
 
-    if data.status is not None:
-        status_val = await validate_status_slug(project_id, data.status, db)
-    else:
-        status_val = await get_default_status_slug(project_id, db)
-
-    if data.sprint_id is not None:
-        await _validate_sprint(data.sprint_id, project_id, db)
-
-    # Best-effort position: concurrent creates may produce duplicates; reorder endpoint normalizes
-    # positions.
-    pos_result = await db.execute(
-        select(func.max(Task.position)).where(Task.story_id == backlog.id)
-    )
-    max_pos = pos_result.scalar() or 0
-
-    task = Task(
-        project_id=project_id,
-        story_id=backlog.id,
-        title=data.title,
-        description=data.description,
-        status=status_val,
-        priority=data.priority or PriorityEnum.medium,
-        assignee_id=data.assignee_id if data.assignee_id is not None else user.id,
-        created_by=user.id,
-        effort=data.effort,
-        due_date=data.due_date,
-        sprint_id=data.sprint_id,
-        position=max_pos + 1,
-    )
-    db.add(task)
-    await db.flush()
-
-    history = StatusHistory(
-        task_id=task.id,
-        from_status=None,
-        to_status=task.status,
-        changed_by=user.id,
-    )
-    db.add(history)
+    task = await assemble_task(project_id, backlog.id, data, user, db, caller_role=role)
     await db.commit()
 
     return TaskResponse.model_validate(task)

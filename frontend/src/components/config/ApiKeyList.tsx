@@ -1,19 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { configApi } from '../../services/api'
+import { configApi, isDemoBlockedError } from '../../services/api'
 import type { ApiKeyResponse } from '../../services/api'
+import { getApiErrorMessage } from '../../utils/errors'
 import { EmptyState } from '../common/EmptyState'
 import { ConfirmDialog } from '../common/ConfirmDialog'
 import { formatDate } from '../../utils/format'
 import i18n from '../../i18n'
 
+// Deliberately no 'admin': the backend accepts it and it expands to every scope below,
+// so offering it as a one-click checkbox invites blanket-access keys for no benefit.
 const ALL_SCOPES = [
   'read:projects', 'write:projects',
   'read:stories', 'write:stories',
   'read:tasks', 'write:tasks',
   'read:comments', 'write:comments',
-  'admin',
 ]
+
+function isExpired(expiresAt: string | null): boolean {
+  return expiresAt !== null && new Date(expiresAt).getTime() <= Date.now()
+}
 
 export function ApiKeyList() {
   const { t } = useTranslation()
@@ -25,16 +31,22 @@ export function ApiKeyList() {
   const [creating, setCreating] = useState(false)
   const [rawKey, setRawKey] = useState<string | null>(null)
   const [revokeId, setRevokeId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  const load = () => {
-    configApi.listApiKeys().then((res) => setKeys(res.data)).finally(() => setLoading(false))
-  }
+  const load = useCallback(() => {
+    configApi
+      .listApiKeys()
+      .then((res) => setKeys(res.data))
+      .catch(() => setError(t('errors.generic')))
+      .finally(() => setLoading(false))
+  }, [t])
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [load])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreating(true)
+    setError(null)
     try {
       const res = await configApi.createApiKey({ label: newLabel, scopes: newScopes })
       setRawKey(res.data.key)
@@ -42,6 +54,8 @@ export function ApiKeyList() {
       setNewLabel('')
       setNewScopes(['read:projects'])
       load()
+    } catch (e) {
+      if (!isDemoBlockedError(e)) setError(getApiErrorMessage(e) ?? t('errors.generic'))
     } finally {
       setCreating(false)
     }
@@ -49,9 +63,15 @@ export function ApiKeyList() {
 
   const handleRevoke = async () => {
     if (!revokeId) return
-    await configApi.revokeApiKey(revokeId)
-    setRevokeId(null)
-    load()
+    setError(null)
+    try {
+      await configApi.revokeApiKey(revokeId)
+      load()
+    } catch (e) {
+      if (!isDemoBlockedError(e)) setError(getApiErrorMessage(e) ?? t('errors.generic'))
+    } finally {
+      setRevokeId(null)
+    }
   }
 
   const toggleScope = (scope: string) => {
@@ -64,10 +84,15 @@ export function ApiKeyList() {
 
   return (
     <div>
+      {error && (
+        <div className="mb-4 px-3 py-2 rounded-md border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950 text-ui-sm text-red-700 dark:text-red-300">
+          {error}
+        </div>
+      )}
       <div className="flex justify-end mb-4">
         <button
-          disabled
-          className="px-4 py-2 text-sm bg-stone-200 dark:bg-stone-700 text-stone-400 dark:text-stone-500 rounded-md cursor-not-allowed"
+          onClick={() => setShowCreate(true)}
+          className="px-4 py-2 text-sm accent-bg rounded-md"
         >
           {t('api_keys.create')}
         </button>
@@ -90,10 +115,23 @@ export function ApiKeyList() {
                 <p className="text-xs text-stone-400 dark:text-stone-400 mt-0.5">
                   {t('api_keys.last_used')}: {key.last_used_at ? formatDate(key.last_used_at, i18n.language) : t('api_keys.never')}
                 </p>
+                {/* An expiry the holder cannot see is one they cannot plan around —
+                    an agent's key going quiet is otherwise indistinguishable from a bug. */}
+                <p
+                  className={`text-xs mt-0.5 ${
+                    isExpired(key.expires_at)
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-stone-400 dark:text-stone-400'
+                  }`}
+                >
+                  {key.expires_at
+                    ? `${isExpired(key.expires_at) ? t('api_keys.expired') : t('api_keys.expires')}: ${formatDate(key.expires_at, i18n.language)}`
+                    : `${t('api_keys.expires')}: ${t('api_keys.never')}`}
+                </p>
               </div>
               <button
-                disabled
-                className="text-sm text-stone-300 dark:text-stone-600 shrink-0 cursor-not-allowed"
+                onClick={() => setRevokeId(key.id)}
+                className="text-sm text-red-600 dark:text-red-400 hover:underline shrink-0"
               >
                 {t('api_keys.revoke')}
               </button>
@@ -154,7 +192,7 @@ export function ApiKeyList() {
               </div>
               <div className="flex justify-end gap-3">
                 <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm border border-stone-300 dark:border-stone-600 rounded-md">{t('actions.cancel')}</button>
-                <button type="submit" disabled={creating} className="px-4 py-2 text-sm accent-bg rounded-md disabled:opacity-50">{t('actions.create')}</button>
+                <button type="submit" disabled={creating || newScopes.length === 0} className="px-4 py-2 text-sm accent-bg rounded-md disabled:opacity-50">{t('actions.create')}</button>
               </div>
             </form>
           </div>

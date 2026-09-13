@@ -1,12 +1,14 @@
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.services.llm_usage_service import WINDOW
 from app.auth.security import create_password_reset_token, hash_password
 from app.db.base import LocaleEnum, RoleEnum, ThemeEnum
-from app.db.models import User, UserConfig
+from app.db.models import LLMUsageEvent, User, UserConfig
 
 
 async def get_all_users(db: AsyncSession) -> list[User]:
@@ -87,6 +89,35 @@ async def delete_user(db: AsyncSession, user_id: uuid.UUID) -> None:
     user = await _get_user_or_404(db, user_id)
     await db.delete(user)
     await db.commit()
+
+
+async def set_llm_limits(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    rpm_ceiling: int | None,
+    tpm_ceiling: int | None,
+) -> None:
+    user = await _get_user_or_404(db, user_id)
+    user.llm_rpm_ceiling = rpm_ceiling
+    user.llm_tpm_ceiling = tpm_ceiling
+    await db.commit()
+
+
+async def get_recent_usage_by_user(db: AsyncSession) -> dict[uuid.UUID, tuple[int, int]]:
+    """user_id -> (event_count, total_tokens) in the last WINDOW, summed across all providers."""
+    now = datetime.now(UTC).replace(tzinfo=None)
+    window_start = now - WINDOW
+
+    result = await db.execute(
+        select(
+            LLMUsageEvent.user_id,
+            func.count(LLMUsageEvent.id),
+            func.coalesce(func.sum(LLMUsageEvent.total_tokens), 0),
+        )
+        .where(LLMUsageEvent.created_at > window_start)
+        .group_by(LLMUsageEvent.user_id)
+    )
+    return {user_id: (count, tokens) for user_id, count, tokens in result.all()}
 
 
 async def send_password_reset(db: AsyncSession, user_id: uuid.UUID, background_tasks) -> None:

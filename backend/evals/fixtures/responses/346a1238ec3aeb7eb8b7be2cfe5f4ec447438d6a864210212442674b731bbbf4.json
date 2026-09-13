@@ -1,0 +1,7 @@
+{
+  "text": "{\n  \"not_a_task\": false,\n  \"tasks\": [\n    {\n      \"title\": \"Investigate login bug\",\n      \"confidence\": 0.95,\n      \"assignee_hint\": \"Ben Ortiz\"\n    }\n  ]\n}",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_tokens": 460,
+  "completion_tokens": 63,
+  "latency_ms": 1309
+}

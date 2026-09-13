@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import sys
+from datetime import date
+from pathlib import Path
+
 import typer
 from rich.table import Table
 
@@ -10,10 +14,10 @@ from ..output import console, fmt_date, load_locale, priority_label, short_id, s
 app = typer.Typer(help="Task commands")
 
 
-def _setup() -> tuple[CLIConfig, APIClient]:
+def _setup(api_key: str | None = None) -> tuple[CLIConfig, APIClient]:
     config = CLIConfig.load()
     load_locale(config.locale)
-    return config, APIClient(config)
+    return config, APIClient(config, api_key=api_key)
 
 
 @app.command("list")
@@ -113,3 +117,102 @@ def assign(
     config, client = _setup()
     client.patch(f"/tasks/{task_id}", json={"assignee_id": user_id})
     console.print(t("task.assigned"))
+
+
+def _resolve_capture_text(text: str | None, file: Path | None) -> str:
+    """Capture text from --file, stdin, or the positional argument, in that order."""
+    if file is not None:
+        try:
+            resolved = file.read_text(encoding="utf-8")
+        except OSError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(1) from exc
+    elif text == "-":
+        resolved = sys.stdin.read()
+    elif text is not None:
+        resolved = text
+    else:
+        # Nothing given at all. Reading stdin here would hang an interactive terminal,
+        # so ask for one of the three forms instead.
+        console.print(f"[red]{t('capture.text_required')}[/red]")
+        raise typer.Exit(1)
+
+    resolved = resolved.strip()
+    if not resolved:
+        console.print(f"[red]{t('capture.text_required')}[/red]")
+        raise typer.Exit(1)
+    return resolved
+
+
+@app.command()
+def capture(
+    project_id: str = typer.Argument(...),
+    text: str | None = typer.Argument(
+        None, help="Capture text, or '-' to read it from standard input."
+    ),
+    file: Path | None = typer.Option(
+        None, "--file", "-f", help="Read the capture text from a file instead."
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y"),
+    api_key: str | None = typer.Option(None, "--api-key", envvar="SPT_API_KEY"),
+) -> None:
+    """Extract candidate tasks from free text and create them after confirmation.
+
+    Text as a positional argument lands in the user's shell history, and capture text
+    routinely quotes people or describes unreleased work — so --file and stdin exist to
+    keep it out. The positional form is kept for interactive use.
+    """
+    text = _resolve_capture_text(text, file)
+
+    config, client = _setup(api_key=api_key)
+    reference_date = date.today().isoformat()
+    result = client.post(
+        f"/projects/{project_id}/tasks/capture",
+        json={"text": text, "reference_date": reference_date},
+    )
+
+    if result.get("unparseable"):
+        console.print(t("capture.unparseable"))
+        raise typer.Exit(0)
+    if not result.get("tasks"):
+        console.print(t("capture.no_tasks"))
+        raise typer.Exit(0)
+
+    for w in result.get("warnings", []):
+        console.print(f"[yellow]{w}[/yellow]")
+
+    table = Table(title=t("capture.preview_title"))
+    table.add_column(t("col.title"))
+    table.add_column(t("col.due_date"))
+    table.add_column(t("col.assignee"))
+    table.add_column(t("col.story"))
+    table.add_column(t("col.priority"))
+    for task in result["tasks"]:
+        table.add_row(
+            task["title"],
+            fmt_date(task.get("due_date")),
+            task.get("assignee_hint") or "—",
+            task.get("story_hint") or "—",
+            priority_label(task.get("priority") or ""),
+            style="yellow" if task.get("low_confidence") else None,
+        )
+    console.print(table)
+
+    if not yes:
+        typer.confirm(t("capture.confirm_prompt"), abort=True)
+
+    body = {
+        "tasks": [
+            {
+                "title": item["title"],
+                "description": item.get("description"),
+                "story_id": item.get("story_id"),
+                "assignee_id": item.get("assignee_id"),
+                "due_date": item.get("due_date"),
+                "priority": item.get("priority"),
+            }
+            for item in result["tasks"]
+        ]
+    }
+    created = client.post(f"/projects/{project_id}/tasks/capture/confirm", json=body)
+    console.print(t("capture.created", count=len(created.get("created", []))))

@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.api_key import APIKeyCreate, APIKeyCreatedResponse, APIKeyResponse
 from app.api.schemas.config import UserConfigResponse, UserConfigUpdate
+from app.auth.permissions import require_not_demo
 from app.auth.security import generate_api_key
 from app.db.models import APIKey, User, UserConfig
 
@@ -63,6 +64,11 @@ async def list_api_keys(user: User, db: AsyncSession) -> list[APIKeyResponse]:
 
 async def create_api_key(data: APIKeyCreate, user: User, db: AsyncSession) -> APIKeyCreatedResponse:
     """Create a new API key."""
+    # Every other self-service write guards demo accounts here rather than relying on the
+    # frontend interceptor. Without it a demo user can POST directly and walk away with a
+    # permanent credential to the shared demo account that survives its password reset.
+    require_not_demo(user)
+
     raw_key, key_hash, key_prefix = generate_api_key()
 
     key = APIKey(
@@ -71,6 +77,7 @@ async def create_api_key(data: APIKeyCreate, user: User, db: AsyncSession) -> AP
         key_prefix=key_prefix,
         label=data.label,
         scopes=data.scopes,
+        expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(days=data.expires_in_days),
     )
     db.add(key)
     await db.commit()
@@ -80,6 +87,7 @@ async def create_api_key(data: APIKeyCreate, user: User, db: AsyncSession) -> AP
         label=key.label,
         scopes=key.scopes,
         key=raw_key,
+        expires_at=key.expires_at,
     )
 
 

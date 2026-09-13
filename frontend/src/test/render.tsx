@@ -28,7 +28,8 @@ interface RenderWithProvidersOptions extends Omit<RenderOptions, 'wrapper'> {
   auth?: Partial<AuthContextValue>
 }
 
-function Providers({
+/** Exported so hook tests (renderHook) can use the same provider stack as component tests. */
+export function Providers({
   children,
   route,
   path,

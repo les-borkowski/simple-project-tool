@@ -13,7 +13,7 @@ import { ConfigPage } from './ConfigPage'
 // This file asserts the page's user-visible result, not that it imports Tabs
 // (a component boundary is an internal). "It adopted Tabs" is observed as:
 // real tablist/tab/tabpanel roles, roving tabindex, arrow navigation that skips
-// the disabled API Keys section, and the active tab being scrolled into view.
+// every settings section, and the active tab being scrolled into view.
 // An implementation that inlines the same behaviour by hand passes — and that
 // is fine, because the rendered result is what users get.
 //
@@ -33,6 +33,15 @@ vi.mock('../services/api', async (importOriginal) => {
       listMembers: vi.fn(),
     },
     authApi: { ...actual.authApi, changePassword: vi.fn() },
+    // Arrowing through the tab strip briefly mounts both ApiKeyList and
+    // AiProvidersList — stub their fetches to resolved empty lists rather than
+    // let real axios calls hit the network in jsdom.
+    configApi: {
+      ...actual.configApi,
+      listApiKeys: vi.fn().mockResolvedValue({ data: [] }),
+      listLlmProviders: vi.fn().mockResolvedValue({ data: [] }),
+      availableLlmProviders: vi.fn().mockResolvedValue({ data: [] }),
+    },
   }
 })
 
@@ -239,24 +248,26 @@ describe('ConfigPage app settings section nav', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
-  it('announces the unavailable API Keys section as disabled instead of hiding it', () => {
+  it('offers the API Keys section as an enabled tab', () => {
     renderConfigPage()
 
-    expect(screen.getByRole('tab', { name: /API Keys/ })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('tab', { name: /API Keys/ })).not.toHaveAttribute(
+      'aria-disabled',
+      'true'
+    )
   })
 
-  it('refuses to activate the disabled API Keys section when it is clicked', async () => {
+  it('activates the API Keys section when it is clicked', async () => {
     const user = userEvent.setup()
     renderConfigPage()
 
     await user.click(screen.getByRole('tab', { name: /API Keys/ }))
 
-    expect(screen.getByRole('tab', { name: /API Keys/ })).toHaveAttribute('aria-selected', 'false')
-    expect(screen.getByRole('tab', { name: /Profile/ })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByText('Appearance')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /API Keys/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: /Profile/ })).toHaveAttribute('aria-selected', 'false')
   })
 
-  it('arrows straight past the disabled API Keys section from Profile to Security', async () => {
+  it('arrows from Profile through API Keys and AI Providers to Security', async () => {
     const user = userEvent.setup()
     setViewportWidth(1280)
     renderConfigPage()
@@ -264,9 +275,16 @@ describe('ConfigPage app settings section nav', () => {
     screen.getByRole('tab', { name: /Profile/ }).focus()
     await user.keyboard('{ArrowDown}')
 
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: /API Keys/ }))
+
+    await user.keyboard('{ArrowDown}')
+
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: /AI Providers/ }))
+
+    await user.keyboard('{ArrowDown}')
+
     expect(document.activeElement).toBe(screen.getByRole('tab', { name: /Security/ }))
     expect(await screen.findByLabelText('Current password')).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /API Keys/ })).toHaveAttribute('aria-selected', 'false')
   })
 
   it('scrolls the newly active section tab into view, so an off-screen tab is reachable', async () => {
