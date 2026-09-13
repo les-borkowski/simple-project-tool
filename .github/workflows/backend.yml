@@ -1,12 +1,14 @@
 name: Backend CI
 
+# No `paths:` filters: `test` and `lint-and-build` are required status checks on
+# main, and GitHub blocks a PR until every required check reports. A filtered
+# workflow simply never reports on a PR that misses its paths, leaving it stuck on
+# "Expected — waiting for status" forever. Re-adding a filter here re-breaks merges.
 on:
   push:
     branches: [ main ]
-    paths: [ 'backend/**', '.github/workflows/backend.yml' ]
   pull_request:
     branches: [ main ]
-    paths: [ 'backend/**', '.github/workflows/backend.yml' ]
 
 jobs:
   test:
