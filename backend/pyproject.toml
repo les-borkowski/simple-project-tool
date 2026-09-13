@@ -55,7 +55,7 @@ server = [
 ]
 dev = [
     "pytest>=8",
-    "pytest-asyncio>=0.23",
+    "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
     "anyio>=4.13.0",
     "ruff>=0.4",
