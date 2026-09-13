@@ -165,7 +165,7 @@ export function ManualPage() {
       <PageHeader title={manual.title} subtitle={manual.subtitle} />
 
       <div className="flex-1 px-4 py-5 md:px-7 md:py-6 min-w-0">
-        <div className="grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)] max-w-4xl">
+        <div className="manual grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)] max-w-4xl">
           <nav className="manual-toc text-ui-md" aria-label={manual.contentsLabel}>
             <ul>
               {sections.map((s) => (
@@ -183,6 +183,7 @@ export function ManualPage() {
           </nav>
 
           <article className="manual-prose min-w-0">
+            {manual.notice && <BlockView block={manual.notice} />}
             {sections.map((section) => (
               <section key={section.id} id={section.id}>
                 <h2>{section.heading}</h2>

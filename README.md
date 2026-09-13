@@ -1,51 +1,55 @@
 # simple-project-tool
 
-A minimalist project management app with an API-first design. Organise work into a three-level hierarchy — Projects, Stories, and Tasks — accessible via a web UI, a command-line interface, or directly through the REST API (ideal for AI agent integrations).
+A minimalist, API-first project management app — Projects → Stories → Tasks — with an **LLM layer
+built in**: natural-language task capture behind a mandatory preview step, scoped API keys for
+agents, an MCP server exposing 16 tools to Claude Code and Claude Desktop, and a measured eval
+harness that gates extraction quality in CI.
+
+Usable from a web UI, a CLI, an MCP host, or the REST API directly.
+
+> [!NOTE]
+> **This project is in active development.** It is a personal project built to explore AI-assisted
+> application development, not a production service. Interfaces change without deprecation periods,
+> the `spt` CLI and `spt-mcp` server are explicitly experimental, and the Polish translation of the
+> user manual is machine-generated and awaiting review. Do not point the capture feature at
+> sensitive project data — see [Privacy](#natural-language-task-capture).
+
+## Contents
+
+- [**The AI layer**](#the-ai-layer) — [capture](#natural-language-task-capture) ·
+  [agent keys](#agent-api-keys) · [MCP server](#mcp-server-spt-mcp) ·
+  [eval results](#extraction-quality-the-eval-harness) · [offline demo](#demoing-offline-without-an-api-key)
+- [Features](#features) — hierarchy, roles, sprints, time tracking, notifications
+- [Tech stack](#tech-stack)
+- [Quick start](#quick-start)
+- [Documentation](#documentation)
 
 ---
 
-## Features
+## The AI layer
 
-### Work Hierarchy
+Three pieces that share one design rule: the model proposes, the API disposes. Nothing an LLM
+suggests reaches the database without passing the same route → service → RBAC path a human request
+does, and capture additionally requires an explicit human confirm.
 
-```
-Project
-└── Story (optional grouping)
-    └── Task
-```
+| | What | Where it runs |
+|---|---|---|
+| **Capture** | Free text → structured task candidates, always previewed before anything is written | Web UI, CLI, REST |
+| **Agent keys** | Scoped credentials so an agent acts without a user password | Any non-browser caller |
+| **MCP server** | 16 read/write tools over the same REST API, no DB access | Claude Code, Claude Desktop |
 
-Tasks can belong directly to a project or be nested inside a story. Every level supports:
+Quality is measured, not asserted. Against 35 hand-written cases on `gemini-3.1-flash-lite`
+(`capture/v1`, run 2026-09-04):
 
-- **Status**: per-project configurable workflow; each project starts with `to_do`, `in_progress`, `in_review`, `done` and can add, rename, recolour, or reorder its own statuses
-- **Priority**: `low` · `medium` · `high`
-- **Comments** with markdown support
-- **Status history** — immutable audit trail with elapsed-time tracking
+| due_date | title | assignee | priority | story | not_a_task |
+|---|---|---|---|---|---|
+| **100.0%** | 91.7% | 91.7% | 91.7% | **80.6%** | **100.0%** |
 
-### Roles & Access Control
+Story resolution is the weakest field and is analysed honestly
+[below](#extraction-quality-the-eval-harness), along with the scoring method and the CI gate that
+fails the build on regression.
 
-| Role | Capabilities |
-|------|-------------|
-| **Manager** | Create/delete/archive items, invite members, manage roles |
-| **Contributor** | View items, update status, add comments |
-
-Per-project roles override the user's global role. Project owners always have Manager access.
-
-### Sprints
-
-Group tasks into time-boxed sprints with start/end dates. View sprint progress and task assignments per sprint.
-
-### Time Tracking
-
-Every status transition is recorded. Query time-in-status metrics at the project, story, or task level. Generate aggregate time reports per project or per user.
-
-### Email Notifications (via Mailgun)
-
-- Email confirmation on registration
-- Password reset emails
-- Project invitation emails
-- Admin notification on new user sign-up
-
-### Natural-Language Task Capture
+### Natural-language task capture
 
 Type a sentence describing one or more tasks — "ask Anna to review the checkout flow by Friday" — and the system extracts structured candidates (title, due date, assignee, story, priority) using an LLM (Large Language Model). You review and edit the candidates; nothing is ever created without an explicit confirm step.
 
@@ -98,23 +102,55 @@ The model pin went through two corrections during development: the originally-pl
 
 **Privacy.** When a user submits capture text, that text plus the **display names** (never emails, never internal IDs) of project members and the **names** of a project's stories are sent to Google's Gemini API, so the model can resolve references like "assign it to Anna" and match stories by name. Free-tier API terms may permit the provider to use submitted prompts to improve their products — don't point this feature at real or sensitive project data without checking the current terms for whichever tier is in use. Users should be aware that capture text leaves the local server whenever the feature is enabled.
 
-#### Demoing offline
+### Agent API keys
 
-`LLM_PROVIDER=replay` swaps the Gemini client for one that serves recorded fixtures from `backend/evals/fixtures/responses/`, so capture works with no API key and no network. Fixtures are keyed by a hash of the full prompt — which embeds the project name, member names, story titles, and the reference date — so a fixture only replays against the exact project it was recorded for.
-
-`backend/scripts/demo_capture.py` sets that up:
+API keys are how a non-browser caller — an agent, the MCP server, a script — authenticates without
+anyone handing over a password. Create them at Settings → App Settings → API Keys, or from the CLI:
 
 ```bash
-uv run python -m scripts.demo_capture seed                          # idempotent demo project + members + stories
-uv run python -m scripts.demo_capture record --as-user <email>      # one live call per phrase, writes fixtures
-LLM_PROVIDER=replay CAPTURE_REFERENCE_DATE=2026-09-04 uv run python -m app.main
+spt config api-keys create --label "claude-code" --scopes read:projects,read:tasks,write:tasks
 ```
 
-The demo phrases and project shape live in `backend/evals/fixtures/demo_script.json` — edit that and re-run `record` to change the script. Recording needs a real key: `GOOGLE_API_KEY` if set, otherwise `--as-user` names an account whose stored credential to borrow. Note that `--as-user` decrypts and spends that account's stored provider key — it needs database and `CREDENTIAL_ENCRYPTION_KEY` access, so it grants nothing an operator does not already have, but it is an operator-side path to a user's credential and is worth knowing about. Anything typed during the demo that isn't a recorded phrase raises `FixtureMissError` → `503`, so it's a scripted demo, not a sandbox.
+| Scope | Grants |
+|---|---|
+| `read:projects` / `write:projects` | View / modify projects |
+| `read:stories` / `write:stories` | View / modify stories |
+| `read:tasks` / `write:tasks` | View / modify tasks |
+| `read:comments` / `write:comments` | View / post comments |
+| `admin` | Implies every scope above |
 
-**`seed` creates real, loginable accounts**, and their email addresses are committed in `demo_script.json`. It therefore refuses to run when `DEBUG` is off unless you pass `--force`. The password is never a literal in the repo: set `DEMO_SEED_PASSWORD` to choose one, or leave it unset and the script prints a generated password once, at seed time, which is the only time it is shown. If you seeded a deployed instance with an earlier version of this script, delete those accounts — they had a password published in this repository.
+Each `write:` scope implies its `read:` counterpart, so `write:tasks` alone is enough to both read and
+create tasks ([`SCOPE_HIERARCHY`](backend/app/auth/security.py)).
 
-#### Eval harness
+**Scopes are the security boundary.** What a key can do is decided entirely by its scopes, never by
+which client is holding it — so a genuinely read-only agent is one whose key was issued with only
+`read:*` scopes. Nothing about the MCP server or the CLI enforces anything on its own.
+
+Keys are **shown once** at creation and never again, **expire after 90 days** by default (1-3650
+configurable) because they get pasted into config files on third-party machines, and can be
+**revoked instantly**. The key list shows each key's scopes, expiry, and last-used time — `Never` if
+it has not been used, which makes an unexpectedly recent timestamp worth acting on.
+
+### MCP server (`spt-mcp`)
+
+`spt-mcp` exposes the tool as an MCP (Model Context Protocol) server, so an LLM host such as Claude Code or Claude Desktop can browse and edit projects directly. It's a thin async HTTP client over the same REST API everything else uses — no direct DB or service access — so every call still goes through the normal route → service → RBAC path.
+
+16 tools: `whoami`, `list_projects`, `get_project`, `list_stories`, `get_story`, `list_tasks`, `get_task`, `search`, `list_comments`, `update_task`, `update_story`, `add_comment`, `create_task`, `create_story`, `capture_tasks`, `confirm_capture`. There are no delete tools and no member-management tools — an agent should never destroy work or change project membership.
+
+```bash
+# 1. Create a scoped API key
+spt config api-keys create --label "claude-code" \
+  --scopes read:projects,read:stories,read:tasks,read:comments,write:tasks,write:comments
+
+# 2. Register the server with Claude Code
+claude mcp add spt -e SPT_API_KEY=<key> -e SPT_API_URL=http://localhost:8000 -- spt-mcp
+```
+
+The tool list is not the boundary — [scopes are](#agent-api-keys). A host given a `read:*`-only key
+gets the write tools in its list and a permission error if it calls one. See
+[docs/how-to-run.md](docs/how-to-run.md) for the Claude Desktop config equivalent.
+
+### Extraction quality: the eval harness
 
 Extraction quality is tracked with an eval harness in `backend/evals/`. Latest run: model `gemini-3.1-flash-lite`, prompt version `capture/v1`, run on 2026-09-04, 35 cases.
 
@@ -167,26 +203,64 @@ uv run python -m app.evals.run --record --delay 2   # record new/changed fixture
 
 `--filter TAG` restricts a run to cases with that tag; `--format json` gives machine-readable output. A GitHub Actions workflow (`.github/workflows/evals.yml`) can also run the live variant on demand via `workflow_dispatch`; it's `continue-on-error: true` and only uploads `backend/evals/results/latest.md` as an artifact for manual review — it does not block merges. The merge-blocking gate is the pytest threshold test above.
 
-### API Keys for AI Agents
+### Demoing offline without an API key
 
-Generate scoped API keys from the config page to give AI agents or automation tools read/write access to your projects without sharing user credentials.
+`LLM_PROVIDER=replay` swaps the Gemini client for one that serves recorded fixtures from `backend/evals/fixtures/responses/`, so capture works with no API key and no network. Fixtures are keyed by a hash of the full prompt — which embeds the project name, member names, story titles, and the reference date — so a fixture only replays against the exact project it was recorded for.
 
-### MCP Server
-
-`spt-mcp` exposes the tool as an MCP (Model Context Protocol) server, so an LLM host such as Claude Code or Claude Desktop can browse and edit projects directly. It's a thin async HTTP client over the same REST API everything else uses — no direct DB or service access — so every call still goes through the normal route → service → RBAC path.
-
-16 tools: `whoami`, `list_projects`, `get_project`, `list_stories`, `get_story`, `list_tasks`, `get_task`, `search`, `list_comments`, `update_task`, `update_story`, `add_comment`, `create_task`, `create_story`, `capture_tasks`, `confirm_capture`. There are no delete tools and no member-management tools — an agent should never destroy work or change project membership.
+`backend/scripts/demo_capture.py` sets that up:
 
 ```bash
-# 1. Create a scoped API key
-cd backend
-spt config api-keys create --label "claude-code" --scopes read:projects,read:stories,read:tasks,read:comments,write:tasks,write:comments
-
-# 2. Register the server with Claude Code
-claude mcp add spt -e SPT_API_KEY=<key> -e SPT_API_URL=http://localhost:8000 -- spt-mcp
+uv run python -m scripts.demo_capture seed                          # idempotent demo project + members + stories
+uv run python -m scripts.demo_capture record --as-user <email>      # one live call per phrase, writes fixtures
+LLM_PROVIDER=replay CAPTURE_REFERENCE_DATE=2026-09-04 uv run python -m app.main
 ```
 
-**Scopes are the security boundary**, not the tool list — the server enforces nothing itself. A read-only agent is one whose API key was created with only `read:*` scopes, not a different build or configuration. See [docs/how-to-run.md](docs/how-to-run.md) for the Claude Desktop config equivalent.
+The demo phrases and project shape live in `backend/evals/fixtures/demo_script.json` — edit that and re-run `record` to change the script. Recording needs a real key: `GOOGLE_API_KEY` if set, otherwise `--as-user` names an account whose stored credential to borrow. Note that `--as-user` decrypts and spends that account's stored provider key — it needs database and `CREDENTIAL_ENCRYPTION_KEY` access, so it grants nothing an operator does not already have, but it is an operator-side path to a user's credential and is worth knowing about. Anything typed during the demo that isn't a recorded phrase raises `FixtureMissError` → `503`, so it's a scripted demo, not a sandbox.
+
+**`seed` creates real, loginable accounts**, and their email addresses are committed in `demo_script.json`. It therefore refuses to run when `DEBUG` is off unless you pass `--force`. The password is never a literal in the repo: set `DEMO_SEED_PASSWORD` to choose one, or leave it unset and the script prints a generated password once, at seed time, which is the only time it is shown. If you seeded a deployed instance with an earlier version of this script, delete those accounts — they had a password published in this repository.
+
+---
+
+## Features
+
+### Work Hierarchy
+
+```
+Project
+└── Story (optional grouping)
+    └── Task
+```
+
+Tasks can belong directly to a project or be nested inside a story. Every level supports:
+
+- **Status**: per-project configurable workflow; each project starts with `to_do`, `in_progress`, `in_review`, `done` and can add, rename, recolour, or reorder its own statuses
+- **Priority**: `low` · `medium` · `high`
+- **Comments** with markdown support
+- **Status history** — immutable audit trail with elapsed-time tracking
+
+### Roles & Access Control
+
+| Role | Capabilities |
+|------|-------------|
+| **Manager** | Create/delete/archive items, invite members, manage roles |
+| **Contributor** | View items, update status, add comments |
+
+Per-project roles override the user's global role. Project owners always have Manager access.
+
+### Sprints
+
+Group tasks into time-boxed sprints with start/end dates. View sprint progress and task assignments per sprint.
+
+### Time Tracking
+
+Every status transition is recorded. Query time-in-status metrics at the project, story, or task level. Generate aggregate time reports per project or per user.
+
+### Email Notifications (via Mailgun)
+
+- Email confirmation on registration
+- Password reset emails
+- Project invitation emails
+- Admin notification on new user sign-up
 
 ### CLI
 
@@ -233,11 +307,23 @@ npm run dev   # → http://localhost:5173
 
 # 4. CLI and MCP server (optional) — both are entry points on the backend package
 cd backend
-uv pip install -e .
-uv run spt auth login
+uv tool install --editable .
+spt auth login          # prompts for email + password
 ```
 
-`uv pip install -e .` puts `spt` and `spt-mcp` in `backend/.venv`, which is not on your PATH — hence the `uv run` prefix. For bare `spt`, either activate the environment (`source .venv/bin/activate`) or install it as a standalone tool with `uv tool install --editable .`. The latter also puts `spt-mcp` where an LLM host can find it, which `claude mcp add ... -- spt-mcp` needs.
+**This step stands on its own.** `spt` and `spt-mcp` are API clients, so steps 1-3 are only needed if
+you also want to host a server — point them at someone else's and you need no database, no `.env`,
+and none of the server stack (no PostgreSQL drivers, no FastAPI). uv is the only prerequisite; it
+fetches a suitable Python itself.
+
+- **`spt: command not found`?** `uv tool install` puts the commands in `~/.local/bin` and warns you
+  if that is not on your PATH. Run `uv tool update-shell`, then open a new terminal.
+- **`spt-mcp` needs separate setup.** It is launched by an LLM host, not by you, and authenticates
+  with an API key rather than your login — see [MCP server](#mcp-server-spt-mcp) above.
+- **`--editable` ties the install to the folder you cloned**, so `git pull` updates both commands.
+  Moving or deleting that folder breaks them; drop the flag for an independent copy.
+- **Working on the backend anyway?** `uv pip install -e .` keeps the commands in `backend/.venv`
+  instead, where each needs a `uv run` prefix.
 
 The CLI talks to `http://localhost:8000` by default. Point it elsewhere with `spt auth login --api-url https://…` (saved for later commands) or the `SPT_API_URL` environment variable (per-invocation, and what the MCP server already reads).
 

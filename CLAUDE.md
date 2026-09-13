@@ -22,7 +22,7 @@ For detailed architecture, tech stack, data models, and API structure, see **[`d
 ### Backend (Python)
 ```bash
 cd backend
-uv sync                           # Install
+uv sync                           # Install (full backend: base + `server` + `dev` groups)
 cp .env.example .env              # Create env config
 uv run alembic upgrade head       # Migrate DB
 uv run python -m app.main         # Start server (localhost:8000)
@@ -101,6 +101,7 @@ npm run lint                      # Lint
 
 ## Important Notes
 
+- **Dependencies**: `[project.dependencies]` in `backend/pyproject.toml` is the **CLI/MCP client set only** (typer, rich, httpx, babel, mcp) — that is what makes `uv tool install` work without the server stack. Server dependencies go in the `server` dependency group, which `[tool.uv] default-groups` installs on every `uv sync`. Adding a server dep to `[project.dependencies]` silently bloats the client install; put it in the group.
 - **Migrations**: Always use Alembic; never modify models without a migration file
 - **Security**: `.env` file with secrets (DB_URL, SECRET_KEY); never commit
 - **Async**: FastAPI is async; database calls use async driver (asyncpg)

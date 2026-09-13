@@ -81,6 +81,16 @@ describe('manual content', () => {
     expect(identical.map((s) => s.id)).toEqual([])
   })
 
+  // The Polish was machine-translated and has not had a native-speaker review, so it
+  // carries a caveat the English must not: pinning both halves stops the banner being
+  // copied into en-GB by symmetry, and stops it being quietly dropped from pl before
+  // the review that retires it has actually happened.
+  it('marks the Polish translation as unreviewed, and only the Polish', () => {
+    expect(manualPl.notice?.t).toBe('callout')
+    expect(manualPl.notice?.text).toMatch(/automatycznie/)
+    expect(manualEnGB.notice).toBeUndefined()
+  })
+
   it('uses only anchors that exist as section ids', () => {
     const ids = new Set(manualEnGB.sections.map((s) => s.id))
     const anchorPattern = /\]\((#[^)]+)\)/g

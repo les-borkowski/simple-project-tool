@@ -34,5 +34,9 @@ export interface ManualContent {
   title: string
   subtitle: string
   contentsLabel: string
+  /** Banner above the whole document, for anything true of this translation rather
+   *  than of the product — e.g. that it is machine-translated and unreviewed. Per
+   *  locale on purpose, so it stays out of the section parity checks. */
+  notice?: Extract<Block, { t: 'callout' }>
   sections: ManualSection[]
 }

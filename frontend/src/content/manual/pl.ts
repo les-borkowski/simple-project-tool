@@ -14,6 +14,12 @@ export const manualPl: ManualContent = {
   title: 'Podręcznik użytkownika',
   subtitle: 'Jak działa Simple Project Tool, od początku do końca.',
   contentsLabel: 'Spis treści',
+  notice: {
+    t: 'callout',
+    kind: 'note',
+    label: 'Tłumaczenie automatyczne',
+    text: 'To tłumaczenie zostało wygenerowane automatycznie i nie zostało jeszcze sprawdzone przez native speakera. W razie wątpliwości rozstrzygająca jest wersja angielska.',
+  },
   sections: [
     {
       id: 'getting-started',
@@ -608,23 +614,39 @@ export const manualPl: ManualContent = {
       heading: 'Dla zaawansowanych',
       blocks: [
         {
+          t: 'callout',
+          kind: 'warn',
+          label: 'Funkcje eksperymentalne',
+          text: 'Narzędzie wiersza poleceń `spt` oraz serwer `spt-mcp` są eksperymentalne. Polecenia, flagi i format odpowiedzi mogą zmienić się między wydaniami bez okresu przejściowego, więc przypnij wersję, zanim oprzesz na nich skrypt lub automatyzację. Nie dotyczy to interfejsu webowego ani opisanych niżej kluczy API.',
+        },
+        {
           t: 'p',
           text: 'Wszystko w interfejsie webowym opiera się na REST API, a to API jest dostępne także bezpośrednio dla Ciebie — z wiersza poleceń, ze skryptów albo z asystenta AI.',
         },
         { t: 'h3', text: 'Instalacja narzędzi' },
         {
           t: 'p',
-          text: 'Zarówno `spt`, jak i `spt-mcp` są częścią backendu — to dwa punkty wejścia tego samego pakietu Pythona, więc jedna instalacja daje oba. Potrzebujesz Pythona 3.11 lub nowszego oraz [uv](https://docs.astral.sh/uv/).',
+          text: 'Zarówno `spt`, jak i `spt-mcp` to punkty wejścia tego samego pakietu Pythona, więc jedna instalacja daje oba. Żaden z nich nie wymaga serwera na Twoim komputerze: są klientami API i łączą się z serwerem, który im wskażesz, więc nie ma bazy danych do skonfigurowania ani pliku `.env` do wypełnienia. Jedyne, co trzeba mieć wcześniej, to [uv](https://docs.astral.sh/uv/) — samo pobierze odpowiedniego Pythona (3.11 lub nowszego). Pobierz repozytorium, a następnie:',
         },
-        { t: 'pre', code: 'cd backend\nuv sync\nuv pip install -e .' },
+        { t: 'pre', code: 'cd backend\nuv tool install --editable .' },
         {
           t: 'p',
-          text: 'To instaluje oba polecenia w środowisku wirtualnym backendu, którego nie ma w PATH. Najprościej uruchamiać je z przedrostkiem `uv run`:',
+          text: 'To instaluje dwa polecenia we własnym, odizolowanym środowisku. `spt` jest gotowe, gdy tylko się zalogujesz — zaraz poniżej. `spt-mcp` nigdy nie uruchamiasz sam: robi to host LLM, a uwierzytelnia się kluczem API, a nie Twoim logowaniem, więc konfigurację opisuje osobno sekcja **Asystenci AI (MCP)** poniżej.',
         },
-        { t: 'pre', code: 'uv run spt auth login' },
+        {
+          t: 'callout',
+          kind: 'warn',
+          label: 'Jeśli powłoka nie znajduje spt',
+          text: '`uv tool install` umieszcza polecenia w `~/.local/bin` i na koniec ostrzega, jeśli tego katalogu nie ma w PATH — wtedy kolejny krok kończy się komunikatem _command not found_. Wykonaj `uv tool update-shell` i otwórz nowy terminal, co rozwiązuje to na stałe.',
+        },
+        { t: 'pre', code: 'spt auth login' },
         {
           t: 'p',
-          text: 'Aby móc pisać samo `spt` gdziekolwiek, albo aktywuj środowisko w sesji powłoki przez `source .venv/bin/activate`, albo zainstaluj pakiet jako samodzielne narzędzie przez `uv tool install --editable .`. Poniższe przykłady zakładają, że `spt` działa samodzielnie — dodaj `uv run` z przodu, jeśli tak nie jest.',
+          text: 'Polecenie pyta o adres e-mail i hasło; hasło jest ukrywane podczas pisania i nigdy nie staje się częścią wpisanej komendy, więc nie trafia do historii powłoki. `--editable` powyżej sprawia, że instalacja wskazuje na pobrany katalog, więc `git pull` aktualizuje oba polecenia bez ponownej instalacji — ale przeniesienie lub usunięcie tego katalogu je psuje. Pomiń tę flagę, jeśli wolisz niezależną kopię.',
+        },
+        {
+          t: 'p',
+          text: 'Jeśli uruchamiasz też backend i wolisz trzymać polecenia w jego środowisku wirtualnym, zrobi to `uv pip install -e .` — ale trafią wtedy do `backend/.venv`, którego nie ma w PATH, więc każde polecenie wymaga przedrostka `uv run`. Poniższe przykłady zakładają, że `spt` działa samodzielnie.',
         },
         {
           t: 'callout',

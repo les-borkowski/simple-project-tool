@@ -583,23 +583,39 @@ export const manualEnGB: ManualContent = {
       heading: 'For power users',
       blocks: [
         {
+          t: 'callout',
+          kind: 'warn',
+          label: 'Experimental',
+          text: 'The `spt` command line tool and the `spt-mcp` server are experimental. Commands, flags and response shapes may change between releases without a deprecation period, so pin a version before you build a script or an automation on top of one. The web UI and the API keys below are not affected.',
+        },
+        {
           t: 'p',
           text: 'Everything in the web UI is built on a REST API, and that API is available to you directly — from the command line, from scripts, or from an AI assistant.',
         },
         { t: 'h3', text: 'Installing the tools' },
         {
           t: 'p',
-          text: "Both `spt` and `spt-mcp` ship with the backend — they're two entry points on the same Python package, so one install gives you both. You'll need Python 3.11 or newer and [uv](https://docs.astral.sh/uv/).",
+          text: 'Both `spt` and `spt-mcp` are entry points on the same Python package, so one install gives you both. Neither needs a server on your own machine: they are API clients that talk to whichever server you point them at, so there is no database to set up and no `.env` to fill in. The only thing to install first is [uv](https://docs.astral.sh/uv/) — it fetches a suitable Python (3.11 or newer) itself. Download the repository, then:',
         },
-        { t: 'pre', code: 'cd backend\nuv sync\nuv pip install -e .' },
+        { t: 'pre', code: 'cd backend\nuv tool install --editable .' },
         {
           t: 'p',
-          text: "That installs both commands into the backend's virtual environment, which isn't on your PATH. The simplest way to run them is to prefix with `uv run`:",
+          text: 'That installs two commands into their own isolated environment. `spt` is ready as soon as you log in, just below. `spt-mcp` you never run yourself — an LLM host launches it, and it authenticates with an API key rather than with your login, so it is set up separately under **AI assistants (MCP)** below.',
         },
-        { t: 'pre', code: 'uv run spt auth login' },
+        {
+          t: 'callout',
+          kind: 'warn',
+          label: 'If your shell cannot find spt',
+          text: '`uv tool install` puts the commands in `~/.local/bin` and warns you at the end if that directory is not on your PATH — in which case the next step fails with _command not found_. Run `uv tool update-shell` and open a new terminal, which fixes it for good.',
+        },
+        { t: 'pre', code: 'spt auth login' },
         {
           t: 'p',
-          text: "For a bare `spt` you can type anywhere, either activate the environment for your shell session with `source .venv/bin/activate`, or install the package as a standalone tool with `uv tool install --editable .`. The examples below assume `spt` resolves on its own — add `uv run` in front if it doesn't.",
+          text: 'That asks for your email and password at a prompt; the password is hidden as you type and never becomes part of a command, so it stays out of your shell history. `--editable` above keeps the install pointed at the folder you downloaded, so `git pull` updates both commands with no reinstall — but moving or deleting that folder breaks them. Drop the flag if you would rather have an independent copy.',
+        },
+        {
+          t: 'p',
+          text: 'If you are also running the backend yourself and would rather keep the commands in its virtual environment, `uv pip install -e .` does that instead — but they then live in `backend/.venv`, which is not on your PATH, so every command needs a `uv run` in front. The examples below assume `spt` resolves on its own.',
         },
         {
           t: 'callout',

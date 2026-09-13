@@ -73,18 +73,39 @@ The UI is now running at `http://localhost:5173`.
 
 ---
 
-## 4. CLI (optional)
+## 4. CLI and MCP server (optional)
+
+`spt` and `spt-mcp` are HTTP clients for the API. They do **not** need a local server, a database, or
+any of the backend's dependencies — you can install them on their own and point them at a server
+someone else is running. Sections 1 and 2 above are only required if you also want to host one.
 
 ```bash
 cd backend
-uv pip install -e .
+uv tool install --editable .
 
-# Authenticate
+# Authenticate (add --api-url for a server other than localhost:8000)
 spt auth login
 
 # Try it
 spt projects list
 ```
+
+`spt auth login` prompts for your email and password (hidden as you type, so it stays out of your
+shell history). Add `--api-url https://…` to log in to a server other than `localhost:8000`; it is
+saved for later commands.
+
+**If `spt` is not found**, `uv tool install` put it in `~/.local/bin`, which is not on your PATH — it
+warns you about this at the end of the install. Run `uv tool update-shell` and open a new terminal.
+
+**`spt-mcp` is not covered by the login above.** You never run it yourself — an LLM host launches it,
+and it authenticates with a scoped API key from the environment, refusing to start without one. The
+install above is all it needs from this section; see [5. MCP Server](#5-mcp-server-optional) for the
+key and host registration.
+
+`--editable` keeps the install pointed at this folder, so `git pull` updates both commands without a
+reinstall — but moving or deleting the folder breaks them. To keep them inside the backend's own
+virtual environment instead — useful when you are developing the backend — use `uv pip install -e .`
+and prefix commands with `uv run`.
 
 ---
 
@@ -95,7 +116,6 @@ spt projects list
 **1. Create a scoped API key:**
 
 ```bash
-cd backend
 spt config api-keys create --label "claude-code" --scopes read:projects,read:stories,read:tasks,read:comments,write:tasks,write:comments
 ```
 

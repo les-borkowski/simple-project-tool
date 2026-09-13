@@ -1412,26 +1412,11 @@ name = "simple-project-tool"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "alembic" },
-    { name = "asyncpg" },
     { name = "babel" },
-    { name = "bcrypt" },
-    { name = "cryptography" },
-    { name = "fastapi" },
     { name = "httpx" },
-    { name = "itsdangerous" },
-    { name = "jinja2" },
-    { name = "keyring" },
     { name = "mcp" },
-    { name = "psycopg2-binary" },
-    { name = "pydantic", extra = ["email"] },
-    { name = "pydantic-settings" },
-    { name = "pyjwt" },
-    { name = "python-multipart" },
     { name = "rich" },
-    { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "typer" },
-    { name = "uvicorn" },
 ]
 
 [package.dev-dependencies]
@@ -1442,29 +1427,31 @@ dev = [
     { name = "pytest-cov" },
     { name = "ruff" },
 ]
+server = [
+    { name = "alembic" },
+    { name = "asyncpg" },
+    { name = "bcrypt" },
+    { name = "cryptography" },
+    { name = "fastapi" },
+    { name = "itsdangerous" },
+    { name = "jinja2" },
+    { name = "keyring" },
+    { name = "psycopg2-binary" },
+    { name = "pydantic", extra = ["email"] },
+    { name = "pydantic-settings" },
+    { name = "pyjwt" },
+    { name = "python-multipart" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "uvicorn" },
+]
 
 [package.metadata]
 requires-dist = [
-    { name = "alembic", specifier = ">=1.13" },
-    { name = "asyncpg", specifier = ">=0.29" },
     { name = "babel", specifier = ">=2.14" },
-    { name = "bcrypt", specifier = ">=4.1" },
-    { name = "cryptography", specifier = ">=44" },
-    { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "itsdangerous", specifier = ">=2.2.0" },
-    { name = "jinja2", specifier = ">=3.1" },
-    { name = "keyring", specifier = ">=25.7.0" },
     { name = "mcp", specifier = ">=1.2,<2" },
-    { name = "psycopg2-binary", specifier = ">=2.9" },
-    { name = "pydantic", extras = ["email"], specifier = ">=2.0" },
-    { name = "pydantic-settings", specifier = ">=2.0" },
-    { name = "pyjwt", specifier = ">=2.8" },
-    { name = "python-multipart", specifier = ">=0.0.9" },
     { name = "rich", specifier = ">=13" },
-    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0" },
     { name = "typer", specifier = ">=0.12" },
-    { name = "uvicorn", specifier = ">=0.29" },
 ]
 
 [package.metadata.requires-dev]
@@ -1474,6 +1461,23 @@ dev = [
     { name = "pytest-asyncio", specifier = ">=0.23" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
     { name = "ruff", specifier = ">=0.4" },
+]
+server = [
+    { name = "alembic", specifier = ">=1.13" },
+    { name = "asyncpg", specifier = ">=0.29" },
+    { name = "bcrypt", specifier = ">=4.1" },
+    { name = "cryptography", specifier = ">=44" },
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "itsdangerous", specifier = ">=2.2.0" },
+    { name = "jinja2", specifier = ">=3.1" },
+    { name = "keyring", specifier = ">=25.7.0" },
+    { name = "psycopg2-binary", specifier = ">=2.9" },
+    { name = "pydantic", extras = ["email"], specifier = ">=2.0" },
+    { name = "pydantic-settings", specifier = ">=2.0" },
+    { name = "pyjwt", specifier = ">=2.8" },
+    { name = "python-multipart", specifier = ">=0.0.9" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0" },
+    { name = "uvicorn", specifier = ">=0.29" },
 ]
 
 [[package]]
