@@ -58,7 +58,7 @@ dev = [
     "pytest-asyncio>=0.23",
     "pytest-cov>=7.1.0",
     "anyio>=4.13.0",
-    "ruff>=0.4",
+    "ruff>=0.16.6",
 ]
 
 # Keeps `uv sync` installing the full backend, so nothing in CI, the Dockerfile or
