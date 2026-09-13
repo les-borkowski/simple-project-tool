@@ -218,7 +218,17 @@ endpoints return `503 LLM_NOT_CONFIGURED` and every other feature works normally
 Generate one with:
 
 ```bash
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+cd backend
+uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+`uv run` rather than plain `python`: `cryptography` is a backend dependency and lives in the
+project's venv, and macOS ships no bare `python` on the PATH. Two alternatives, if you are not in
+the repo or have no usable Python:
+
+```bash
+uv run --with cryptography --no-project python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+openssl rand -base64 32 | tr '+/' '-_'    # a Fernet key is 32 random bytes, url-safe base64
 ```
 
 Rotating it is a three-step job, and skipping the middle step strands every stored

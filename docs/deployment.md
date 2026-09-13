@@ -268,13 +268,17 @@ HEALTHCHECK --interval=30s --timeout=10s CMD curl -f http://localhost:8000/healt
 CMD ["uv", "run", "uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-### `backend/Procfile`
+### `backend/Procfile` — already in the repo
 
 ```
 web: alembic upgrade head && uvicorn app.api.main:app --host 0.0.0.0 --port $PORT
 ```
 
-Railway runs this command on every deploy. Migrations run before the server starts.
+Railway runs this on every deploy, so migrations apply before the server starts.
+
+A **Start Command** set in the Railway dashboard overrides this file. If one is set there, that is
+what actually runs and this Procfile is inert — keep the two in step, or clear the dashboard command
+so the repo is the single source of truth. The other files in this section are still to be created.
 
 ### `backend/.dockerignore`
 
