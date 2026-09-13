@@ -28,3 +28,8 @@ jobs:
 
       - name: Build verification
         run: cd frontend && npm run build
+
+      # Runs last because it is by far the slowest step, and a type error surfaces
+      # more clearly from the build above than as a cascade of failing renders.
+      - name: Tests
+        run: cd frontend && npm test
