@@ -24,7 +24,7 @@ requires-python = ">=3.11"
 # gets the client alone. Anything imported by app/api, app/db, app/auth, app/admin
 # or app/core belongs in that group, NOT here.
 dependencies = [
-    "typer>=0.12",
+    "typer>=0.27.2",
     "rich>=13",
     "httpx>=0.28.1",
     "babel>=2.14",
