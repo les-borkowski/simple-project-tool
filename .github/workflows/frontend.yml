@@ -16,7 +16,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # 22, not 20: jsdom 30 needs ^20.19 || ^22.13 || >=24 and vite 8 needs
+          # ^20.19 || >=22.12, and Node 20 went EOL in April 2026. On 20 the suite
+          # dies before it starts — undici's CacheStorage hits
+          # `webidl.util.markAsUncloneable is not a function`.
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: "frontend/package-lock.json"
 
@@ -28,3 +32,8 @@ jobs:
 
       - name: Build verification
         run: cd frontend && npm run build
+
+      # Runs last because it is by far the slowest step, and a type error surfaces
+      # more clearly from the build above than as a cascade of failing renders.
+      - name: Tests
+        run: cd frontend && npm test
