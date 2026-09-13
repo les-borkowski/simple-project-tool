@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import axios from 'axios'
 import { captureApi, isDemoBlockedError, projectsApi } from '../../services/api'
 import type { CapturePreviewTask, MemberResponse, Priority, TaskResponse } from '../../services/api'
@@ -40,7 +41,7 @@ function todayLocalISODate(): string {
 }
 
 /** Null when nothing should be shown — a demo block already raises a global toast. */
-function captureErrorMessage(err: unknown, t: (k: string, o?: object) => string): string | null {
+function captureErrorMessage(err: unknown, t: TFunction): string | null {
   if (isDemoBlockedError(err)) return null
 
   const code = getApiErrorCode(err)
