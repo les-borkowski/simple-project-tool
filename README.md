@@ -1,10 +1,6 @@
 # simple-project-tool
 
-A minimalist, API-first project management app — Projects → Stories → Tasks — with an **LLM layer
-built in**: natural-language task capture behind a mandatory preview step, scoped API keys for
-agents, an MCP server exposing 16 tools to Claude Code and Claude Desktop, and a measured eval
-harness that gates extraction quality in CI.
-
+API-first project management app with an LLM layer — natural-language task capture behind a mandatory preview, scoped agent API keys, an MCP server, and an eval harness gating extraction quality in CI.
 Usable from a web UI, a CLI, an MCP host, or the REST API directly.
 
 > [!NOTE]
