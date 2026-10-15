@@ -3,7 +3,7 @@ from __future__ import annotations
 import typer
 
 from ..config import CLIConfig
-from ..http import APIClient
+from ..http import REFRESH_COOKIE, APIClient
 from ..output import console, load_locale, t
 
 app = typer.Typer(help="Authentication commands")
@@ -28,7 +28,7 @@ def login(
     client = APIClient(config, api_url=api_url)
     data = client.post("/auth/login", json={"email": email, "password": password})
     config.access_token = data["access_token"]
-    config.refresh_token = data["refresh_token"]
+    config.refresh_token = client.last_response.cookies.get(REFRESH_COOKIE)
     config.save()
     console.print(t("login.success"))
 

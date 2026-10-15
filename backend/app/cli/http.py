@@ -5,6 +5,9 @@ import typer
 
 from .config import CLIConfig
 
+# The server sets the refresh token as an httpOnly cookie, never in a response body.
+REFRESH_COOKIE = "spt_refresh"
+
 
 class APIClient:
     def __init__(
@@ -12,6 +15,7 @@ class APIClient:
     ) -> None:
         self.config = config
         self._api_key = api_key
+        self.last_response: httpx.Response | None = None
         self._base = config.resolve_api_base_url(api_url) + "/api/v1"
         self._client = httpx.Client(
             base_url=self._base,
@@ -29,13 +33,13 @@ class APIClient:
     def request(self, method: str, path: str, *, _retry: bool = True, **kwargs) -> dict:
         headers = {**self._auth_headers(), **kwargs.pop("headers", {})}
         resp = self._client.request(method, path, headers=headers, **kwargs)
+        self.last_response = resp
 
         if resp.status_code == 401 and _retry and self.config.refresh_token and not self._api_key:
             r = self._client.request(
                 "POST",
                 "/auth/refresh",
-                json={"refresh_token": self.config.refresh_token},
-                headers={},
+                headers={"Cookie": f"{REFRESH_COOKIE}={self.config.refresh_token}"},
             )
             if r.status_code == 200:
                 self.config.access_token = r.json()["access_token"]
