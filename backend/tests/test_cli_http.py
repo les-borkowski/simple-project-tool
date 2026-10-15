@@ -41,10 +41,14 @@ def test_401_triggers_refresh_and_retry():
         make_response(200, {"access_token": "new"}),
         make_response(200, {"items": []}),
     ]
-    with patch.object(client._client, "request", side_effect=responses):
+    with patch.object(client._client, "request", side_effect=responses) as mock_req:
         result = client.get("/projects")
     assert config.access_token == "new"
     assert result == {"items": []}
+    # /auth/refresh reads the token from its cookie, not from a JSON body.
+    refresh_call = mock_req.call_args_list[1]
+    assert refresh_call.args[1] == "/auth/refresh"
+    assert refresh_call.kwargs["headers"] == {"Cookie": "spt_refresh=ref"}
 
 
 def test_401_without_refresh_token_raises_exit():
