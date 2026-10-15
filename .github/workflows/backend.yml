@@ -42,7 +42,9 @@ jobs:
           restore-keys: ${{ runner.os }}-uv-
 
       - name: Install dependencies
-        run: cd backend && uv sync
+        # --locked fails on a uv.lock that no longer matches pyproject.toml, the same
+        # check Railway's build runs; plain `uv sync` would silently rewrite it here.
+        run: cd backend && uv sync --locked
 
       - name: Lint with ruff
         run: cd backend && uv run ruff check . && uv run ruff format --check .
