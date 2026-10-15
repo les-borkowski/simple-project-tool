@@ -28,6 +28,9 @@ engine = create_async_engine(
     connect_args=_connect_args,
     pool_size=10,
     max_overflow=20,
+    # Neon closes idle connections server-side; without a liveness check the pool hands
+    # the first request after a quiet period a dead connection and it fails with a 500.
+    pool_pre_ping=True,
     echo=False,
 )
 
