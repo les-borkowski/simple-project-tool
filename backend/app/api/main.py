@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.admin.auth import AdminAuthRequired
 from app.admin.router import router as admin_router
@@ -111,6 +112,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Railway terminates TLS and forwards plain http from 100.64.0.0/10, which uvicorn's own
+# proxy handling does not trust (it trusts 127.0.0.1 only). Without this the app sees
+# scheme=http and builds http:// redirects (e.g. /admin/ -> /admin). Trusting every peer
+# is safe only because the edge proxy is the sole way in; nothing here reads client IPs.
+# Added last so it runs first, before anything that reads the scheme.
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 
 # Accept-Language middleware → request.state.locale
