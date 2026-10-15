@@ -17,6 +17,19 @@ def make_list_resp(status_code: int, data: list) -> httpx.Response:
     return httpx.Response(status_code, content=json.dumps(data).encode())
 
 
+def make_login_resp() -> httpx.Response:
+    """What POST /auth/login really returns: the access token in the body, the refresh
+    token only as an httpOnly cookie."""
+    return httpx.Response(
+        200,
+        json={"access_token": "new_access", "token_type": "bearer"},
+        headers={
+            "set-cookie": "spt_refresh=new_refresh; HttpOnly; Path=/api/v1/auth/refresh; Secure"
+        },
+        request=httpx.Request("POST", "https://spt.example.com/api/v1/auth/login"),
+    )
+
+
 def mock_config(tmp_path, **kwargs):
     from app.cli.config import DEFAULT_API_BASE_URL, DEFAULT_LOCALE, CLIConfig
 
@@ -57,13 +70,13 @@ def test_auth_login_saves_tokens(tmp_path):
     from app.cli.main import app
 
     p = tmp_path / "config.json"
-    token_data = {"access_token": "new_access", "refresh_token": "new_refresh"}
     with patch("app.cli.config.CONFIG_PATH", p):
-        with patch("httpx.Client.request", return_value=make_resp(200, token_data)):
+        with patch("httpx.Client.request", return_value=make_login_resp()):
             result = runner.invoke(app, ["auth", "login"], input="user@test.com\npassword\n")
     assert result.exit_code == 0
     saved = json.loads(p.read_text())
     assert saved["access_token"] == "new_access"
+    assert saved["refresh_token"] == "new_refresh"
 
 
 def test_auth_login_saves_api_url(tmp_path):
@@ -71,9 +84,8 @@ def test_auth_login_saves_api_url(tmp_path):
     from app.cli.main import app
 
     p = tmp_path / "config.json"
-    token_data = {"access_token": "new_access", "refresh_token": "new_refresh"}
     with patch("app.cli.config.CONFIG_PATH", p):
-        with patch("httpx.Client.request", return_value=make_resp(200, token_data)):
+        with patch("httpx.Client.request", return_value=make_login_resp()):
             result = runner.invoke(
                 app,
                 ["auth", "login", "--api-url", "https://spt.example.com/"],
