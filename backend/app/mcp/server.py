@@ -34,9 +34,9 @@ async def _whoami_impl(client: SPTClient) -> dict:
 @mcp.tool()
 @tool_errors
 async def whoami(ctx: Context) -> dict:
-    """Return the current identity: user id, name, email, role, and (if authenticated via
+    """Return the current identity: user id, name, email, kind, role, and (if authenticated via
     API key) the key's label and scopes. Call this first if you're unsure what you're
-    allowed to do."""
+    allowed to do. Agent identities report kind 'agent' and have no email."""
     client: SPTClient = ctx.request_context.lifespan_context
     return await _whoami_impl(client)
 

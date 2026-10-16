@@ -18,6 +18,7 @@ class CommentResponse(BaseModel):
     body: str
     author_id: UUID
     author_name: str
+    author_kind: str
     created_at: datetime
     updated_at: datetime
 

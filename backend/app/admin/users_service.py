@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.api.services.llm_usage_service import WINDOW
 from app.auth.permissions import require_human
@@ -20,8 +21,18 @@ class UserHasAgentsError(Exception):
 
 
 async def get_all_users(db: AsyncSession) -> list[User]:
-    result = await db.scalars(select(User).order_by(User.created_at.desc()))
-    return list(result.all())
+    """Users newest first; agents get `owner_name` from one self-join (no N+1)."""
+    owner = aliased(User)
+    rows = await db.execute(
+        select(User, owner.name)
+        .outerjoin(owner, User.owner_id == owner.id)
+        .order_by(User.created_at.desc())
+    )
+    users = []
+    for user, owner_name in rows.all():
+        user.owner_name = owner_name
+        users.append(user)
+    return users
 
 
 async def create_user(

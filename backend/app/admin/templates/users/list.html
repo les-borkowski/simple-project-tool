@@ -68,8 +68,8 @@
   <tbody>
     {% for user in users %}
     <tr>
-      <td>{{ user.name }}</td>
-      <td>{{ user.email }}</td>
+      <td>{{ user.name }}{% if user.kind == 'agent' %} <span class="badge badge-gray">Bot</span> <small>{{ user.owner_name }}</small>{% endif %}</td>
+      <td>{{ user.email or '—' }}</td>
       <td><span class="badge badge-gray">{{ user.role.value }}</span></td>
       <td>
         {% if user.email_confirmed %}
@@ -107,7 +107,7 @@
       </td>
       <td>
         <div class="actions">
-          {% if not user.email_confirmed %}
+          {% if user.kind != 'agent' and not user.email_confirmed %}
           <form method="post" action="/admin/users/{{ user.id }}/verify">
             <button class="btn-sm btn-outline" type="submit">Verify</button>
           </form>
@@ -121,7 +121,8 @@
             <button class="btn-sm btn-warn" type="submit">Block</button>
           </form>
           {% endif %}
-          {% if user.is_demo %}
+          {% if user.kind == 'agent' %}
+          {% elif user.is_demo %}
           <form method="post" action="/admin/users/{{ user.id }}/disable-demo">
             <button class="btn-sm btn-outline" type="submit">Demo off</button>
           </form>
@@ -130,9 +131,11 @@
             <button class="btn-sm btn-warn" type="submit">Demo on</button>
           </form>
           {% endif %}
+          {% if user.kind != 'agent' %}
           <form method="post" action="/admin/users/{{ user.id }}/reset-password">
             <button class="btn-sm btn-outline" type="submit">Reset pwd</button>
           </form>
+          {% endif %}
           <form method="post" action="/admin/users/{{ user.id }}/delete"
                 onsubmit="return confirm('Permanently delete {{ user.name }}? This also deletes every project, story, task, comment and history entry they created. This cannot be undone.')">
             <button class="btn-sm btn-danger" type="submit">Delete</button>

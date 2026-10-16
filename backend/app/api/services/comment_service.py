@@ -49,6 +49,7 @@ async def list_comments_on_project(
             body=item.body,
             author_id=item.author_id,
             author_name=authors[item.author_id].name if item.author_id in authors else "Unknown",
+            author_kind=authors[item.author_id].kind if item.author_id in authors else "human",
             created_at=item.created_at,
             updated_at=item.updated_at,
         )
@@ -100,6 +101,7 @@ async def list_comments_on_story(
             body=item.body,
             author_id=item.author_id,
             author_name=authors[item.author_id].name if item.author_id in authors else "Unknown",
+            author_kind=authors[item.author_id].kind if item.author_id in authors else "human",
             created_at=item.created_at,
             updated_at=item.updated_at,
         )
@@ -152,6 +154,7 @@ async def list_comments_on_task(
             body=item.body,
             author_id=item.author_id,
             author_name=authors[item.author_id].name if item.author_id in authors else "Unknown",
+            author_kind=authors[item.author_id].kind if item.author_id in authors else "human",
             created_at=item.created_at,
             updated_at=item.updated_at,
         )
@@ -181,6 +184,7 @@ async def create_comment_on_project(
         body=comment.body,
         author_id=comment.author_id,
         author_name=user.name,
+        author_kind=user.kind,
         created_at=comment.created_at,
         updated_at=comment.updated_at,
     )
@@ -206,6 +210,7 @@ async def create_comment_on_story(
         body=comment.body,
         author_id=comment.author_id,
         author_name=user.name,
+        author_kind=user.kind,
         created_at=comment.created_at,
         updated_at=comment.updated_at,
     )
@@ -231,6 +236,7 @@ async def create_comment_on_task(
         body=comment.body,
         author_id=comment.author_id,
         author_name=user.name,
+        author_kind=user.kind,
         created_at=comment.created_at,
         updated_at=comment.updated_at,
     )
@@ -257,6 +263,7 @@ async def update_comment(
         body=comment.body,
         author_id=comment.author_id,
         author_name=author.name if author else "Unknown",
+        author_kind=author.kind if author else "human",
         created_at=comment.created_at,
         updated_at=comment.updated_at,
     )
