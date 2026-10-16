@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/auth-context'
 import { useTheme, type AccentColor } from '../context/theme-context'
 import { LocaleSwitcher } from '../components/config/LocaleSwitcher'
@@ -73,7 +73,9 @@ export function ConfigPage() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const { accent, setAccent } = useTheme()
-  const [tab, setTab] = useState<Tab>('profile')
+  const [searchParams] = useSearchParams()
+  // Deep link from the project Members tab ("create an agent first").
+  const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'agents' ? 'agents' : 'profile')
   const [topTab, setTopTab] = useState<TopTab>('app')
   const [projects, setProjects] = useState<ProjectResponse[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')

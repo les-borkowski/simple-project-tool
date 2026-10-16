@@ -343,6 +343,8 @@ export const projectsApi = {
   listMembers: (id: string) => api.get<MemberResponse[]>(`/projects/${id}/members`),
   addMember: (id: string, data: { user_id: string; role: Role }) =>
     api.post(`/projects/${id}/members`, data),
+  addAgent: (id: string, data: { agent_id: string; role: Role }) =>
+    api.post<MemberResponse>(`/projects/${id}/agents`, data),
   updateMember: (id: string, userId: string, data: { role: Role }) =>
     api.patch(`/projects/${id}/members/${userId}`, data),
   removeMember: (id: string, userId: string) =>

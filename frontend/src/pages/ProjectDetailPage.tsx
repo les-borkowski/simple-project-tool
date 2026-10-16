@@ -18,7 +18,10 @@ import { SprintView } from './SprintView'
 import { TimelineView } from './TimelineView'
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { projectsApi, invitationsApi, storiesApi, tasksApi, preferencesApi } from '../services/api'
+import { projectsApi, invitationsApi, storiesApi, tasksApi, preferencesApi, agentsApi, isDemoBlockedError } from '../services/api'
+import type { AgentResponse } from '../services/api'
+import { getApiErrorCode, getApiErrorMessage } from '../utils/errors'
+import { BotBadge } from '../components/common/BotBadge'
 import { TabConfigPanel } from '../components/settings/TabConfigPanel'
 import type { ProjectResponse, MemberResponse, StoryResponse, TaskResponse, Status, Priority, Role, ProjectStatusResponse } from '../services/api'
 import { CreateTaskModal } from '../components/tasks/CreateTaskModal'
@@ -292,6 +295,14 @@ export function ProjectDetailPage() {
   const [newStoryPriority, setNewStoryPriority] = useState<Priority>('medium')
 
   const [showInvite, setShowInvite] = useState(false)
+  const [showAddAgent, setShowAddAgent] = useState(false)
+  const [myAgents, setMyAgents] = useState<AgentResponse[] | null>(null)
+  const [agentId, setAgentId] = useState('')
+  const [agentRole, setAgentRole] = useState<Role>('contributor')
+  const [addingAgent, setAddingAgent] = useState(false)
+  const [agentError, setAgentError] = useState<string | null>(null)
+  const [agentsLoadFailed, setAgentsLoadFailed] = useState(false)
+  const agentsRequestRef = useRef(0)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<Role>('contributor')
   const [inviting, setInviting] = useState(false)
@@ -464,6 +475,57 @@ export function ProjectDetailPage() {
       addToast(t('invitations.sent'))
     } finally {
       setInviting(false)
+    }
+  }
+
+  // A failed load keeps myAgents null: an empty list would claim "no agents" when we simply don't know.
+  const loadMyAgents = () => {
+    const requestId = ++agentsRequestRef.current
+    setAgentError(null)
+    setAgentsLoadFailed(false)
+    setMyAgents(null)
+    agentsApi
+      .list()
+      .then((res) => {
+        if (agentsRequestRef.current === requestId) setMyAgents(res.data)
+      })
+      .catch(() => {
+        if (agentsRequestRef.current !== requestId) return
+        setAgentsLoadFailed(true)
+        setAgentError(t('errors.generic'))
+      })
+  }
+
+  const openAddAgent = () => {
+    setAgentId('')
+    setAgentRole('contributor')
+    setShowAddAgent(true)
+    loadMyAgents()
+  }
+
+  const eligibleAgents = (myAgents ?? []).filter(
+    (a) => a.is_active && !members.some((m) => m.user_id === a.id)
+  )
+  const selectedAgentId = eligibleAgents.some((a) => a.id === agentId) ? agentId : eligibleAgents[0]?.id ?? ''
+
+  const handleAddAgent = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!id || !selectedAgentId || addingAgent) return
+    setAddingAgent(true)
+    setAgentError(null)
+    try {
+      const res = await projectsApi.addAgent(id, { agent_id: selectedAgentId, role: agentRole })
+      setMembers((prev) => [...prev, res.data])
+      setShowAddAgent(false)
+      addToast(t('members.agent_added'))
+    } catch (err) {
+      if (isDemoBlockedError(err)) return
+      const code = getApiErrorCode(err)
+      if (code === 'AGENT_INACTIVE') setAgentError(t('members.agent_inactive'))
+      else if (code === 'User is already a member') setAgentError(t('members.already_member'))
+      else setAgentError(getApiErrorMessage(err) ?? t('errors.generic'))
+    } finally {
+      setAddingAgent(false)
     }
   }
 
@@ -1182,7 +1244,13 @@ export function ProjectDetailPage() {
       {tab === 'members' && (
         <div className="flex-1 px-7 py-5">
           {isManager && (
-            <div className="flex justify-end mb-4">
+            <div className="flex justify-end gap-2 mb-4">
+              <button
+                onClick={openAddAgent}
+                className="px-2.5 py-1.5 text-ui-sm rounded-md border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 inline-flex items-center gap-1.5 tap-safe"
+              >
+                <IPlus /> {t('members.add_agent')}
+              </button>
               <button
                 onClick={() => setShowInvite(true)}
                 className="px-2.5 py-1.5 text-ui-sm rounded-md accent-bg inline-flex items-center gap-1.5 tap-safe"
@@ -1202,8 +1270,11 @@ export function ProjectDetailPage() {
                 >
                   <Avatar member={m} size={32} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-ui-lg font-medium">{m.name}</div>
-                    <div className="text-ui-sm text-stone-500">{m.email}</div>
+                    <div className="flex items-center gap-2 text-ui-lg font-medium">
+                      {m.name}
+                      {m.kind === 'agent' && <BotBadge />}
+                    </div>
+                    {m.email && <div className="text-ui-sm text-stone-500">{m.email}</div>}
                   </div>
                   <span className="text-ui-sm text-stone-500">{t(`role.${m.role}`)}</span>
                   {isManager && (
@@ -1329,6 +1400,70 @@ export function ProjectDetailPage() {
               </select>
             </div>
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={showAddAgent}
+        onClose={() => { agentsRequestRef.current++; setShowAddAgent(false) }}
+        title={t('members.add_agent')}
+        onSubmit={handleAddAgent}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setShowAddAgent(false)} className="px-3 py-1.5 text-ui-md border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 tap-safe">
+              {t('actions.cancel')}
+            </button>
+            <button type="submit" disabled={addingAgent || !selectedAgentId} className="px-3 py-1.5 text-ui-md accent-bg rounded-md disabled:opacity-50 tap-safe">
+              {t('members.add_agent')}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {agentError && (
+            <div role="alert" className="px-3 py-2 rounded-md border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950 text-ui-sm text-red-700 dark:text-red-300">
+              {agentError}
+            </div>
+          )}
+          {agentsLoadFailed ? (
+            <button
+              type="button"
+              onClick={loadMyAgents}
+              className="px-3 py-1.5 text-ui-md border border-stone-200 dark:border-stone-700 rounded-md text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 tap-safe"
+            >
+              {t('actions.retry')}
+            </button>
+          ) : myAgents === null ? (
+            <div className="animate-pulse h-10 bg-stone-100 dark:bg-stone-800 rounded" />
+          ) : eligibleAgents.length === 0 ? (
+            <p className="text-ui-md text-stone-500">
+              {t('members.no_agents')}{' '}
+              <Link to="/config?tab=agents" className="underline">{t('members.manage_agents')}</Link>
+            </p>
+          ) : (
+            <>
+              <select
+                aria-label={t('members.agent')}
+                value={selectedAgentId}
+                onChange={(e) => setAgentId(e.target.value)}
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md"
+              >
+                {eligibleAgents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+              <select
+                aria-label={t('members.role')}
+                value={agentRole}
+                onChange={(e) => setAgentRole(e.target.value as Role)}
+                className="w-full px-3 py-2 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-950 text-ui-md"
+              >
+                <option value="contributor">{t('role.contributor')}</option>
+                <option value="manager">{t('role.manager')}</option>
+              </select>
+              {agentRole === 'manager' && (
+                <p className="text-ui-sm text-amber-600 dark:text-amber-400">{t('agents.manager_warning')}</p>
+              )}
+            </>
+          )}
         </div>
       </Modal>
 

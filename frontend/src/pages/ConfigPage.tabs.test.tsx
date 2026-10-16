@@ -48,7 +48,7 @@ vi.mock('../services/api', async (importOriginal) => {
 
 import { authApi, projectsApi } from '../services/api'
 
-function renderConfigPage(auth: { logout?: () => Promise<void> } = {}) {
+function renderConfigPage(auth: { logout?: () => Promise<void> } = {}, route?: string) {
   vi.mocked(projectsApi.list).mockResolvedValue({
     data: { items: [makeProject({ id: 'proj-1', name: 'Apollo' })], next_cursor: null },
   } as never)
@@ -58,6 +58,7 @@ function renderConfigPage(auth: { logout?: () => Promise<void> } = {}) {
   vi.mocked(projectsApi.listMembers).mockResolvedValue({ data: [] } as never)
 
   return renderWithProviders(<ConfigPage />, {
+    route,
     auth: {
       user: makeUser({ name: 'Ada Lovelace', email: 'ada@example.com' }),
       isAuthenticated: true,
@@ -266,6 +267,19 @@ describe('ConfigPage app settings section nav', () => {
 
     expect(screen.getByRole('tab', { name: /API Keys/ })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tab', { name: /Profile/ })).toHaveAttribute('aria-selected', 'false')
+  })
+
+  it('opens the Agents tab when the URL says ?tab=agents', async () => {
+    renderConfigPage({}, '/config?tab=agents')
+
+    expect(screen.getByRole('tab', { name: /Agents/ })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByText('No agents yet')).toBeInTheDocument()
+  })
+
+  it('falls back to Profile for an unknown ?tab= value', () => {
+    renderConfigPage({}, '/config?tab=bogus')
+
+    expect(screen.getByRole('tab', { name: /Profile/ })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('shows the agents list when the Agents tab is activated', async () => {
