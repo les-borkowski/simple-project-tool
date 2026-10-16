@@ -12,7 +12,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin import users_service
-from app.api.schemas.api_key import APIKeyCreate
 from app.api.schemas.project import MemberResponse
 from app.api.services import (
     auth_service,
@@ -40,9 +39,7 @@ async def agent(api_db: AsyncSession, owner: User) -> User:
 
 
 async def agent_key(api_db: AsyncSession, user: User, *scopes: str) -> str:
-    created = await config_service.create_api_key(
-        APIKeyCreate(label="t", scopes=list(scopes)), user, api_db
-    )
+    created = await config_service.mint_key(api_db, user.id, "t", list(scopes), 90)
     return created.key
 
 

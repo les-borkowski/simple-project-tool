@@ -25,6 +25,7 @@ class UserResponse(BaseModel):
     name: str
     role: RoleEnum
     is_demo: bool
+    kind: str
     created_at: datetime
 
     class Config:

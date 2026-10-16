@@ -44,6 +44,12 @@ class MemberAdd(BaseModel):
     role: RoleEnum
 
 
+class AgentMemberAdd(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    agent_id: UUID
+    role: RoleEnum
+
+
 class MemberUpdate(BaseModel):
     role: RoleEnum
 
@@ -54,6 +60,7 @@ class MemberResponse(BaseModel):
     joined_at: datetime
     name: str
     email: str | None
+    kind: str
 
     class Config:
         from_attributes = True

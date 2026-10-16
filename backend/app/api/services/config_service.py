@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.api_key import APIKeyCreate, APIKeyCreatedResponse, APIKeyResponse
 from app.api.schemas.config import UserConfigResponse, UserConfigUpdate
-from app.auth.permissions import require_not_demo
+from app.auth.permissions import require_human, require_not_demo
 from app.auth.security import generate_api_key
 from app.db.models import APIKey, User, UserConfig
 
@@ -62,25 +62,22 @@ async def list_api_keys(user: User, db: AsyncSession) -> list[APIKeyResponse]:
     return [APIKeyResponse.model_validate(k) for k in keys]
 
 
-async def create_api_key(data: APIKeyCreate, user: User, db: AsyncSession) -> APIKeyCreatedResponse:
-    """Create a new API key."""
-    # Every other self-service write guards demo accounts here rather than relying on the
-    # frontend interceptor. Without it a demo user can POST directly and walk away with a
-    # permanent credential to the shared demo account that survives its password reset.
-    require_not_demo(user)
-
+async def mint_key(
+    db: AsyncSession, user_id: uuid.UUID, label: str, scopes: list[str], expires_in_days: int
+) -> APIKeyCreatedResponse:
+    """Add a new API key for user_id; the caller commits."""
     raw_key, key_hash, key_prefix = generate_api_key()
 
     key = APIKey(
-        user_id=user.id,
+        user_id=user_id,
         key_hash=key_hash,
         key_prefix=key_prefix,
-        label=data.label,
-        scopes=data.scopes,
-        expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(days=data.expires_in_days),
+        label=label,
+        scopes=scopes,
+        expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(days=expires_in_days),
     )
     db.add(key)
-    await db.commit()
+    await db.flush()
 
     return APIKeyCreatedResponse(
         id=key.id,
@@ -91,8 +88,22 @@ async def create_api_key(data: APIKeyCreate, user: User, db: AsyncSession) -> AP
     )
 
 
+async def create_api_key(data: APIKeyCreate, user: User, db: AsyncSession) -> APIKeyCreatedResponse:
+    """Create a new API key."""
+    # Every other self-service write guards demo accounts here rather than relying on the
+    # frontend interceptor. Without it a demo user can POST directly and walk away with a
+    # permanent credential to the shared demo account that survives its password reset.
+    require_human(user)
+    require_not_demo(user)
+
+    response = await mint_key(db, user.id, data.label, data.scopes, data.expires_in_days)
+    await db.commit()
+    return response
+
+
 async def revoke_api_key(key_id: uuid.UUID, user: User, db: AsyncSession) -> None:
     """Revoke an API key."""
+    require_human(user)
     key = await db.get(APIKey, key_id)
     if not key:
         raise HTTPException(status_code=404, detail="API key not found")

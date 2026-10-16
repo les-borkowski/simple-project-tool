@@ -14,7 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.llm_provider import UserLLMProviderResponse, UserLLMProviderUpdate
-from app.auth.permissions import require_not_demo
+from app.auth.permissions import require_human, require_not_demo
 from app.core.crypto import CredentialEncryptionUnavailable, decrypt_secret, encrypt_secret
 from app.core.llm import get_llm_client_for
 from app.core.llm.base import LLMAuthError, LLMUnavailable
@@ -105,6 +105,7 @@ async def _validate_key_live(provider_id: str, api_key: str, model: str | None =
 async def upsert_provider(
     user: User, provider_id: str, data: UserLLMProviderUpdate, db: AsyncSession
 ) -> UserLLMProviderResponse:
+    require_human(user)
     require_not_demo(user)
     spec = get_provider(provider_id)
     if not spec.available:
@@ -204,6 +205,7 @@ async def upsert_provider(
 
 
 async def delete_provider(user: User, provider_id: str, db: AsyncSession) -> None:
+    require_human(user)
     require_not_demo(user)
     row = await _get_existing_row(user.id, provider_id, db)
     if row is None:
