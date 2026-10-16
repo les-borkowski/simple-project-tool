@@ -178,6 +178,48 @@ async def test_users_list_shows_created_user(api_client: AsyncClient):
     assert email.encode() in resp.content
 
 
+async def test_users_list_delete_confirm_cannot_be_broken_by_user_name(
+    api_client: AsyncClient, api_db: AsyncSession
+):
+    """The name is user-controlled; it must never be spliced into the inline JS handler.
+
+    HTML escaping alone is not enough there: the browser decodes `&#39;` back to `'`
+    before the attribute value is parsed as JavaScript, so a quote ends the string.
+    """
+    from html.parser import HTMLParser
+
+    from sqlalchemy import select
+
+    await _admin_login(api_client)
+    hostile = "x'); alert(1); //\\ </script><b>"
+    email = f"hostile_{uuid.uuid4().hex[:8]}@example.com"
+    await _create_user_via_admin(api_client, email, name=hostile)
+    user = (await api_db.execute(select(User).where(User.email == email))).scalar_one()
+
+    class DeleteFormFinder(HTMLParser):
+        def __init__(self) -> None:
+            super().__init__()
+            self.forms: list[dict[str, str | None]] = []
+
+        def handle_starttag(self, tag, attrs):
+            attributes = dict(attrs)
+            if tag == "form" and (attributes.get("action") or "").endswith(f"/{user.id}/delete"):
+                self.forms.append(attributes)
+
+    resp = await api_client.get("/admin/users")
+    assert resp.status_code == 200
+    finder = DeleteFormFinder()
+    finder.feed(resp.text)
+
+    assert len(finder.forms) == 1
+    form = finder.forms[0]
+    handler = form["onsubmit"] or ""
+    # Attribute values come back already HTML-decoded, i.e. exactly what the JS engine sees.
+    assert hostile not in handler
+    assert "alert(1)" not in handler
+    assert form["data-name"] == hostile
+
+
 # ---------------------------------------------------------------------------
 # Verify
 # ---------------------------------------------------------------------------

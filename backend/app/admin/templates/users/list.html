@@ -136,8 +136,10 @@
             <button class="btn-sm btn-outline" type="submit">Reset pwd</button>
           </form>
           {% endif %}
+          {# The name is user-controlled: keep it in a data attribute, never inside the JS string. #}
           <form method="post" action="/admin/users/{{ user.id }}/delete"
-                onsubmit="return confirm('Permanently delete {{ user.name }}? This also deletes every project, story, task, comment and history entry they created. This cannot be undone.')">
+                data-name="{{ user.name }}"
+                onsubmit="return confirm('Permanently delete ' + this.dataset.name + '? This also deletes every project, story, task, comment and history entry they created. This cannot be undone.')">
             <button class="btn-sm btn-danger" type="submit">Delete</button>
           </form>
         </div>
