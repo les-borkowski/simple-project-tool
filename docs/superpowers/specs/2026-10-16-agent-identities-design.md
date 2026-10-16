@@ -61,7 +61,8 @@ Agent rows: global `role = contributor`, `email_confirmed = true`, `is_blocked =
 
 - **Create**: a human (JWT only) creates an agent with a name; the response returns the
   first API key once, plus label, scopes and expiry (reusing existing key creation).
-- **Deactivate** (replaces delete): sets `is_blocked = true` and revokes all its keys.
+- **Deactivate** (replaces delete): sets `is_blocked = true` and revokes all its keys
+  *(so a deactivated agent's key returns 401, not 403 `ACCOUNT_BLOCKED` — see Implementation notes)*.
   History, comments and tasks remain, attributed to the agent. Reactivation allowed.
 - **Owner blocked** → their agents are rejected too (checked in
   `get_current_user_or_api_key`: load the owner when `kind == 'agent'`).
@@ -82,7 +83,8 @@ Agent rows: global `role = contributor`, `email_confirmed = true`, `is_blocked =
 - **Project role for agents**: Contributor or Manager, chosen at attach time (existing
   `project_members.role`). The UI warns that Manager lets the agent create/delete.
   Contributors cannot create stories/tasks (`require_manager` guards create paths), so
-  agents that must create tasks need Manager on that project.
+  agents that must create tasks need Manager on that project. *(Incorrect: Contributors can
+  create stories and tasks — see Implementation notes.)*
 - Agents never authenticate by password or JWT: `login`, `resend_confirmation`,
   `request_password_reset` and the admin reset in `users_service.py` reject `kind == 'agent'`
   (the null `password_hash` already fails bcrypt, but guard explicitly and return the same
@@ -130,7 +132,8 @@ Frontend:
 - Model/migration: constraint rejects an agent with an email or a human without one;
   per-owner name uniqueness; RESTRICT blocks deleting an owner with agents.
 - Auth: agent key authenticates and acts as the agent; agent cannot log in, reset a
-  password, or call `/agents/*`; deactivated agent and agent of a blocked owner get 403.
+  password, or call `/agents/*`; deactivated agent and agent of a blocked owner get 403 *(a deactivated agent's keys are
+  revoked, so it gets 401 — see Implementation notes)*.
 - Authorization: non-owner cannot manage; owner who is only Contributor on a project
   cannot attach; attached agent sees only its projects (404/403 elsewhere).
 - Attribution: comment, status change and task creation by an agent show the agent's id
@@ -145,3 +148,17 @@ Frontend:
 
 Single migration, backward compatible (`kind` defaults to `human`; existing rows satisfy
 the CHECK). No data backfill. Frontend ships with the backend since responses gain `kind`.
+
+## Implementation notes (post-build)
+
+Deviations and findings from the build. The sections above are left as written, apart from three inline pointers here.
+
+- **Deactivated agents get 401, not 403.** Deactivation revokes the agent's keys, so the key lookup fails before the `ACCOUNT_BLOCKED` check. 403 `ACCOUNT_BLOCKED` applies when the agent's owner is blocked (or is not a human).
+- **Cascades when a human's access changes.** Removing a human from a project removes their agents' memberships there. Demoting a human to Contributor demotes their agents in that project. Both are skipped for the project owner, who keeps Manager access through `Project.owner_id`.
+- **Other managers.** A non-owner Manager may remove someone else's agent but may not change its role (404 `Agent not found`).
+- **Human-only guards in the service layer.** `require_human` runs in the services for member, project, status and LLM credential management, and in token refresh, change-password and confirm-password-reset, in addition to the route-level `get_current_human` on `/agents/*` and `POST /projects/{id}/agents`.
+- **Owner check on key use.** An agent's API key also requires its owner to be an unblocked human; otherwise 403 `ACCOUNT_BLOCKED`.
+- **Manager gives an agent no extra capability today (corrects the Authorization section).** Contributors can already create stories and tasks through API-key routes. Only deleting tasks and stories and moving stories need Manager, and those routes are JWT-only. Member and project management routes are JWT-only too, so an agent can never use them in either role. The end-to-end test (`backend/tests/test_agent_mcp_flow.py`) showed this.
+- **Open product decision.** The UI string `agents.manager_warning` ("Managers can create and delete content; only grant this to agents that need it") overstates the above. It is kept as conservative wording. Whether to restrict agents to Contributor in v1 is undecided.
+- **Agent cap is count-then-insert.** `agent_service.create_agent` counts the owner's agents, then inserts. A concurrent race can overshoot the limit; this is tolerated.
+- **Follow-up (pre-existing issue).** `backend/app/admin/templates/users/list.html` interpolates the user name into an inline JavaScript string in the delete confirmation. Agent names now make this reachable by ordinary users. Use `|tojson`.

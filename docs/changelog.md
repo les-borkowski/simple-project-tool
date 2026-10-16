@@ -2,6 +2,24 @@
 
 All notable changes to simple-project-tool are documented here. Format: reverse chronological (newest first).
 
+## [2026-10-16] - Features: agent identities
+
+**Category**: Features
+
+**Agents are now identities of their own.** An API key used to act as the person who owned it, so everything a script or AI assistant did appeared under that person's name. You can now create an agent under **Settings → Agents**: it has its own name and API keys, and its comments, status changes and tasks are attributed to it and marked with a **Bot** badge. The key is shown once, when it is created.
+
+**Agents only reach the projects they were added to.** Add one from a project's **Members** tab (**Add agent**) with the role Contributor or Manager. Only the agent's owner can add it, and only to projects the owner manages. Removing a person from a project removes the agents they own there, and demoting them to Contributor demotes those agents.
+
+**Agents are deactivated, not deleted.** Deactivating revokes all of the agent's keys; its history stays. A user can own up to 20 agents (`MAX_AGENTS_PER_USER`), deactivated ones included. If the owner's account is blocked, the agent's keys stop working too.
+
+**Agents cannot manage anything.** They cannot log in, change passwords, accept invitations, use Quick capture, or manage members, projects, statuses or credentials. `/agents/*` and `POST /projects/{id}/agents` need a browser login (JWT), not an API key.
+
+**API changes.** New `/agents` endpoints; `kind` on user and member responses; `author_kind` on comments; `email` is `null` for agents. The `users` table gains `kind` and `owner_id`, and `email` and `password_hash` become nullable (migration `3e927d96d495`). The admin user list marks agents with **Bot**, and dashboard user totals count humans only.
+
+**Also**: Contributors can already create and update stories and tasks through API keys; the architecture overview wrongly listed those routes as Manager-only. Only deleting tasks and stories and moving stories need Manager, and those routes are JWT-only.
+
+---
+
 ## [2026-09-12] - Security & correctness: pre-deploy review fixes
 
 **Category**: Security, Fixes

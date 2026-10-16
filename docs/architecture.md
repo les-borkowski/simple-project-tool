@@ -7,7 +7,7 @@
 A three-level work hierarchy (Project → Story → Task) with:
 - Status tracking: each project owns its own ordered status set (stored in the `project_statuses` table); new projects are seeded with `to_do`, `in_progress`, `in_review`, `done`
 - Priority levels: `low`, `medium`, `high`
-- Role-based access control: Manager (create/delete/manage) vs Contributor (view/update status/comment)
+- Role-based access control: Manager (delete, move, manage members and settings) vs Contributor (view, create and update stories and tasks, comment)
 - Global + per-project role overrides
 - Comments on any item
 - Status history with elapsed-time tracking
@@ -38,7 +38,7 @@ The codebase follows **clearly separated layers**, each with distinct responsibi
 Schema, ORM models, migrations. No business logic.
 
 - **models/** — SQLAlchemy ORM definitions
-  - `user.py` — Users, roles, API keys
+  - `user.py` — Users, roles. `kind` is `human` or `agent`; agents have `owner_id` (a human), no email and no password (`email` and `password_hash` are nullable; CHECK `ck_users_kind_shape` ties the shape to `kind`). Agent names are unique per owner, case-insensitively (partial unique index `uq_users_agent_owner_name`). `owner_id` is `ON DELETE RESTRICT`: most `created_by` FKs cascade, so deleting a user row would erase what it wrote — agents are deactivated (`is_blocked`), never deleted
   - `project.py` — Projects, members, metadata
   - `story.py` — Stories (medium-level work items)
   - `task.py` — Tasks (smallest work items; always bound to a story — project-level tasks use the project's default Backlog story)
@@ -63,7 +63,9 @@ User auth, permissions, credential management. Decoupled from API routes.
   - Role precedence: per-project role > global role
   - Project owner always has Manager access
   - Permission checks: `require_project_access()`, `require_manager()`
+  - `require_human()` raises 403 `HUMAN_ONLY` for agents. Services call it on member, project, status and credential management, invitations, token refresh, and password change and reset
 - **dependencies.py** — FastAPI `Depends()` for token extraction, validation, API key auth
+  - `get_current_human` — Bearer JWT only (never reads `X-API-Key`) and rejects agents. Used by `/agents/*`, `POST /projects/{id}/agents` and `POST /auth/change-password`
 
 **Key Pattern:** Authentication is **not** tied to specific endpoints. The auth layer is reusable and tested independently. Routes use `Depends()` to inject authenticated users.
 
@@ -75,6 +77,7 @@ HTTP request/response handling, business logic orchestration.
   - `/api/v1/auth/` — Login, register, token refresh
   - `/api/v1/users/` — User profile, settings
   - `/api/v1/projects/` — Project CRUD, members, invitations
+  - `/api/v1/agents/` — Agent identities and their API keys (JWT only)
   - `/api/v1/stories/` — Story CRUD
   - `/api/v1/tasks/` — Task CRUD (under stories OR directly under projects)
   - `/api/v1/comments/` — Comments on projects, stories, tasks
@@ -100,11 +103,12 @@ React frontend. Communicates only via REST API (no direct DB access).
   - `ProjectDetailPage.tsx` — Project board (Kanban by status), stories, members
   - `StoryDetailPage.tsx` — Story detail, comments, tasks list
   - `TaskDetailPage.tsx` — Task detail, status/priority/assignee, comments
-  - `SettingsPage.tsx` — User profile, API keys, preferences
+  - `ConfigPage.tsx` — Settings: profile, API keys, agents, AI providers, security. `/config?tab=agents` opens the Agents tab directly
   - `InvitationsPage.tsx` — Pending project invitations
 
 - **components/** — Reusable UI components
-  - `common/` — StatusPill, PriorityBars, Avatar, ConfirmDialog, MarkdownEditor, etc.
+  - `common/` — StatusPill, PriorityBars, Avatar, ConfirmDialog, MarkdownEditor, BotBadge (the "Bot" pill shown next to agent names), etc.
+  - `config/` — `AgentList.tsx` (Settings → Agents: create, rename, deactivate/reactivate, manage keys), plus the API key and AI provider lists
   - `comments/` — CommentList, CommentForm
   - `status-history/` — StatusHistoryTimeline
 
@@ -117,7 +121,7 @@ React frontend. Communicates only via REST API (no direct DB access).
 - **services/api.ts** — HTTP client wrapper
   - Axios configured with base URL, error handling
   - Type-safe API methods
-  - `projectsApi`, `storiesApi`, `tasksApi`, `commentsApi`, etc.
+  - `projectsApi` (incl. `addAgent`), `storiesApi`, `tasksApi`, `commentsApi`, `agentsApi`, etc.
 
 - **context/** — Global state
   - `AuthContext` — Current user, token, login/logout
@@ -256,6 +260,25 @@ POST   /auth/refresh            — Refresh expired token
 POST   /auth/logout             — Invalidate token
 ```
 
+Agents cannot use these: login, confirmation resend, password reset and change, and token refresh all reject them.
+
+### Agent Endpoints
+
+All require a human Bearer JWT (`get_current_human`); an API key gets 401, and an agent gets 403 `HUMAN_ONLY`. Only the owner can see or change an agent; anyone else gets 404 `Agent not found`.
+
+```
+POST   /agents                       — Create agent + first API key (key shown once)
+GET    /agents                       — List your agents
+PATCH  /agents/{id}                  — Rename
+POST   /agents/{id}/deactivate       — Block agent, revoke all its keys (204)
+POST   /agents/{id}/reactivate       — Unblock; revoked keys stay revoked
+GET    /agents/{id}/api-keys         — List active keys
+POST   /agents/{id}/api-keys         — Mint a key (409 AGENT_INACTIVE if deactivated)
+DELETE /agents/{id}/api-keys/{key_id} — Revoke a key
+```
+
+Errors: 409 `AGENT_LIMIT_REACHED` (at `MAX_AGENTS_PER_USER`, default 20, deactivated agents included), 409 `AGENT_NAME_TAKEN`. There is no delete.
+
 ### Project Endpoints
 
 ```
@@ -269,6 +292,7 @@ GET    /projects/{id}/members   — List project members
 POST   /projects/{id}/members   — Add member (manager only)
 PATCH  /projects/{id}/members/{user_id}  — Change role (manager only)
 DELETE /projects/{id}/members/{user_id}  — Remove member (manager only)
+POST   /projects/{id}/agents    — Attach one of your agents (manager of the project AND the agent's owner; JWT only; 404 `Agent not found` otherwise, 409 `AGENT_INACTIVE` if deactivated, 409 "User is already a member")
 
 GET    /projects/{id}/invitations    — List pending invites
 POST   /projects/{id}/invitations    — Send invite (manager only)
@@ -277,28 +301,28 @@ POST   /invitations/{id}/accept      — Accept invite
 POST   /invitations/{id}/decline     — Decline invite
 
 GET    /projects/{id}/stories   — List stories
-POST   /projects/{id}/stories   — Create story (manager only)
+POST   /projects/{id}/stories   — Create story
 
 GET    /projects/{id}/tasks     — List project-level tasks
-POST   /projects/{id}/tasks     — Create project-level task (manager only)
+POST   /projects/{id}/tasks     — Create project-level task
 ```
 
 ### Story Endpoints
 
 ```
 GET    /stories/{id}            — Get story detail
-PATCH  /stories/{id}            — Update story (manager only)
+PATCH  /stories/{id}            — Update story
 DELETE /stories/{id}            — Delete story (manager only)
 
 GET    /stories/{id}/tasks      — List story's tasks
-POST   /stories/{id}/tasks      — Create task (manager only)
+POST   /stories/{id}/tasks      — Create task
 ```
 
 ### Task Endpoints
 
 ```
 GET    /tasks/{id}              — Get task detail
-PATCH  /tasks/{id}              — Update task (manager only)
+PATCH  /tasks/{id}              — Update task
 DELETE /tasks/{id}              — Delete task (manager only)
 ```
 
@@ -315,6 +339,8 @@ PATCH  /comments/{id}           — Edit comment (author only)
 DELETE /comments/{id}           — Delete comment (author only)
 ```
 
+Comment responses carry `author_kind` (`human` or `agent`). Member and user responses carry `kind`, and their `email` is `null` for agents.
+
 ### API Conventions
 
 - **Versioning**: `/api/v1/` prefix
@@ -322,7 +348,7 @@ DELETE /comments/{id}           — Delete comment (author only)
 - **Pagination**: Cursor-based `?cursor=<id>&limit=25` (max 100)
 - **Filtering**: `?status=in_progress&priority=high&q=search`
 - **Error Format**: `{"error": {"code": "...", "message": "...", "details": [...]}}`
-- **Authentication**: Bearer token in `Authorization: Bearer <token>` or `X-API-Key: <key>`
+- **Authentication**: Bearer token in `Authorization: Bearer <token>` or `X-API-Key: <key>`. An agent's key acts as the agent: comments, status changes and tasks are attributed to it. The key is also rejected (403 `ACCOUNT_BLOCKED`) when the agent's owner is blocked. Deactivating an agent revokes its keys, so they return 401
 - **API Key Scopes**: `read:projects`, `write:projects`, `read:stories`, `write:stories`, `read:tasks`, `write:tasks`, `read:comments`, `write:comments`, `admin` (a `write:X` scope implies `read:X`). `write:projects` is defined but currently unused by any route — it's aspirational, only appearing as an example scope string in CLI help text. Actual scoped-key coverage per resource: GET only on projects (list, get, list members); GET/POST/PATCH on stories and tasks; GET/POST on comments (create and list — no PATCH, so an API key can't edit a comment, matching the MCP server's `add_comment`-only tool). Project create/update/archive/restore, all member management, deletes, admin/config endpoints, and most of `/auth` remain JWT-only (`GET /auth/me` is the exception: an API key can call it too, and the response includes the key's label and scopes)
 
 ### Documentation
@@ -347,8 +373,8 @@ Enforced at service layer. Two roles:
 
 | Role | Scope | Permissions |
 |------|-------|-------------|
-| **Manager** | Per-project | Create, update, delete items; manage members; manage invitations |
-| **Contributor** | Per-project | View items; update status; add comments |
+| **Manager** | Per-project | Everything a Contributor can, plus delete tasks and stories, move stories, manage members and invitations, and edit project settings |
+| **Contributor** | Per-project | View items; create and update stories and tasks (incl. status); add comments |
 
 **Precedence**: Per-project role > global role. Project owner always has Manager access.
 
@@ -359,6 +385,14 @@ role = await resolve_role(user, project_id, db)
 if role != 'manager':
     raise PermissionDenied("Only managers can delete")
 ```
+
+**Agents.** An agent is a `users` row with `kind='agent'` that belongs to a human owner (up to `MAX_AGENTS_PER_USER`). Its role in each project is set when it is attached and can be Contributor or Manager. Rules:
+
+- Only the agent's owner can attach it, and only to projects where the owner is a Manager. Other Managers can see and remove it but not attach it. Only the owner can change its role (others get 404 `Agent not found`). Adding an agent through the normal `POST /projects/{id}/members` returns 404.
+- An agent never outlives or outranks its owner in a project. Removing a human from a project removes their agents' memberships there. Demoting a human to Contributor demotes their agents in that project. Both are skipped for the project owner, who keeps Manager access through `Project.owner_id`.
+- Agents cannot create projects, manage members, statuses or LLM credentials, accept invitations, or use natural-language capture (403 `HUMAN_ONLY`). Capture resolution matches assignees by name when a member has no email.
+- Admin panel (`/admin/users`): agents show a "Bot" marker and their owner's name, with no email, verify or reset-password actions. Dashboard user totals and weekly trends count humans only. Deleting a user who still owns agents is refused.
+- Manager gives an agent no extra capability over API-key routes today: Contributors can already create and update stories and tasks, and the routes that need Manager (delete task or story, move story) are JWT-only.
 
 ### 3. Data Flow
 
@@ -502,7 +536,7 @@ frontend/
 │   │   ├── ProjectDetailPage.tsx
 │   │   ├── StoryDetailPage.tsx
 │   │   ├── TaskDetailPage.tsx
-│   │   ├── SettingsPage.tsx
+│   │   ├── ConfigPage.tsx
 │   │   └── InvitationsPage.tsx
 │   ├── components/
 │   │   ├── common/
