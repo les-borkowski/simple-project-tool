@@ -98,6 +98,7 @@ function stubApi({ taskPending = false }: { taskPending?: boolean } = {}) {
     joined_at: new Date().toISOString(),
     name: manager.name,
     email: manager.email,
+    kind: 'human',
   }
 
   const resolveWith = <T,>(data: T) => (taskPending ? pending : settled(data))

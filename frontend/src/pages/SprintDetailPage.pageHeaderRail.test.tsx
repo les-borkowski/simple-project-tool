@@ -82,6 +82,7 @@ function stubApi(
     joined_at: new Date().toISOString(),
     name: user.name,
     email: user.email,
+    kind: 'human',
   }
 
   vi.mocked(sprintsApi.get).mockImplementation(() => {

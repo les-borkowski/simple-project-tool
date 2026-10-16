@@ -62,6 +62,7 @@ async function renderPageWithAssignedTask() {
     joined_at: new Date().toISOString(),
     name: manager.name,
     email: manager.email,
+    kind: 'human',
   }
   const task = makeTask({
     id: 'task-1',

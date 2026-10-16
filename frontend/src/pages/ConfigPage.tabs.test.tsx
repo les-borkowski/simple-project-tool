@@ -33,6 +33,7 @@ vi.mock('../services/api', async (importOriginal) => {
       listMembers: vi.fn(),
     },
     authApi: { ...actual.authApi, changePassword: vi.fn() },
+    agentsApi: { ...actual.agentsApi, list: vi.fn().mockResolvedValue({ data: [] }) },
     // Arrowing through the tab strip briefly mounts both ApiKeyList and
     // AiProvidersList — stub their fetches to resolved empty lists rather than
     // let real axios calls hit the network in jsdom.
@@ -267,7 +268,16 @@ describe('ConfigPage app settings section nav', () => {
     expect(screen.getByRole('tab', { name: /Profile/ })).toHaveAttribute('aria-selected', 'false')
   })
 
-  it('arrows from Profile through API Keys and AI Providers to Security', async () => {
+  it('shows the agents list when the Agents tab is activated', async () => {
+    const user = userEvent.setup()
+    renderConfigPage()
+
+    await user.click(screen.getByRole('tab', { name: /Agents/ }))
+
+    expect(await screen.findByText('No agents yet')).toBeInTheDocument()
+  })
+
+  it('arrows from Profile through API Keys, Agents and AI Providers to Security', async () => {
     const user = userEvent.setup()
     setViewportWidth(1280)
     renderConfigPage()
@@ -276,6 +286,10 @@ describe('ConfigPage app settings section nav', () => {
     await user.keyboard('{ArrowDown}')
 
     expect(document.activeElement).toBe(screen.getByRole('tab', { name: /API Keys/ }))
+
+    await user.keyboard('{ArrowDown}')
+
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: /Agents/ }))
 
     await user.keyboard('{ArrowDown}')
 

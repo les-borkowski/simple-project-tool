@@ -82,6 +82,7 @@ function stubApi({ storyPending = false }: { storyPending?: boolean } = {}) {
     joined_at: new Date().toISOString(),
     name: manager.name,
     email: manager.email,
+    kind: 'human',
   }
 
   // While the page is loading, EVERY request is left in flight — otherwise a

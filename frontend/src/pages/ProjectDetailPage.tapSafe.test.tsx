@@ -56,6 +56,7 @@ async function setupHeaderToolbar() {
     joined_at: new Date().toISOString(),
     name: manager.name,
     email: manager.email,
+    kind: 'human',
   }
 
   vi.mocked(projectsApi.get).mockResolvedValue({ data: project } as never)
@@ -81,6 +82,7 @@ async function setupStoriesRow(story: StoryResponse) {
     joined_at: new Date().toISOString(),
     name: manager.name,
     email: manager.email,
+    kind: 'human',
   }
 
   vi.mocked(projectsApi.get).mockResolvedValue({ data: project } as never)
@@ -139,6 +141,7 @@ async function setupMembersTab() {
     joined_at: new Date().toISOString(),
     name: manager.name,
     email: manager.email,
+    kind: 'human',
   }
 
   vi.mocked(projectsApi.get).mockResolvedValue({ data: project } as never)
