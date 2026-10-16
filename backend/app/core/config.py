@@ -66,6 +66,9 @@ class Settings(BaseSettings):
     # and set this to False to close that amplification for good.
     API_KEY_LEGACY_PREFIX_FALLBACK: bool = True
 
+    # Cap on agent identities a single user can own.
+    MAX_AGENTS_PER_USER: int = 20
+
     # Credential encryption — Fernet key for encrypting user-supplied LLM API keys at rest.
     # Dedicated from SECRET_KEY: rotating SECRET_KEY must not brick stored credentials.
     # Empty disables BYO credentials.
