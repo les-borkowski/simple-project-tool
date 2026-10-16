@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.schemas.invitation import InvitationCreate, InvitationResponse
-from app.auth.permissions import require_manager, require_project_access
+from app.auth.permissions import require_human, require_manager, require_project_access
 from app.db.base import InvitationStatusEnum, RoleEnum
 from app.db.models import Invitation, Project, ProjectMember, User
 
@@ -99,6 +99,7 @@ async def cancel_invitation(invitation_id: uuid.UUID, user: User, db: AsyncSessi
 
 async def accept_invitation(invitation_id: uuid.UUID, user: User, db: AsyncSession) -> None:
     """Accept an invitation."""
+    require_human(user)
     from sqlalchemy import select as sa_select
 
     # Lock the invitation row to prevent double-accept race condition
@@ -134,6 +135,7 @@ async def accept_invitation(invitation_id: uuid.UUID, user: User, db: AsyncSessi
 
 async def decline_invitation(invitation_id: uuid.UUID, user: User, db: AsyncSession) -> None:
     """Decline an invitation."""
+    require_human(user)
     invitation = await db.get(Invitation, invitation_id)
     if not invitation:
         raise HTTPException(status_code=404, detail="Invitation not found")
@@ -150,6 +152,7 @@ async def decline_invitation(invitation_id: uuid.UUID, user: User, db: AsyncSess
 
 async def list_my_invitations(user: User, db: AsyncSession) -> list[InvitationResponse]:
     """List pending invitations for the current user."""
+    require_human(user)
     stmt = (
         select(Invitation)
         .where(

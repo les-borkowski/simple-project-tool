@@ -31,7 +31,7 @@ from app.api.services.llm_usage_service import (
 from app.api.services.project_service import list_members
 from app.api.services.story_service import get_default_story
 from app.api.services.task_service import assemble_task
-from app.auth.permissions import require_not_demo, require_project_access
+from app.auth.permissions import require_human, require_not_demo, require_project_access
 from app.core.config import settings
 from app.core.llm import get_llm_client_for
 from app.core.llm.base import LLMNotConfigured
@@ -77,7 +77,9 @@ def resolve_assignee_hint(
     if len(name_matches) == 1:
         return name_matches[0].user_id, True
 
-    email_matches = [m for m in members if m.email.split("@", 1)[0].casefold() == folded]
+    email_matches = [
+        m for m in members if m.email and m.email.split("@", 1)[0].casefold() == folded
+    ]
     if len(email_matches) == 1:
         return email_matches[0].user_id, True
 
@@ -111,6 +113,7 @@ async def preview_capture(
     separately before anything is persisted. Does record a rate-limiting
     usage event (token count) for the caller.
     """
+    require_human(user)
     # Imported here, not at module level, to avoid a circular import: app.api.main
     # imports app.api.routes.tasks at startup, which imports this module.
     from app.api.main import translate
@@ -251,6 +254,7 @@ async def confirm_capture(
     project_id: uuid.UUID, payload: ConfirmRequest, user: User, db: AsyncSession
 ) -> ConfirmResponse:
     """Create real tasks from a reviewed capture batch. All-or-nothing: a 4xx creates zero tasks."""
+    require_human(user)
     require_not_demo(user)
 
     project = await db.get(Project, project_id)

@@ -13,7 +13,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.schemas.api_key import APIKeyIdentity
 from app.api.schemas.user import MeResponse, UserCreate, UserResponse
 from app.api.services import auth_service
-from app.auth.dependencies import get_current_user, get_current_user_or_api_key
+from app.auth.dependencies import (
+    get_current_human,
+    get_current_user_or_api_key,
+)
 from app.auth.security import create_email_confirmation_token
 from app.core.config import settings
 from app.core.email import send_admin_new_user_notification, send_confirmation_email
@@ -151,7 +154,7 @@ class ChangePasswordRequest(BaseModel):
 @router.post("/change-password")
 async def change_password(
     data: ChangePasswordRequest,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_current_human),
     db: AsyncSession = Depends(get_db),
 ):
     """Change password for the currently authenticated user."""

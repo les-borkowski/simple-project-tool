@@ -53,7 +53,7 @@ class MemberResponse(BaseModel):
     role: RoleEnum
     joined_at: datetime
     name: str
-    email: str
+    email: str | None
 
     class Config:
         from_attributes = True

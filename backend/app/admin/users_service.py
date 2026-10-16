@@ -3,12 +3,20 @@ from datetime import UTC, datetime
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.services.llm_usage_service import WINDOW
+from app.auth.permissions import require_human
 from app.auth.security import create_password_reset_token, hash_password
 from app.db.base import LocaleEnum, RoleEnum, ThemeEnum
 from app.db.models import LLMUsageEvent, User, UserConfig
+
+OWNER_FK_NAME = "users_owner_id_fkey"
+
+
+class UserHasAgentsError(Exception):
+    """Raised when deleting a user who still owns agents."""
 
 
 async def get_all_users(db: AsyncSession) -> list[User]:
@@ -87,8 +95,19 @@ async def disable_demo(db: AsyncSession, user_id: uuid.UUID) -> None:
 
 async def delete_user(db: AsyncSession, user_id: uuid.UUID) -> None:
     user = await _get_user_or_404(db, user_id)
-    await db.delete(user)
-    await db.commit()
+    agent_count = await db.scalar(
+        select(func.count()).select_from(User).where(User.owner_id == user_id)
+    )
+    if agent_count:
+        raise UserHasAgentsError("User still owns agents; delete or reassign them first")
+    try:
+        await db.delete(user)
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        if OWNER_FK_NAME not in str(exc.orig):
+            raise
+        raise UserHasAgentsError("User still owns agents; delete or reassign them first") from exc
 
 
 async def set_llm_limits(
@@ -124,5 +143,6 @@ async def send_password_reset(db: AsyncSession, user_id: uuid.UUID, background_t
     from app.core.email import send_password_reset_email
 
     user = await _get_user_or_404(db, user_id)
+    require_human(user)
     token = create_password_reset_token(user.id, user.password_changed_at)
     background_tasks.add_task(send_password_reset_email, user.email, user.name, token)
