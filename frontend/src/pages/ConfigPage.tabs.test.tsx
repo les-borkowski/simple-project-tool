@@ -33,6 +33,7 @@ vi.mock('../services/api', async (importOriginal) => {
       listMembers: vi.fn(),
     },
     authApi: { ...actual.authApi, changePassword: vi.fn() },
+    agentsApi: { ...actual.agentsApi, list: vi.fn().mockResolvedValue({ data: [] }) },
     // Arrowing through the tab strip briefly mounts both ApiKeyList and
     // AiProvidersList — stub their fetches to resolved empty lists rather than
     // let real axios calls hit the network in jsdom.
@@ -47,7 +48,7 @@ vi.mock('../services/api', async (importOriginal) => {
 
 import { authApi, projectsApi } from '../services/api'
 
-function renderConfigPage(auth: { logout?: () => Promise<void> } = {}) {
+function renderConfigPage(auth: { logout?: () => Promise<void> } = {}, route?: string) {
   vi.mocked(projectsApi.list).mockResolvedValue({
     data: { items: [makeProject({ id: 'proj-1', name: 'Apollo' })], next_cursor: null },
   } as never)
@@ -57,6 +58,7 @@ function renderConfigPage(auth: { logout?: () => Promise<void> } = {}) {
   vi.mocked(projectsApi.listMembers).mockResolvedValue({ data: [] } as never)
 
   return renderWithProviders(<ConfigPage />, {
+    route,
     auth: {
       user: makeUser({ name: 'Ada Lovelace', email: 'ada@example.com' }),
       isAuthenticated: true,
@@ -267,7 +269,29 @@ describe('ConfigPage app settings section nav', () => {
     expect(screen.getByRole('tab', { name: /Profile/ })).toHaveAttribute('aria-selected', 'false')
   })
 
-  it('arrows from Profile through API Keys and AI Providers to Security', async () => {
+  it('opens the Agents tab when the URL says ?tab=agents', async () => {
+    renderConfigPage({}, '/config?tab=agents')
+
+    expect(screen.getByRole('tab', { name: /Agents/ })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByText('No agents yet')).toBeInTheDocument()
+  })
+
+  it('falls back to Profile for an unknown ?tab= value', () => {
+    renderConfigPage({}, '/config?tab=bogus')
+
+    expect(screen.getByRole('tab', { name: /Profile/ })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('shows the agents list when the Agents tab is activated', async () => {
+    const user = userEvent.setup()
+    renderConfigPage()
+
+    await user.click(screen.getByRole('tab', { name: /Agents/ }))
+
+    expect(await screen.findByText('No agents yet')).toBeInTheDocument()
+  })
+
+  it('arrows from Profile through API Keys, Agents and AI Providers to Security', async () => {
     const user = userEvent.setup()
     setViewportWidth(1280)
     renderConfigPage()
@@ -276,6 +300,10 @@ describe('ConfigPage app settings section nav', () => {
     await user.keyboard('{ArrowDown}')
 
     expect(document.activeElement).toBe(screen.getByRole('tab', { name: /API Keys/ }))
+
+    await user.keyboard('{ArrowDown}')
+
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: /Agents/ }))
 
     await user.keyboard('{ArrowDown}')
 

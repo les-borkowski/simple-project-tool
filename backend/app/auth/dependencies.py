@@ -43,6 +43,18 @@ async def get_current_user(
     return user
 
 
+async def get_current_human(
+    token: str | None = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> "User":
+    """Bearer-JWT-only auth: never reads X-API-Key, and rejects agents."""
+    from app.auth.permissions import require_human
+
+    user = await get_current_user(token=token, db=db)
+    require_human(user)
+    return user
+
+
 async def _find_api_key(db: AsyncSession, api_key_header: str) -> "APIKey | None":
     """Look up the APIKey matching the raw header, bcrypt-checking one bucket at a time."""
     from sqlalchemy import or_, select
@@ -127,7 +139,7 @@ async def get_current_user_or_api_key(
     # 2. Try X-API-Key header
     api_key_header = request.headers.get("X-API-Key")
     if api_key_header:
-        from app.db.models.user import User
+        from app.db.models.user import KIND_AGENT, KIND_HUMAN, User
 
         key_record = await _find_api_key(db, api_key_header)
         if key_record:
@@ -145,6 +157,11 @@ async def get_current_user_or_api_key(
             # Mirrors the JWT path: blocking an account must also kill its un-revoked keys.
             if user.is_blocked:
                 raise HTTPException(403, "ACCOUNT_BLOCKED")
+            # An agent has no credentials of its own to block, so it follows its owner.
+            if user.kind == KIND_AGENT:
+                owner = await db.get(User, user.owner_id)
+                if owner is None or owner.is_blocked or owner.kind != KIND_HUMAN:
+                    raise HTTPException(403, "ACCOUNT_BLOCKED")
             return user
 
     raise HTTPException(401, "Not authenticated")

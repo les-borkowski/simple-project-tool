@@ -14,6 +14,7 @@ For detailed architecture, tech stack, data models, and API structure, see **[`d
 - **Frontend**: React 19 + TypeScript + Vite + Tailwind
 - **Auth**: JWT (stateless) + bcrypt, Role-based access control (Manager/Contributor)
 - **Features**: Three-level hierarchy, status tracking, comments, member management, API keys for agents
+- **Agent identities**: a user can create agents (Settings → Agents) — `users` rows with `kind='agent'`, their own API keys, per-project membership and role, shown with a "Bot" badge. Their activity is attributed to the agent, not the owner. Cap: `MAX_AGENTS_PER_USER` (default 20)
 - **MCP**: `spt-mcp` (`backend/app/mcp/`) exposes the API as an MCP server for LLM hosts (Claude Code, Claude Desktop)
 - **i18n**: en-GB, pl (via i18next)
 
@@ -61,6 +62,7 @@ npm run lint                      # Lint
 - Each level has: status, priority, comments, status history
 - Status is a string slug, not an enum; each project owns its status set in the `project_statuses` table (seeded with `to_do`, `in_progress`, `in_review`, `done`), validated by `validate_status_slug`
 - Status history is immutable (audit trail + time tracking)
+- `users.kind` is `human` or `agent`. Agents have `owner_id` (a human), NULL `email` and NULL `password_hash` (CHECK `ck_users_kind_shape`); `email`/`password_hash` are nullable in the schema, so code reading `user.email` must tolerate `None`. Agents are deactivated (`is_blocked=True`, keys revoked), never deleted
 
 ## Working with the Code
 
@@ -98,6 +100,10 @@ npm run lint                      # Lint
 | Default "Backlog" story per project | Project-level tasks attach to it, so the board can show project-level + story-level tasks without a storyless case |
 | Per-project status sets | Projects configure their own workflow; status stored as a slug string validated against `project_statuses` |
 | Project-level task URL | `/projects/:projectId/tasks/:taskId` — board addresses the task without a story in the URL; backend `GET /tasks/{id}` needs no story_id; route added alongside `/stories/:storyId/tasks/:taskId` |
+| Agents are `users` rows with `kind` | Memberships, comments, history and RBAC key off `user_id` and work unchanged; no polymorphic actor |
+| `owner_id` FK is `RESTRICT`; agents are deactivated, not deleted | Most `created_by` FKs and `projects.owner_id` cascade, so deleting a user row would erase what it wrote |
+| `require_human()` in services; `get_current_human` on routes | Agents must not manage members, projects, statuses, credentials, passwords or invitations. `get_current_human` is Bearer-JWT only (ignores `X-API-Key`), so `/agents/*` and `POST /projects/{id}/agents` cannot be reached with an API key |
+| `MAX_AGENTS_PER_USER` cap | Counts deactivated agents too, so deactivate/create cycles cannot bypass it. Plain count-then-insert; a race can overshoot |
 
 ## Important Notes
 
@@ -106,7 +112,8 @@ npm run lint                      # Lint
 - **Security**: `.env` file with secrets (DB_URL, SECRET_KEY); never commit
 - **Async**: FastAPI is async; database calls use async driver (asyncpg)
 - **i18n**: Add keys to both `en-GB.json` and `pl.json`
-- **Roles**: Manager (create/delete/manage), Contributor (view/update status/comment). Per-project role overrides global role.
+- **Agent endpoints**: agent-facing routes (tasks, stories, comments) still use `require_scope`; member/project/status/credential management and `/agents/*` stay human-only. An agent's key also needs its owner to be an unblocked human (else 403 `ACCOUNT_BLOCKED`); a deactivated agent's keys are revoked (401)
+- **Roles**: Manager (delete/move/manage members and settings), Contributor (view/create/update stories and tasks/comment). Per-project role overrides global role.
 - **Type safety**: Use TypeScript frontend types, Pydantic schemas backend (enforce at boundaries)
 
 ## References

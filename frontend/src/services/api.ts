@@ -69,6 +69,7 @@ export interface CommentResponse {
   body: string
   author_id: string
   author_name: string
+  author_kind: 'human' | 'agent'
   created_at: string
   updated_at: string
 }
@@ -78,7 +79,8 @@ export interface MemberResponse {
   role: Role
   joined_at: string
   name: string
-  email: string
+  kind: 'human' | 'agent'
+  email: string | null
 }
 
 export interface InvitationResponse {
@@ -341,6 +343,8 @@ export const projectsApi = {
   listMembers: (id: string) => api.get<MemberResponse[]>(`/projects/${id}/members`),
   addMember: (id: string, data: { user_id: string; role: Role }) =>
     api.post(`/projects/${id}/members`, data),
+  addAgent: (id: string, data: { agent_id: string; role: Role }) =>
+    api.post<MemberResponse>(`/projects/${id}/agents`, data),
   updateMember: (id: string, userId: string, data: { role: Role }) =>
     api.patch(`/projects/${id}/members/${userId}`, data),
   removeMember: (id: string, userId: string) =>
@@ -564,6 +568,35 @@ export const configApi = {
   setLlmProvider: (provider: string, data: UserLlmProviderUpdate) =>
     api.patch<UserLlmProviderResponse>(`/config/llm-providers/${provider}`, data),
   deleteLlmProvider: (provider: string) => api.delete(`/config/llm-providers/${provider}`),
+}
+
+// ---------------------------------------------------------------------------
+// Agents API
+// ---------------------------------------------------------------------------
+
+export interface AgentResponse {
+  id: string
+  name: string
+  is_active: boolean
+  created_at: string
+  key_count: number
+}
+
+export interface AgentCreatedResponse extends AgentResponse {
+  key: ApiKeyCreatedResponse
+}
+
+export const agentsApi = {
+  list: () => api.get<AgentResponse[]>('/agents'),
+  create: (data: { name: string; scopes?: string[]; expires_in_days?: number }) =>
+    api.post<AgentCreatedResponse>('/agents', data),
+  rename: (id: string, name: string) => api.patch<AgentResponse>(`/agents/${id}`, { name }),
+  deactivate: (id: string) => api.post(`/agents/${id}/deactivate`),
+  reactivate: (id: string) => api.post<AgentResponse>(`/agents/${id}/reactivate`),
+  listKeys: (id: string) => api.get<ApiKeyResponse[]>(`/agents/${id}/api-keys`),
+  createKey: (id: string, data: { label: string; scopes: string[] }) =>
+    api.post<ApiKeyCreatedResponse>(`/agents/${id}/api-keys`, data),
+  revokeKey: (id: string, keyId: string) => api.delete(`/agents/${id}/api-keys/${keyId}`),
 }
 
 // ---------------------------------------------------------------------------

@@ -119,7 +119,7 @@ def members(project_id: str = typer.Argument(...)) -> None:
         table.add_row(
             short_id(m["user_id"]),
             m.get("name", ""),
-            m.get("email", ""),
+            m.get("email") or "-",
             t(f"role.{m.get('role', '')}"),
         )
     console.print(table)

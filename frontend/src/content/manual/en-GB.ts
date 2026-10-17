@@ -492,6 +492,15 @@ export const manualEnGB: ManualContent = {
           t: 'p',
           text: 'The Members tab lists everyone with access. Managers can remove a member from there. Removing someone takes away their access; the work they did stays.',
         },
+        { t: 'h3', text: 'Adding an agent' },
+        {
+          t: 'p',
+          text: 'Create the agent first, under [Settings](#settings) → **Agents**. Then open the project\'s **Members** tab and choose **Add agent**, pick the agent and a role. Only the agent\'s owner can add it, and only to a project the owner manages. Agents show a **Bot** badge in the member list and on their comments.',
+        },
+        {
+          t: 'p',
+          text: "Within its key's scopes, a Contributor agent can already read, create and update stories and tasks, and comment. Agents cannot manage members, projects or settings in either role. If you are removed from a project, or demoted to Contributor, the agents you own there are removed or demoted too.",
+        },
       ],
     },
     {
@@ -518,6 +527,19 @@ export const manualEnGB: ManualContent = {
         {
           t: 'p',
           text: 'Scoped keys for scripts, integrations and AI agents. Covered under [For power users](#power).',
+        },
+        { t: 'h4', text: 'Agents' },
+        {
+          t: 'p',
+          text: 'An agent is an identity for a script or AI assistant, with its own name and API keys. What it does is recorded under its name and marked with a **Bot** badge, instead of appearing as you. Agents only see the projects you add them to.',
+        },
+        {
+          t: 'ul',
+          items: [
+            '**Create** an agent with a name and the scopes its key allows; its first key is shown once, so copy it before closing the dialog. Add more keys, or revoke them, from the agent\'s **Keys** list.',
+            '**Deactivate** an agent to revoke all its keys at once. Its comments, tasks and history stay. **Reactivate** brings the agent back, but revoked keys stay revoked, so create a new key.',
+            'Agents cannot be deleted, and you can own at most **20** — deactivated ones count.',
+          ],
         },
         { t: 'h4', text: 'AI Providers' },
         {

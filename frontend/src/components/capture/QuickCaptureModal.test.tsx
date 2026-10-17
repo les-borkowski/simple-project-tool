@@ -39,6 +39,7 @@ function primeApi() {
     joined_at: new Date().toISOString(),
     name: currentUser.name,
     email: currentUser.email,
+    kind: 'human',
   }
   vi.mocked(projectsApi.listMembers).mockResolvedValue({ data: [member] } as never)
   vi.mocked(storiesApi.list).mockResolvedValue({

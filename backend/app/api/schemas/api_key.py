@@ -14,6 +14,13 @@ VALID_SCOPES = set(SCOPE_HIERARCHY.keys()) | {
 }
 
 
+def validate_scopes(v: list[str]) -> list[str]:
+    invalid = [s for s in v if s not in VALID_SCOPES]
+    if invalid:
+        raise ValueError(f"Unknown scopes: {invalid}. Valid: {sorted(VALID_SCOPES)}")
+    return v
+
+
 class APIKeyCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     label: str
@@ -22,13 +29,7 @@ class APIKeyCreate(BaseModel):
     # stored in config files on user machines.
     expires_in_days: int = Field(default=DEFAULT_KEY_LIFETIME_DAYS, ge=1, le=3650)
 
-    @field_validator("scopes")
-    @classmethod
-    def validate_scopes(cls, v: list[str]) -> list[str]:
-        invalid = [s for s in v if s not in VALID_SCOPES]
-        if invalid:
-            raise ValueError(f"Unknown scopes: {invalid}. Valid: {sorted(VALID_SCOPES)}")
-        return v
+    _check_scopes = field_validator("scopes")(validate_scopes)
 
 
 class APIKeyIdentity(BaseModel):

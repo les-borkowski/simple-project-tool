@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/auth-context'
 import { useTheme, type AccentColor } from '../context/theme-context'
 import { LocaleSwitcher } from '../components/config/LocaleSwitcher'
 import { ThemeSwitcher } from '../components/config/ThemeSwitcher'
 import { ApiKeyList } from '../components/config/ApiKeyList'
+import { AgentList } from '../components/config/AgentList'
 import { AiProvidersList } from '../components/config/AiProvidersList'
 import { projectsApi, authApi, isDemoBlockedError } from '../services/api'
 import type { ProjectResponse } from '../services/api'
@@ -27,7 +28,7 @@ const ACCENT_COLORS: Record<AccentColor, string> = {
   stone: '#44403c',
 }
 
-type Tab = 'profile' | 'api_keys' | 'ai_providers' | 'security'
+type Tab = 'profile' | 'api_keys' | 'agents' | 'ai_providers' | 'security'
 type TopTab = 'app' | 'project'
 
 // Each scope's body is the panel of the tablist above it, so both ids are
@@ -44,6 +45,11 @@ const SECTION_TABS_ID = 'config-sections'
 const IKey = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
     <circle cx="8" cy="15" r="4"/><path d="m11 12 9-9-3-3-2 2 1 1-2 2-1-1-2 2 1 1-1 1 1 1z"/>
+  </svg>
+)
+const IBot = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+    <rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4M9 14h.01M15 14h.01"/>
   </svg>
 )
 const IUser = () => (
@@ -67,7 +73,9 @@ export function ConfigPage() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const { accent, setAccent } = useTheme()
-  const [tab, setTab] = useState<Tab>('profile')
+  const [searchParams] = useSearchParams()
+  // Deep link from the project Members tab ("create an agent first").
+  const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'agents' ? 'agents' : 'profile')
   const [topTab, setTopTab] = useState<TopTab>('app')
   const [projects, setProjects] = useState<ProjectResponse[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')
@@ -181,6 +189,7 @@ export function ConfigPage() {
     () => [
       { key: 'profile', label: t('config.profile'), icon: <IUser /> },
       { key: 'api_keys', label: t('config.api_keys'), icon: <IKey /> },
+      { key: 'agents', label: t('config.agents'), icon: <IBot /> },
       { key: 'ai_providers', label: t('config.ai_providers'), icon: <ISparkle /> },
       { key: 'security', label: t('config.security'), icon: <IShield /> },
     ],
@@ -277,6 +286,18 @@ export function ConfigPage() {
                 </div>
                 <div className="p-5">
                   <ApiKeyList />
+                </div>
+              </section>
+            )}
+
+            {tab === 'agents' && (
+              <section className="rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 overflow-hidden">
+                <div className="px-5 py-4 border-b border-stone-100 dark:border-stone-800">
+                  <h3 className="text-ui-lg font-medium">{t('config.agents')}</h3>
+                  <p className="text-ui-sm text-stone-500 mt-0.5">{t('config.agents_desc')}</p>
+                </div>
+                <div className="p-5">
+                  <AgentList />
                 </div>
               </section>
             )}

@@ -15,6 +15,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from app.admin.auth import AdminAuthRequired
 from app.admin.router import router as admin_router
 from app.api.routes import (
+    agents,
     auth,
     comments,
     config,
@@ -212,6 +213,7 @@ app.include_router(comments.router, prefix="/api/v1")
 app.include_router(invitations.router, prefix="/api/v1")
 app.include_router(time_tracking.router, prefix="/api/v1")
 app.include_router(config.router, prefix="/api/v1")
+app.include_router(agents.router, prefix="/api/v1")
 app.include_router(recent.router, prefix="/api/v1")
 app.include_router(search.router, prefix="/api/v1")
 app.include_router(project_statuses_router, prefix="/api/v1")

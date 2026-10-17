@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.base import RoleEnum
+from app.db.models.user import KIND_AGENT
 
 if TYPE_CHECKING:
     from app.db.models.user import User
@@ -50,6 +51,12 @@ def require_not_demo(user: User) -> None:
     """Raise HTTPException(403) if user is a demo account."""
     if user.is_demo:
         raise HTTPException(status_code=403, detail="DEMO_ACCOUNT")
+
+
+def require_human(user: User) -> None:
+    """Raise HTTPException(403) if user is an agent identity."""
+    if user.kind == KIND_AGENT:
+        raise HTTPException(status_code=403, detail="HUMAN_ONLY")
 
 
 async def require_project_access(user: User, project_id: UUID, db: AsyncSession) -> RoleEnum:

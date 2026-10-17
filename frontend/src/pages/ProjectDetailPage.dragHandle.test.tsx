@@ -54,6 +54,7 @@ async function setupStoriesTabWithOneTask() {
     joined_at: new Date().toISOString(),
     name: manager.name,
     email: manager.email,
+    kind: 'human',
   }
 
   vi.mocked(projectsApi.get).mockResolvedValue({ data: project } as never)

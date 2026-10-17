@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.pagination import decode_cursor, encode_cursor
 from app.api.schemas.common import PaginatedResponse
 from app.api.schemas.project import (
+    AgentMemberAdd,
     MemberAdd,
     MemberResponse,
     ProjectCreate,
@@ -16,9 +17,15 @@ from app.api.schemas.project import (
     ProjectUpdate,
 )
 from app.api.utils import escape_like
-from app.auth.permissions import require_manager, require_not_demo, require_project_access
+from app.auth.permissions import (
+    require_human,
+    require_manager,
+    require_not_demo,
+    require_project_access,
+)
 from app.db.base import PriorityEnum, RoleEnum
 from app.db.models import Project, ProjectMember, StatusHistory, Story, User
+from app.db.models.user import KIND_AGENT
 
 _logger = logging.getLogger(__name__)
 
@@ -76,6 +83,7 @@ async def list_projects(
 
 async def create_project(data: ProjectCreate, user: User, db: AsyncSession) -> ProjectResponse:
     """Create a new project. Only managers can create projects."""
+    require_human(user)
     require_not_demo(user)
     require_manager(user.role)
 
@@ -147,6 +155,7 @@ async def update_project(
     project_id: uuid.UUID, data: ProjectUpdate, user: User, db: AsyncSession
 ) -> ProjectResponse:
     """Update a project. Only project managers can update."""
+    require_human(user)
     require_not_demo(user)
     project = await db.get(Project, project_id)
     if not project:
@@ -189,6 +198,7 @@ async def update_project(
 
 async def delete_project(project_id: uuid.UUID, user: User, db: AsyncSession) -> None:
     """Delete a project. Only project managers can delete."""
+    require_human(user)
     require_not_demo(user)
     project = await db.get(Project, project_id)
     if not project:
@@ -203,6 +213,7 @@ async def delete_project(project_id: uuid.UUID, user: User, db: AsyncSession) ->
 
 async def archive_project(project_id: uuid.UUID, user: User, db: AsyncSession) -> ProjectResponse:
     """Archive a project. Only managers can archive."""
+    require_human(user)
     require_not_demo(user)
     project = await db.get(Project, project_id)
     if not project:
@@ -218,6 +229,7 @@ async def archive_project(project_id: uuid.UUID, user: User, db: AsyncSession) -
 
 async def restore_project(project_id: uuid.UUID, user: User, db: AsyncSession) -> ProjectResponse:
     """Restore an archived project. Only managers can restore."""
+    require_human(user)
     require_not_demo(user)
     project = await db.get(Project, project_id)
     if not project:
@@ -263,15 +275,32 @@ async def list_members(project_id: uuid.UUID, user: User, db: AsyncSession) -> l
                 joined_at=m.joined_at,
                 name=member_user.name,
                 email=member_user.email,
+                kind=member_user.kind,
             )
         )
     return result
+
+
+async def _owned_agent_members(
+    project_id: uuid.UUID, owner_id: uuid.UUID, db: AsyncSession
+) -> list[ProjectMember]:
+    stmt = (
+        select(ProjectMember)
+        .join(User, User.id == ProjectMember.user_id)
+        .where(
+            ProjectMember.project_id == project_id,
+            User.owner_id == owner_id,
+            User.kind == KIND_AGENT,
+        )
+    )
+    return list((await db.scalars(stmt)).all())
 
 
 async def add_member(
     project_id: uuid.UUID, data: MemberAdd, user: User, db: AsyncSession
 ) -> MemberResponse:
     """Add a member to a project. Only managers can add members."""
+    require_human(user)
     require_not_demo(user)
     project = await db.get(Project, project_id)
     if not project:
@@ -279,6 +308,10 @@ async def add_member(
 
     role = await require_project_access(user, project_id, db)
     require_manager(role)
+
+    target = await db.get(User, data.user_id)
+    if target is not None and target.kind == KIND_AGENT:
+        raise HTTPException(status_code=404, detail="User not found")
 
     # Check if member already exists
     stmt = select(ProjectMember).where(
@@ -305,6 +338,50 @@ async def add_member(
         joined_at=member.joined_at,
         name=member_user.name,
         email=member_user.email,
+        kind=member_user.kind,
+    )
+
+
+async def add_agent_member(
+    project_id: uuid.UUID, data: AgentMemberAdd, user: User, db: AsyncSession
+) -> MemberResponse:
+    """Attach one of the caller's own agents to a project. Only managers can."""
+    require_human(user)
+    require_not_demo(user)
+    project = await db.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    role = await require_project_access(user, project_id, db)
+    require_manager(role)
+
+    # Manager check first: a non-owner manager must see 404, not learn the agent exists.
+    agent = await db.get(User, data.agent_id)
+    if agent is None or agent.kind != KIND_AGENT or agent.owner_id != user.id:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    if agent.is_blocked:
+        raise HTTPException(status_code=409, detail="AGENT_INACTIVE")
+
+    existing = await db.scalar(
+        select(ProjectMember).where(
+            and_(ProjectMember.project_id == project_id, ProjectMember.user_id == agent.id)
+        )
+    )
+    if existing:
+        raise HTTPException(status_code=409, detail="User is already a member")
+
+    member = ProjectMember(project_id=project_id, user_id=agent.id, role=data.role)
+    db.add(member)
+    await db.flush()
+    await db.commit()
+
+    return MemberResponse(
+        user_id=member.user_id,
+        role=member.role,
+        joined_at=member.joined_at,
+        name=agent.name,
+        email=None,
+        kind=agent.kind,
     )
 
 
@@ -312,6 +389,7 @@ async def update_member_role(
     project_id: uuid.UUID, target_user_id: uuid.UUID, role: RoleEnum, user: User, db: AsyncSession
 ) -> MemberResponse:
     """Update a member's role in a project. Only managers can update."""
+    require_human(user)
     require_not_demo(user)
     project = await db.get(Project, project_id)
     if not project:
@@ -330,16 +408,26 @@ async def update_member_role(
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
 
+    member_user = await db.get(User, target_user_id)
+    if member_user is not None and member_user.kind == KIND_AGENT:
+        # Only the owner may re-role their agent; other managers can list/remove it.
+        if member_user.owner_id != user.id:
+            raise HTTPException(status_code=404, detail="Agent not found")
+    elif role == RoleEnum.contributor and target_user_id != project.owner_id:
+        # An agent must never outrank its owner in a project.
+        for agent_member in await _owned_agent_members(project_id, target_user_id, db):
+            agent_member.role = RoleEnum.contributor
+
     member.role = role
     await db.commit()
 
-    member_user = await db.get(User, target_user_id)
     return MemberResponse(
         user_id=member.user_id,
         role=member.role,
         joined_at=member.joined_at,
         name=member_user.name,
         email=member_user.email,
+        kind=member_user.kind,
     )
 
 
@@ -347,6 +435,7 @@ async def remove_member(
     project_id: uuid.UUID, target_user_id: uuid.UUID, user: User, db: AsyncSession
 ) -> None:
     """Remove a member from a project. Only managers can remove."""
+    require_human(user)
     require_not_demo(user)
     project = await db.get(Project, project_id)
     if not project:
@@ -364,6 +453,13 @@ async def remove_member(
     member = await db.scalar(stmt)
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
+
+    target = await db.get(User, target_user_id)
+    # The project owner keeps manager access via Project.owner_id, so their agents stay.
+    if target is not None and target.kind != KIND_AGENT and target_user_id != project.owner_id:
+        # An agent must never outlive its owner's access to the project.
+        for agent_member in await _owned_agent_members(project_id, target_user_id, db):
+            await db.delete(agent_member)
 
     await db.delete(member)
     await db.commit()

@@ -520,6 +520,15 @@ export const manualPl: ManualContent = {
           t: 'p',
           text: 'Karta Członkowie wymienia wszystkich z dostępem. Menedżerowie mogą stamtąd usunąć członka. Usunięcie odbiera dostęp; wykonana przez tę osobę praca zostaje.',
         },
+        { t: 'h3', text: 'Dodawanie agenta' },
+        {
+          t: 'p',
+          text: 'Najpierw utwórz agenta w [Ustawieniach](#settings) → **Agenci**. Potem otwórz kartę **Członkowie** projektu, wybierz **Dodaj agenta**, wskaż agenta i rolę. Dodać agenta może tylko jego właściciel i tylko do projektu, którym zarządza. Agenci mają plakietkę **Bot** na liście członków i przy swoich komentarzach.',
+        },
+        {
+          t: 'p',
+          text: 'W granicach zakresów swojego klucza agent z rolą Współpracownika może już czytać, tworzyć i aktualizować historyjki oraz zadania, a także komentować. W żadnej z ról agenci nie mogą zarządzać członkami, projektami ani ustawieniami. Jeśli zostaniesz usunięty z projektu lub obniżony do Współpracownika, należący do Ciebie agenci tam również zostaną usunięci lub obniżeni.',
+        },
       ],
     },
     {
@@ -546,6 +555,19 @@ export const manualPl: ManualContent = {
         {
           t: 'p',
           text: 'Klucze z ograniczonym zakresem dla skryptów, integracji i agentów AI. Opisane w [Dla zaawansowanych](#power).',
+        },
+        { t: 'h4', text: 'Agenci' },
+        {
+          t: 'p',
+          text: 'Agent to tożsamość dla skryptu lub asystenta AI, z własną nazwą i własnymi kluczami API. To, co robi, jest zapisywane pod jego nazwą i oznaczone plakietką **Bot**, zamiast występować jako Twoje. Agenci widzą tylko te projekty, do których ich dodasz.',
+        },
+        {
+          t: 'ul',
+          items: [
+            '**Utwórz** agenta, podając nazwę i zakresy, na jakie pozwala jego klucz; pierwszy klucz jest pokazywany tylko raz, więc skopiuj go przed zamknięciem okna. Kolejne klucze dodasz, a obecne unieważnisz na liście **Klucze** agenta.',
+            '**Dezaktywuj** agenta, aby od razu unieważnić wszystkie jego klucze. Jego komentarze, zadania i historia zostają. **Aktywuj ponownie** przywraca agenta, ale unieważnione klucze pozostają unieważnione, więc utwórz nowy klucz.',
+            'Agentów nie można usuwać, a jedna osoba może mieć najwyżej **20** — dezaktywowani też się wliczają.',
+          ],
         },
         { t: 'h4', text: 'Dostawcy AI' },
         {

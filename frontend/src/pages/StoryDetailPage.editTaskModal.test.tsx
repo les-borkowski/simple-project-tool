@@ -65,6 +65,7 @@ function stubApi() {
     joined_at: new Date().toISOString(),
     name: manager.name,
     email: manager.email,
+    kind: 'human',
   }
 
   vi.mocked(storiesApi.get).mockResolvedValue({ data: STORY } as never)

@@ -4,6 +4,7 @@ import { commentsApi, isDemoBlockedError } from '../../services/api'
 import type { CommentResponse } from '../../services/api'
 import { useAuth } from '../../context/auth-context'
 import { useToast } from '../../context/ToastContext'
+import { BotBadge } from '../common/BotBadge'
 import { EmptyState } from '../common/EmptyState'
 import { formatDate } from '../../utils/format'
 import i18n from '../../i18n'
@@ -105,7 +106,10 @@ export function CommentList({ itemType, itemId }: Props) {
           {comments.map((c) => (
             <div key={c.id} className="bg-white dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-600 p-4">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium">{c.author_name}</span>
+                <span className="flex items-center gap-2 text-sm font-medium">
+                  {c.author_name}
+                  {c.author_kind === 'agent' && <BotBadge />}
+                </span>
                 <span className="text-xs text-stone-400">{formatDate(c.created_at, i18n.language)}</span>
               </div>
               {editId === c.id ? (

@@ -21,10 +21,11 @@ class UserUpdate(BaseModel):
 
 class UserResponse(BaseModel):
     id: UUID
-    email: str
+    email: str | None
     name: str
     role: RoleEnum
     is_demo: bool
+    kind: str
     created_at: datetime
 
     class Config:

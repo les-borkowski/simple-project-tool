@@ -251,6 +251,7 @@ CREDENTIAL_ENCRYPTION_KEY=<new>
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `API_KEY_LEGACY_PREFIX_FALLBACK` | Keep matching API keys issued before `key_prefix` existed. Those rows can only be rotated, not backfilled; set to `False` once they are gone | `True` |
+| `MAX_AGENTS_PER_USER` | Maximum agent identities one user can own. Deactivated agents count toward it. Creating another returns 409 `AGENT_LIMIT_REACHED` | `20` |
 
 Check whether any remain:
 

@@ -7,7 +7,7 @@ ALLOWED_TREND_TABLES = frozenset(("users", "projects", "stories", "tasks"))
 
 
 async def get_totals(db: AsyncSession) -> dict:
-    users = await db.scalar(select(func.count()).select_from(User))
+    users = await db.scalar(select(func.count()).select_from(User).where(User.kind == "human"))
     projects = await db.scalar(select(func.count()).select_from(Project))
     stories = await db.scalar(select(func.count()).select_from(Story))
     tasks = await db.scalar(select(func.count()).select_from(Task))
@@ -25,6 +25,7 @@ async def get_totals(db: AsyncSession) -> dict:
 async def get_weekly_trends(db: AsyncSession) -> dict[str, list[dict]]:
     result = {}
     for table_name in ("users", "projects", "stories", "tasks"):
+        kind_filter = "AND t.kind = 'human'" if table_name == "users" else ""
         assert table_name in ALLOWED_TREND_TABLES, f"Unexpected table: {table_name}"
         rows = await db.execute(
             text(
@@ -41,7 +42,7 @@ async def get_weekly_trends(db: AsyncSession) -> dict[str, list[dict]]:
                     COALESCE(COUNT(t.created_at), 0) AS count
                 FROM weeks w
                 LEFT JOIN {table_name} t
-                    ON date_trunc('week', t.created_at) = w.week
+                    ON date_trunc('week', t.created_at) = w.week {kind_filter}
                 GROUP BY w.week
                 ORDER BY w.week
                 """

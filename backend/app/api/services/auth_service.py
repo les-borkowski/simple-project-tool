@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.user import UserCreate, UserResponse
-from app.auth.permissions import require_not_demo
+from app.auth.permissions import require_human, require_not_demo
 from app.auth.security import (
     create_access_token,
     create_password_reset_token,
@@ -18,6 +18,7 @@ from app.auth.security import (
 )
 from app.db.base import LocaleEnum, RoleEnum, ThemeEnum
 from app.db.models import User, UserConfig
+from app.db.models.user import KIND_HUMAN
 
 # One reset email per account per window. Long enough to stop a mail-bomb, short enough
 # that a user who genuinely mistyped their inbox is not locked out for the afternoon.
@@ -72,10 +73,10 @@ async def login(email: str, password: str, db: AsyncSession) -> dict:
     """Authenticate user and return tokens."""
     from datetime import UTC, datetime
 
-    stmt = select(User).where(User.email == email)
+    stmt = select(User).where(User.email == email, User.kind == KIND_HUMAN)
     user = await db.scalar(stmt)
 
-    if not user:
+    if not user or user.password_hash is None:
         verify_password(password, _get_dummy_hash())  # constant-time: prevent user enumeration
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not verify_password(password, user.password_hash):
@@ -111,6 +112,7 @@ async def refresh_token_fn(refresh_token_str: str, db: AsyncSession) -> dict:
     user = await db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    require_human(user)
 
     if not user.email_confirmed:
         raise HTTPException(status_code=403, detail="EMAIL_NOT_CONFIRMED")
@@ -134,7 +136,7 @@ async def resend_confirmation(email: str, db: AsyncSession, background_tasks) ->
     from app.auth.security import create_email_confirmation_token
     from app.core.email import send_confirmation_email
 
-    stmt = select(User).where(User.email == email)
+    stmt = select(User).where(User.email == email, User.kind == KIND_HUMAN)
     user = await db.scalar(stmt)
 
     if user and not user.email_confirmed:
@@ -158,7 +160,7 @@ async def request_password_reset(email: str, db: AsyncSession, background_tasks=
 
     from app.core.email import send_password_reset_email
 
-    stmt = select(User).where(User.email == email)
+    stmt = select(User).where(User.email == email, User.kind == KIND_HUMAN)
     user = await db.scalar(stmt)
 
     if not user:
@@ -193,6 +195,7 @@ async def confirm_password_reset(token: str, new_password: str, db: AsyncSession
     user = await db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=400, detail="User not found")
+    require_human(user)
     # Full verification including single-use check
     verify_password_reset_token(token, user.password_changed_at)
     user.password_hash = hash_password(new_password)
@@ -205,10 +208,11 @@ async def change_password(
 ) -> None:
     """Verify current password and replace it with the new one."""
     require_not_demo(user)
+    require_human(user)
     from datetime import UTC
     from datetime import datetime as dt
 
-    if not verify_password(current_password, user.password_hash):
+    if user.password_hash is None or not verify_password(current_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     user.password_hash = hash_password(new_password)
     # Bump the change timestamp so any outstanding password-reset tokens are invalidated.

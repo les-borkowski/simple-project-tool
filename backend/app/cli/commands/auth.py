@@ -55,4 +55,5 @@ def whoami() -> None:
     load_locale(config.locale)
     client = APIClient(config)
     data = client.get("/auth/me")
-    console.print(f"[bold]{data['name']}[/bold] ({data['email']}) — {data['role']}")
+    who = data.get("email") or data.get("kind", "")
+    console.print(f"[bold]{data['name']}[/bold] ({who}) — {data['role']}")

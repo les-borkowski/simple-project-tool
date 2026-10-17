@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin.auth import require_admin_session
 from app.admin.users_service import (
+    UserHasAgentsError,
     block_user,
     create_user,
     delete_user,
@@ -200,6 +201,8 @@ async def users_delete(request: Request, user_id: uuid.UUID, db: AsyncSession = 
     try:
         await delete_user(db, user_id)
         _flash(request, success="User deleted")
+    except UserHasAgentsError as exc:
+        _flash(request, error=f"Error: {exc}")
     except HTTPException as exc:
         _flash(request, error=f"Error: {exc.detail}")
     return _redirect_users()

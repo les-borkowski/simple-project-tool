@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.common import PaginatedResponse
 from app.api.schemas.project import (
+    AgentMemberAdd,
     MemberAdd,
     MemberResponse,
     MemberUpdate,
@@ -17,7 +18,7 @@ from app.api.schemas.user_preferences import (
     UserProjectPreferencesUpdate,
 )
 from app.api.services import project_service, user_preferences_service
-from app.auth.dependencies import get_current_user, require_scope
+from app.auth.dependencies import get_current_human, get_current_user, require_scope
 from app.db.base import PriorityEnum
 from app.db.database import get_db
 from app.db.models import User
@@ -123,6 +124,17 @@ async def add_member(
 ):
     """Add a member to a project."""
     return await project_service.add_member(project_id, data, user, db)
+
+
+@router.post("/{project_id}/agents", response_model=MemberResponse, status_code=201)
+async def add_agent_member(
+    project_id: uuid.UUID,
+    data: AgentMemberAdd,
+    user: User = Depends(get_current_human),
+    db: AsyncSession = Depends(get_db),
+):
+    """Attach one of your agents to a project."""
+    return await project_service.add_agent_member(project_id, data, user, db)
 
 
 @router.patch("/{project_id}/members/{user_id}", response_model=MemberResponse)
